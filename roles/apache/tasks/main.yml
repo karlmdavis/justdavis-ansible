@@ -1,0 +1,21 @@
+---
+- apache2_module:
+    state: present
+    name: ssl
+  become: yes
+  notify:
+    - apache-restart
+- template:
+    src: domain-ssl.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+- command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
+  args:
+    creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"
+  become: yes
+  notify:
+    - apache-reload
+

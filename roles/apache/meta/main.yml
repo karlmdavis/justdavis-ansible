@@ -1,0 +1,21 @@
+---
+dependencies:
+
+  # This (local) role will create the directories, etc. required by the 
+  # L-P.simp_le role.
+  - role: apache_pre
+
+  # Apply and configure the `L-P.simp_le` role.
+  - role: L-P.simp_le
+    simp_le_email: "{{ domain_webmaster }}"
+    simp_le_vhosts:
+      - domains: "{{ [domain] | union(domain_site_aliases) }}"
+        root: "/var/apache2/{{ domain }}/www"
+        output: "/var/simp_le/{{ domain }}"
+        user: "{{ ansible_user }}"
+        group: "www-data"
+        extra_args: "{{ '--reuse_key' if not is_test else '--reuse_key --server https://acme-staging.api.letsencrypt.org/directory' }}"
+        # The `--server` option can be used when debugging.
+        # extra_args: "--reuse_key --server https://acme-staging.api.letsencrypt.org/directory"
+    simp_le_cache: "/usr/local/simp_le/{{ domain }}"
+

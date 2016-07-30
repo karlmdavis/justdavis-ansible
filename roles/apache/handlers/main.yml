@@ -1,0 +1,8 @@
+---
+- name: apache-reload
+  command: /usr/sbin/service apache2 reload
+  become: yes
+- name: apache-restart
+  command: /usr/sbin/service apache2 restart
+  become: yes
+

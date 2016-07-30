@@ -1,0 +1,106 @@
+---
+# This playbook provisions AWS hosts that `site.yml` can be tested against.
+#
+# Usage:
+#
+#     $ ansible-playbook test-provision.yml
+#
+# Remember: AWS hosts cost money to run, so be sure to terminate them afterwards 
+# with `test-teardown.yml`.
+
+- hosts: localhost
+  name: AWS - Provision Test Hosts
+  connection: local
+  gather_facts: false
+  
+  tasks:
+
+    # Go boom if the test inventory is already present.
+    - stat: path=./hosts-test
+      register: stat_inventory
+    - fail: msg='Test inventory already exists!'
+      when: stat_inventory.stat.exists
+
+    # Grab the current username, to log in EC2.
+    - name: Local - whoami
+      local_action: command whoami
+      register: whoami
+    
+    - name: EC2 - Provision Security Group 'ssh-all'
+      ec2_group:
+        name: ssh-all
+        description: Allows incoming traffic on port 22 (from all IPs).
+        region: "{{ region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+    
+    # This would normally be a bad idea. But in this case, we want to mimic the 
+    # setup of the production systems, which don't have a separate firewall.
+    - name: EC2 - Provision Security Group 'all'
+      ec2_group:
+        name: all
+        description: Allows all incoming traffic (from all IPs).
+        region: "{{ region }}"
+        rules:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+    
+    - name: EC2 - Provision 'eddings'
+      ec2:
+        key_name: "{{ ec2_key_name }}"
+        group:
+          - default
+          - all
+        # This instance type has 2 vCPUs and 4GB RAM
+        instance_type: t2.medium
+        image: "{{ ami_id_ubuntu_16 }}"
+        region: "{{ region }}"
+        wait: true
+        exact_count: 1
+        count_tag:
+          Name: eddings
+        instance_tags:
+          Name: eddings
+          CreatedBy: "{{ whoami.stdout }}"
+      register: ec2_eddings
+
+    # Most of the Ansible configs will use the server being stood up as the 
+    # primary DNS server during tests. However, there are some services (e.g. 
+    # Let's Encrypt) that require records to be externally resolvable during 
+    # the tests. Since Route 53 can't (easily) be used as a secondary DNS 
+    # server, we instead use a split-view DNS, where Route 53 only contains 
+    # those records that must be externally resolvable during tests.
+    - name: 'Route 53: Create Externally-Used Test Records'
+      route53:
+        command: create
+        overwrite: true
+        wait: true
+        ttl: 30
+        zone: "{{ item.zone }}"
+        record: "{{ item.record }}"
+        type: "{{ item.type }}"
+        value: "{{ item.value }}"
+      with_items:
+        - { zone: 'tests.justdavis.com', record: 'tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.justdavis.com', record: 'www.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.davisonlinehome.name', record: 'tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.davisonlinehome.name', record: 'www.tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+ 
+    - name: EC2 - Wait for SSH
+      wait_for: host={{ item.public_dns_name }} search_regex=OpenSSH port=22 state=started
+      with_items: "{{ ec2_eddings.instances }}"
+
+    - name: Write Test Inventory
+      template:
+        src: hosts-test
+        dest: ./hosts-test
+

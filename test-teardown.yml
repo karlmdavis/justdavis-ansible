@@ -1,0 +1,40 @@
+---
+# PERMANENTLY DESTROYS all AWS resources listed in the `hosts-test` inventory 
+# file. Completely, 100% non-recoverable. 
+# Use only with caution!
+#
+# Usage:
+#  
+#     $ ansible-playbook --inventory-file=hosts-test site-teardown.yml
+ 
+- hosts: all
+  name: AWS - Terminate EC2 Instances
+  
+  # Have to disable this, as the machine may not have Python 2 installed yet 
+  # (which Ansible requires).
+  gather_facts: false
+
+  tasks:
+    
+    - name: Gather EC2 Facts
+      ec2_facts:
+    
+    # Disabled due to spam, but can be used to log all inventory data about 
+    # each instance being terminated:
+    #- debug: var=hostvars[inventory_hostname]
+    
+    #- name: Instances to Terminate - List
+    #  debug: msg="EC2 Public DNS Name - {{ hostvars[inventory_hostname]['ansible_host'] }}"
+    
+    - name: Instances to Terminate - Die Die Die
+      local_action: ec2
+        state=absent
+        instance_ids="{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
+        region="{{ region }}"
+        wait=true
+ 
+    - name: Remove Test Inventory
+      local_action: file
+        path=./hosts-test
+        state=absent
+

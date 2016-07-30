@@ -1,0 +1,28 @@
+---
+#
+# Variables here are applicable to all host groups.
+#
+
+# Ubuntu 14.04 (Trusty), per https://cloud-images.ubuntu.com/locator/ec2/
+ami_id_ubuntu_14: ami-3bdd502c
+
+# Ubuntu 16.04 (Xenial), per https://cloud-images.ubuntu.com/locator/ec2/
+ami_id_ubuntu_16: ami-cf68e0d8
+
+# The domains being managed.
+# 
+# Note on Test Domains: The test variations below will actually be resolved 
+# (and so must exist) during tests. At a minimum, this is required for Let's
+# Encrypt to generate certs, but is likely required by a bunch of other 
+# services being tested. The top-level test domains (e.g. 
+# `tests.justdavis.com`) are managed via Route 53, so that the tests can 
+# *actually manage* them. It's all kinda' complicated, but works.
+domain: "{{ 'justdavis.com' if not is_test else 'tests.justdavis.com' }}"
+domain_aliases:
+  - "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
+domain_site_aliases:
+  - "{{ 'www.justdavis.com' if not is_test else 'www.tests.justdavis.com' }}"
+  - "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
+  - "{{ 'www.davisonlinehome.name' if not is_test else 'www.tests.davisonlinehome.name' }}"
+domain_webmaster: "karl@{{ domain }}"
+

@@ -1,0 +1,10 @@
+---
+# https://galaxy.ansible.com/L-P/simp_le/
+# Manages the 'simp_le' client for Let's Encrypt, which can be used to register
+# and renew free SSL certificates.
+- src: L-P.simp_le
+
+# https://galaxy.ansible.com/karlmdavis/jenkins2/
+# Installs and configures Jenkins 2.
+#- src: karlmdavis.jenkins2
+

@@ -1,0 +1,47 @@
+---
+# Apache must be installed first for two reasons: 1) we need its user and group 
+# to exist, so we can set permissions on directories correctly, and 2) we need 
+# it to be serving HTTP from the `/var/apache2/{{ domain }}/www` directory 
+# so that simp_le can register itself.
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  become: yes
+  with_items:
+    - apache2
+- file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: u=rwx,g=rwx,o=rx
+  become: yes
+  with_items:
+    - "/var/apache2/{{ domain }}"
+    - "/var/apache2/{{ domain }}/logs"
+    - "/var/apache2/{{ domain }}/www"
+- template:
+    src: domain.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+- command: "/usr/sbin/a2ensite {{ domain }}.conf"
+  args:
+    creates: "/etc/apache2/sites-enabled/{{ domain }}.conf"
+  become: yes
+  notify:
+    - apache-reload
+- file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: u=rwx,g=rwx,o=x
+  become: yes
+  with_items:
+    - /var/simp_le
+    - /usr/local/simp_le
+# By default, Ansible won't run this until the end of the play, which will 
+# cause Let's Encrypt errors. So we fire it early.
+- meta: flush_handlers

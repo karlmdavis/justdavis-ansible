@@ -1,0 +1,9 @@
+# 
+# This inventory file should contain the same hosts as the project's main 
+# `hosts` file. However, each host will be an AWS EC2 instance, with the 
+# instance's public DNS name used for the "local(-ish)" host's `ansible_host` 
+# property.
+#
+
+eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python2.7
+

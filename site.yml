@@ -1,0 +1,23 @@
+---
+# This playbook configures the Davis IT systems.
+#
+# Usage: This playbook can be run, as follows:
+#
+#     $ ansible-playbook site.yml
+
+- hosts: eddings.justdavis.com
+  name: Bootstrap Ubuntu Hosts with Python 2.7
+  gather_facts: false
+  
+  # Required with Ansible 2.1, in which most modules require Python 2.x.
+  # Reference: https://groups.google.com/forum/#!topic/ansible-project/DUKzTho3OCI
+  pre_tasks:
+    - raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
+
+- hosts: eddings.justdavis.com
+  name: Configure Systems
+  gather_facts: true
+  
+  roles:
+    - apache
+

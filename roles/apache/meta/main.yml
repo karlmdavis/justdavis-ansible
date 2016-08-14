@@ -14,7 +14,7 @@ dependencies:
         output: "/var/simp_le/{{ domain }}"
         user: "{{ ansible_user }}"
         group: "www-data"
-        extra_args: "{{ '--reuse_key' if not is_test else '--reuse_key --server https://acme-staging.api.letsencrypt.org/directory' }}"
+        extra_args: "--reuse_key --tos_sha256 6373439b9f29d67a5cd4d18cbc7f264809342dbf21cb2ba2fc7588df987a6221{{ '' if not is_test else ' --server https://acme-staging.api.letsencrypt.org/directory' }}"
         # The `--server` option can be used when debugging.
         # extra_args: "--reuse_key --server https://acme-staging.api.letsencrypt.org/directory"
     simp_le_cache: "/usr/local/simp_le/{{ domain }}"

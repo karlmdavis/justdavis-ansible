@@ -1,0 +1,16 @@
+---
+dependencies:
+
+  # Apply and configure the `karlmdavis.tested-bind` role.
+  - role: karlmdavis.tested-bind
+    zones:
+      - {name: 'justdavis.com', template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}
+      - {name: 'davisonlinehome.name', template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
+    forwarders:
+      # Google's Public DNS Servers: https://developers.google.com/speed/public-dns/
+      - 8.8.8.8
+      - 8.8.4.4
+    zone_transfer_peers:
+      # Gandi's ns6.gandi.net secondary name server
+      - 217.70.177.40
+

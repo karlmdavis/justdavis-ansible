@@ -1,0 +1,52 @@
+$TTL 1h ; sets the default time-to-live for this zone
+
+; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
+@          IN    SOA   ns1.{{ domain_alias }}.           hostmaster.{{ domain_alias }}. (
+                              2016081300 ; sn = serial number (yyyymmdd##)
+                              1h         ; ref = refresh
+                              15M        ; ret = update retry
+                              4W         ; ex = expiry
+                              1h         ; min = minimum
+                              )
+
+; Nameserver Records
+; name             ttl    class   rr                name
+@                         IN      NS                ns1.{{ domain }}.
+                          IN      NS                ns6.gandi.net.
+
+; IPv4 Address Records
+; name             ttl    class   rr                name
+@                         IN      A                 96.244.76.235
+ns1                       IN      A                 96.244.76.235
+mail                      IN      A                 96.244.76.236
+
+; CNAME Records
+; name             ttl    class   rr                name
+www                       IN      CNAME             @
+smtp                      IN      CNAME             mail
+
+; Mailserver Records
+; name             ttl    class   rr     priority   name
+@                         IN      MX     10         mail
+
+; TXT Records
+; name             ttl    class   rr                name
+@                         IN      TXT               "v=spf1 ip4:96.244.76.236 ~all"
+23324326-34C6-11E5-BA9F-6834DD816394._domainkey IN      TXT     ( "v=DKIM1; k=rsa; "
+          "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC1HonCzDWBdtv2eCK3rHjwrH9tO8uP7F/QTRdlZCkPfOWukaPe+jHF2uSOH7kZTVuC3kX2CCHgzaNyFiJIRwfuuxilc/QZr7nKwtjXvmBqdevt4KrcQErvWjrfKo5kVJ0iR98jL9wm13LKlFZgXtPhWzuZdsor6uILjT5gwQIsAQIDAQAB" )  ; ----- DKIM key 23324326-34C6-11E5-BA9F-6834DD816394 for davisonlinehome.name
+
+; SRV Records
+; name                   ttl    class   rr                name
+
+; AFSDB Records
+; cell                   ttl    class   rr                name
+
+; NS Records
+; subdomain              ttl    class   rr                name
+{% if not is_test %}
+tests.davisonlinehome.name.     IN      NS                ns-365.awsdns-45.com.
+                                IN      NS                ns-1333.awsdns-38.org.
+                                IN      NS                ns-1932.awsdns-49.co.uk.
+                                IN      NS                ns-819.awsdns-38.net.
+{% endif %}
+

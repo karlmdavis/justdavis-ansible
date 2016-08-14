@@ -4,6 +4,10 @@
 # and renew free SSL certificates.
 - src: L-P.simp_le
 
+# https://galaxy.ansible.com/karlmdavis/tested-bind/
+# Installs and configures the BIND DNS server.
+- src: karlmdavis.tested-bind
+
 # https://galaxy.ansible.com/karlmdavis/jenkins2/
 # Installs and configures Jenkins 2.
 #- src: karlmdavis.jenkins2

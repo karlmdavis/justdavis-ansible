@@ -19,5 +19,6 @@
   gather_facts: true
   
   roles:
+    - dns_server
     - apache
 

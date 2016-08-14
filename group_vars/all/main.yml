@@ -18,8 +18,7 @@ ami_id_ubuntu_16: ami-cf68e0d8
 # `tests.justdavis.com`) are managed via Route 53, so that the tests can 
 # *actually manage* them. It's all kinda' complicated, but works.
 domain: "{{ 'justdavis.com' if not is_test else 'tests.justdavis.com' }}"
-domain_aliases:
-  - "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
+domain_alias: "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
 domain_site_aliases:
   - "{{ 'www.justdavis.com' if not is_test else 'www.tests.justdavis.com' }}"
   - "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"

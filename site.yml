@@ -21,4 +21,5 @@
   roles:
     - dns_server
     - apache
+    - ldap_server
 

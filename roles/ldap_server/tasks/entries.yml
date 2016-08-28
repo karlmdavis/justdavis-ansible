@@ -1,0 +1,66 @@
+---
+# Specifies the entries that should be stored in the OpenLDAP directory.
+#
+# Yes, it seems a bit silly to duplicate all of the data in the directory here
+# in YAML. But at our small scale, this actually makes things quite a bit 
+# easier to manage.
+#
+# Note: These entries are primarily additive. Any modifications will likely 
+# require additional tasks below to update/delete the existing data.
+
+- ldap_entry: 
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'ou=people,dc=justdavis,dc=com'
+    objectClass: ['organizationalUnit']
+- ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'ou=groups,dc=justdavis,dc=com'
+    objectClass: ['organizationalUnit']
+- ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'ou=services,dc=justdavis,dc=com'
+    objectClass: ['organizationalUnit']
+
+# Create `ou=people` entries for each `people` entry (in `../vars/main.yml`).
+# Note that the `ldap_entry` module being used here does not handles updates-- 
+# only inserts.
+- ldap_entry: 
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
+    objectClass: ['inetOrgPerson', 'posixAccount']
+    uid: "{{ item.key }}"
+    cn: "{{ item.value.givenName }} {{ item.value.sn }}"
+    displayName: "{{ item.value.givenName }} {{ item.value.sn }}"
+    givenName: "{{ item.value.givenName }}"
+    sn: "{{ item.value.sn }}"
+    uidNumber: "{{ item.value.uidAndGidNumber }}"
+    gidNumber: "{{ item.value.uidAndGidNumber }}"
+    userPassword: "{{ item.value.password }}"
+    loginShell: '/bin/bash'
+    homeDirectory: "/home/{{ item.key }}"
+    mail: "{{ item.value.mail }}"
+  with_dict: "{{ people }}"
+# Create `ou=groups` entries for each `people` entry (in `../vars/main.yml`).
+- ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: "cn={{ item.key }},ou=groups,dc=justdavis,dc=com"
+    objectClass: 'posixGroup'
+    cn: "{{ item.key }}"
+    gidNumber: "{{ item.value.uidAndGidNumber }}"
+  with_dict: "{{ people }}"
+
+# Update email addresses, as needed.
+- ldap_attr:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
+    state: exact
+    name: mail
+    values: "{{ item.value.mail }}"
+  with_dict: "{{ people }}"
+

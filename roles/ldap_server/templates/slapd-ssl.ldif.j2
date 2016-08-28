@@ -1,0 +1,9 @@
+dn: cn=config
+replace: olcTLSCACertificateFile
+olcTLSCACertificateFile: /etc/ssl/certs/ca-certificates.crt
+-
+replace: olcTLSCertificateFile
+olcTLSCertificateFile: /var/simp_le/{{ domain }}/cert.pem
+-
+replace: olcTLSCertificateKeyFile
+olcTLSCertificateKeyFile: /var/simp_le/{{ domain }}/certkey.pem

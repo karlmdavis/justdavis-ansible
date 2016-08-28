@@ -1,0 +1,50 @@
+---
+# Configures OpenLDAP to require SSL connections. In today's "HTTPS Everywhere"
+# world, this is just sensible.
+#
+# It will use the Let's Encrypt certificate that was generated for the server's
+# primary domain. Accordingly, all LDAP connections will have to use a matching 
+# URL, e.g. `ldaps://justdavis.com/`.
+
+- acl:
+    name: "/var/simp_le/{{ domain }}"
+    state: present
+    etype: user
+    entity: openldap
+    permissions: "rX"
+    recursive: true
+  become: true
+- template:
+    src: templates/slapd-apparmor.j2
+    dest: /etc/apparmor.d/local/usr.sbin.slapd
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  register: slapd_apparmor
+# This has to be applied right away, or the SSL config change will fail.
+- service:
+    name: apparmor
+    state: reloaded
+  become: true
+  when: "{{ slapd_apparmor.changed }}"
+# Not sure why, but applying these slapd config attributes via `ldap_attr` 
+# fails. It seems they need to be written in a single transaction?
+- template:
+    src: templates/slapd-ssl.ldif.j2
+    dest: /etc/ldap/slapd-ssl.ldif
+  become: true
+  register: slapd_ssl_ldif
+- command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'
+  become: true
+  when: "{{ slapd_ssl_ldif.changed }}"
+- template:
+    src: templates/slapd-defaults.j2
+    dest: /etc/default/slapd
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - "Restart 'slapd'"
+

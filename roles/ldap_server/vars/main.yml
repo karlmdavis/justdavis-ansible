@@ -1,0 +1,25 @@
+---
+#
+# Variables here are applicable to the `ldap_server` role.
+#
+
+# Define all of the user+group entries to be created.
+people:
+  karl:
+    givenName: Karl
+    sn: Davis
+    uidAndGidNumber: 10000
+    mail: karl@justdavis.com
+    password: ""
+  erica:
+    givenName: Erica
+    sn: Davis
+    uidAndGidNumber: 10001
+    mail: ericaannedavis@gmail.com
+    password: ""
+  stephen:
+    givenName: Stephen
+    sn: Davis
+    uidAndGidNumber: 10002
+    mail: stephena@justdavis.com
+    password: ""

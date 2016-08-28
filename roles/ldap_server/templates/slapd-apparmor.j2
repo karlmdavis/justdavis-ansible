@@ -1,0 +1,8 @@
+# Site-specific additions and overrides for usr.sbin.slapd.
+# For more details, please see /etc/apparmor.d/local/README.
+
+# Add read access to the local certs directory.
+/usr/local/share/ca-certificates/* r,
+
+# Add read access to the certs to use.
+/var/simp_le/{{ domain }}/* r,

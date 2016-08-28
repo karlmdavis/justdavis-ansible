@@ -1,0 +1,22 @@
+---
+
+- debconf: name=slapd question='slapd/domain' value='justdavis.com' vtype='string'
+  become: true
+- debconf: name=slapd question='shared/organization' value='Davis Family' vtype='string'
+  become: true
+- debconf: name=slapd question='slapd/backend' value='HDB' vtype='string'
+  become: true
+- debconf: name=slapd question='slapd/password1' value="{{ vault_ldap_root_password }}" vtype='password'
+  become: true
+- debconf: name=slapd question='slapd/password2' value="{{ vault_ldap_root_password }}" vtype='password'
+  become: true
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - slapd
+    - db-util
+    - python-ldap
+    - ldap-utils
+  become: true
+

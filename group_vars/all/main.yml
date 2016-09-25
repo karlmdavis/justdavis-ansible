@@ -25,3 +25,23 @@ domain_site_aliases:
   - "{{ 'www.davisonlinehome.name' if not is_test else 'www.tests.davisonlinehome.name' }}"
 domain_webmaster: "karl@{{ domain }}"
 
+people:
+  karl:
+    givenName: Karl
+    sn: Davis
+    uidAndGidNumber: 10000
+    mail: karl@justdavis.com
+    initialPassword: "{{ vault_people.karl.initialPassword }}"
+  erica:
+    givenName: Erica
+    sn: Davis
+    uidAndGidNumber: 10001
+    mail: ericaannedavis@gmail.com
+    initialPassword: "{{ vault_people.erica.initialPassword }}"
+  stephen:
+    givenName: Stephen
+    sn: Davis
+    uidAndGidNumber: 10002
+    mail: stephena@justdavis.com
+    initialPassword: "{{ vault_people.stephen.initialPassword }}"
+

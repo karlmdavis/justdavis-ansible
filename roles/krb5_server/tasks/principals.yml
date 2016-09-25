@@ -1,0 +1,17 @@
+---
+##
+# Manages the principals for the domain: creating any that should exist, and 
+# (perhaps eventually) deleting any that shouldn't. The passwords used here are
+# only the **initial** ones, and should be changed by the account owners ASAP.
+#
+# For a small domain such as this one, it's easier to manage everything in 
+# Ansible like this, as opposed to manually creating the principals. 
+##
+
+- script: create-principal-if-missing.sh
+  with_dict: "{{ people }}"
+  environment:
+    KRB_PRINCIPAL_NAME: "{{ item.key }}" 
+    KRB_PRINCIPAL_PASSWORD: "{{ item.value.initialPassword }}"
+  become: true
+

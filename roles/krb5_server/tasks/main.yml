@@ -1,0 +1,6 @@
+---
+
+- include: install.yml
+- include: config-realm.yml
+- include: principals.yml
+

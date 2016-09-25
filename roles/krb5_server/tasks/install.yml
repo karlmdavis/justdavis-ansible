@@ -1,0 +1,32 @@
+---
+
+- block:
+    - debconf: name=krb5-config question='krb5-config/read_conf' value='true' vtype='boolean'
+    - debconf: name=krb5-config question='krb5-config/default_realm' value="{{ domain | upper }}" vtype='string'
+    - debconf: name=krb5-config question='krb5-config/kerberos_servers' value='' vtype='string'
+    - debconf: name=krb5-config question='krb5-config/add_servers_realm' value="{{ domain | upper }}" vtype='string'
+    - debconf: name=krb5-config question='krb5-config/add_servers' value='true' vtype='boolean'
+    - debconf: name=krb5-config question='krb5-config/admin_server' value="{{ domain }}" vtype='string'
+    - debconf: name=krb5-kdc question='krb5-kdc/debconf' value='true' vtype='boolean'
+    - debconf: name=krb5-kdc question='krb5-kdc/purge_data_too' value='false' vtype='boolean'
+    - debconf: name=krb5-admin-server question='krb5-admin-server/kadmind' value='true' vtype='boolean'
+    - debconf: name=krb5-admin-server question='krb5-admin-server/newrealm' value='' vtype='note'
+  become: true
+
+- name: Install Pre-requisites
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - expect
+    - python-pexpect
+  become: true
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - krb5-kdc
+    - krb5-admin-server
+    - expect
+    - python-pexpect
+  become: true
+  register: 'install_krb'
+

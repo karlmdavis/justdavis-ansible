@@ -39,7 +39,7 @@
     sn: "{{ item.value.sn }}"
     uidNumber: "{{ item.value.uidAndGidNumber }}"
     gidNumber: "{{ item.value.uidAndGidNumber }}"
-    userPassword: "{{ item.value.password }}"
+    userPassword: "{SASL}{{ item.key }}@{{ domain | upper }}"
     loginShell: '/bin/bash'
     homeDirectory: "/home/{{ item.key }}"
     mail: "{{ item.value.mail }}"

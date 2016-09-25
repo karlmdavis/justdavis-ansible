@@ -1,0 +1,29 @@
+---
+
+# Creates the default realm, if it's not already present.
+
+- expect:
+    command: /usr/sbin/krb5_newrealm
+    responses:
+      'Enter KDC database master key:': "{{ vault_kerberos_master_key }}"
+      'Re-enter KDC database master key to verify:': "{{ vault_kerberos_master_key }}"
+  when: "{{ install_krb.changed }}"
+  become: true
+
+- block:
+    - command: kadmin.local -q "add_policy -minlength 12 -minclasses 3 default"
+    - command: kadmin.local -q "add_policy -minlength 32 -minclasses 3 hosts"
+    - command: kadmin.local -q "add_policy -minlength 32 -minclasses 3 services"
+  when: "{{ install_krb.changed }}"
+  become: true
+
+- template:
+    src: templates/kadm5.acl.j2
+    dest: /etc/krb5kdc/kadm5.acl
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - "Restart 'krb5-admin-server'"
+

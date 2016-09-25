@@ -102,5 +102,5 @@
     - name: Write Test Inventory
       template:
         src: hosts-test
-        dest: ./hosts-test
+        dest: ./test/hosts-test
 

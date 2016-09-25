@@ -6,3 +6,7 @@ venv/
 
 # Ignore the Ansible Vault password file.
 vault.password
+
+# Ignore Ansible's `.retry` files.
+*.retry
+

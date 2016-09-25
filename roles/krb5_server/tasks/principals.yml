@@ -8,7 +8,7 @@
 # Ansible like this, as opposed to manually creating the principals. 
 ##
 
-- script: create-principal-if-missing.sh
+- script: add-principal.sh -pwexpire "0 seconds" -policy default
   with_dict: "{{ people }}"
   environment:
     KRB_PRINCIPAL_NAME: "{{ item.key }}" 

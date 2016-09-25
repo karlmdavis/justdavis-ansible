@@ -44,6 +44,8 @@
     homeDirectory: "/home/{{ item.key }}"
     mail: "{{ item.value.mail }}"
   with_dict: "{{ people }}"
+  no_log: true
+
 # Create `ou=groups` entries for each `people` entry (in `../vars/main.yml`).
 - ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
@@ -53,6 +55,7 @@
     cn: "{{ item.key }}"
     gidNumber: "{{ item.value.uidAndGidNumber }}"
   with_dict: "{{ people }}"
+  no_log: true
 
 # Update email addresses, as needed.
 - ldap_attr:
@@ -63,4 +66,5 @@
     name: mail
     values: "{{ item.value.mail }}"
   with_dict: "{{ people }}"
+  no_log: true
 

@@ -1,8 +1,16 @@
 ---
-# https://galaxy.ansible.com/L-P/simp_le/
-# Manages the 'simp_le' client for Let's Encrypt, which can be used to register
+# Run the following command against this file to install all of the Ansible roles required by this project:
+# 
+#     $ ansible-galaxy install -r install_roles.yml 
+# 
+
+# https://github.com/L-P/ansible-role-acmetool
+# Manages the 'acmetool' client for Let's Encrypt, which can be used to register
 # and renew free SSL certificates.
-- src: L-P.simp_le
+#- src: L-P.acmetool
+- src: 'https://github.com/karlmdavis/ansible-role-acmetool.git'
+  version: issue-1-multiple-domains
+  name: L-P.acmetool
 
 # https://galaxy.ansible.com/karlmdavis/tested-bind/
 # Installs and configures the BIND DNS server.

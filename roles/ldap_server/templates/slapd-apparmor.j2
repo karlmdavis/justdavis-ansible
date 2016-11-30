@@ -5,4 +5,5 @@
 /usr/local/share/ca-certificates/* r,
 
 # Add read access to the certs to use.
-/var/simp_le/{{ domain }}/* r,
+# The `**` glob here is needed because the privkey directories have randomish names.
+/var/lib/acme/** r,

@@ -1,5 +1,0 @@
----
-- name: apache-reload
-  command: /usr/sbin/service apache2 reload
-  become: yes
-

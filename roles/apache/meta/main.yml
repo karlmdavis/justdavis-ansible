@@ -1,21 +1,12 @@
 ---
 dependencies:
 
-  # This (local) role will create the directories, etc. required by the 
-  # L-P.simp_le role.
-  - role: apache_pre
-
-  # Apply and configure the `L-P.simp_le` role.
-  - role: L-P.simp_le
-    simp_le_email: "{{ domain_webmaster }}"
-    simp_le_vhosts:
-      - domains: "{{ [domain] | union(domain_site_aliases) }}"
-        root: "/var/apache2/{{ domain }}/www"
-        output: "/var/simp_le/{{ domain }}"
-        user: "{{ ansible_user }}"
-        group: "www-data"
-        extra_args: "--reuse_key --tos_sha256 6373439b9f29d67a5cd4d18cbc7f264809342dbf21cb2ba2fc7588df987a6221{{ '' if not is_test else ' --server https://acme-staging.api.letsencrypt.org/directory' }}"
-        # The `--server` option can be used when debugging.
-        # extra_args: "--reuse_key --server https://acme-staging.api.letsencrypt.org/directory"
-    simp_le_cache: "/usr/local/simp_le/{{ domain }}"
+  # Apply and configure the `L-P.acmetool` role. This will start a Let's Encrypt client that listens on port 
+  # 80, answering LE challenges, and redirecting all other traffic to port 443.
+  # LE certificates will be created as `/var/lib/acme/live/HOSTNAME/{cert,chain,fullchain,privkey}`.
+  - role: L-P.acmetool
+    become: true
+    acmetool_email: "{{ domain_webmaster }}"
+    acmetool_domains: "{{ [domain] | union(domain_site_aliases) | join(' ') }}"
+    acmetool_server: "{{ 'https://acme-v01.api.letsencrypt.org/directory' if not is_test else 'https://acme-staging.api.letsencrypt.org/directory' }}"
 

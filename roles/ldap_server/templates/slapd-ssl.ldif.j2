@@ -3,7 +3,7 @@ replace: olcTLSCACertificateFile
 olcTLSCACertificateFile: /etc/ssl/certs/ca-certificates.crt
 -
 replace: olcTLSCertificateFile
-olcTLSCertificateFile: /var/simp_le/{{ domain }}/cert.pem
+olcTLSCertificateFile: /var/lib/acme/live/{{ domain }}/cert
 -
 replace: olcTLSCertificateKeyFile
-olcTLSCertificateKeyFile: /var/simp_le/{{ domain }}/certkey.pem
+olcTLSCertificateKeyFile: /var/lib/acme/live/{{ domain }}/privkey

@@ -7,13 +7,16 @@
 # URL, e.g. `ldaps://justdavis.com/`.
 
 - acl:
-    name: "/var/simp_le/{{ domain }}"
+    name: "{{ item }}"
     state: present
     etype: user
     entity: openldap
     permissions: "rX"
     recursive: true
   become: true
+  with_items:
+    - "/var/lib/acme/live/{{ domain }}"
+    - '/var/lib/acme/keys'
 - template:
     src: templates/slapd-apparmor.j2
     dest: /etc/apparmor.d/local/usr.sbin.slapd

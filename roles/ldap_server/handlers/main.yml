@@ -5,3 +5,9 @@
     state: restarted
   become: true
 
+- name: "Restart 'saslauthd'"
+  service: 
+    name: saslauthd
+    state: restarted
+  become: true
+

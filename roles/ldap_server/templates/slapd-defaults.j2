@@ -43,3 +43,8 @@ SLAPD_SENTINEL_FILE=/etc/ldap/noslapd
 
 # Additional options to pass to slapd
 SLAPD_OPTIONS=""
+
+# Required for SASL/GSSAPI integration to work.
+# (See `tasks/sasl-gssapi.yml` for details.)
+KRB5_KTNAME=/etc/ldap/ldap.keytab
+

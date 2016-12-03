@@ -11,7 +11,7 @@
     state: present
     etype: user
     entity: openldap
-    permissions: "rX"
+    permissions: "rx"
     recursive: true
   become: true
   with_items:

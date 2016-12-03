@@ -7,3 +7,6 @@
 # Add read access to the certs to use.
 # The `**` glob here is needed because the privkey directories have randomish names.
 /var/lib/acme/** r,
+
+# Add read access to saslauthd.
+/run/saslauthd/mux rw,

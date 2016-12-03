@@ -1,0 +1,40 @@
+---
+##
+# The `sasl-gssapi.yml` configuration will allow OpenLDAP to make use of already-obtained Kerberos tickets, 
+# there are a number of services that do not support Kerberos authentication, but do support LDAP 
+# authentication. In those cases, we can use our OpenLDAP server as a kind of Kerberos proxy, or wrapper. To 
+# do this, we’ll have to configure OpenLDAP to “call out” to Kerberos via 
+# [saslauthd](http://manpages.ubuntu.com/manpages/oneiric/man8/saslauthd.8.html).
+##
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - sasl2-bin
+  become: true
+
+- name: Configure saslauthd Defaults
+  lineinfile:
+    dest: /etc/default/saslauthd
+    regexp: "{{ item.key }}"
+    line: "{{ item.value }}"
+  with_dict:
+    - '.*START=.*': 'START=yes'
+    - '.*MECHANISMS=.*': 'MECHANISMS="kerberos"'
+  become: true
+  notify:
+    - "Restart 'saslauthd'"
+
+- name: Configure OpenLDAP for saslauthd
+  lineinfile:
+    dest: /etc/ldap/sasl2/slapd.conf
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+    create: true
+    regexp: '^pwcheck_method: .*'
+    line: 'pwcheck_method: saslauthd'
+  become: true
+  notify:
+    - 'Restart slapd'
+

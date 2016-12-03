@@ -3,4 +3,5 @@
 - include: install.yml
 - include: config-ssl.yml
 - include: entries.yml
+- include: sasl-gssapi.yml
 

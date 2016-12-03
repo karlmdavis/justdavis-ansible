@@ -1,0 +1,21 @@
+dn: cn=config
+changetype: modify
+# The FQDN of the Kerberos KDC.
+replace: olcSaslHost
+olcSaslHost: kerberos.{{ domain }}
+-
+# The Kerberos realm name.
+add: olcSaslRealm
+olcSaslRealm: {{ domain | upper }}
+-
+# Disallow insecure authentication mechanisms such as plain passwords.
+add: olcSaslSecProps
+olcSaslSecProps: noplain,noanonymous,minssf=56
+-
+# By default, the DN of an authorized Kerberos client takes the form uid=<Kerberos principal name>,cn=<Kerberos Realm>,cn=GSSAPI,cn=auth
+# Adjust the following mappings to match the local configuration as necessary.
+add: olcAuthzRegexp
+olcAuthzRegexp: {0}"uid=([^/]*),cn={{ domain }},cn=GSSAPI,cn=auth" "uid=$1,ou=people,dc=justdavis,dc=com"
+# Administrative user map, assumes existence of cn=admin,cn=config
+olcAuthzRegexp: {1}"uid=karl/admin,cn={{ domain }},cn=gssapi,cn=auth" "cn=admin,cn=config"
+

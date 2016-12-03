@@ -1,0 +1,60 @@
+---
+##
+# LDAP servers (and clients) allow for multiple authentication mechanisms to be 
+# used. One of the supported mechanisms is Kerberos, and this support can be 
+# achieved by combining GSSAPI (a standardized wrapper around Kerberos 
+# authentication), with SASL (a security abstraction library that can support 
+# GSSAPI).
+##
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - libsasl2-modules-gssapi-mit
+  become: true
+
+- name: Create Host Principal for LDAP Server
+  krb_principal:
+    name: "{{ item }}"
+    policy: hosts
+  with_items:
+    - "host/eddings.{{ domain }}"
+  become: true
+
+- name: Create Host Keytab for LDAP Server
+  script: "add-keytab.sh --principal host/eddings.{{ domain }}"
+  become: true
+
+- name: Create Service Principal for LDAP Server
+  krb_principal:
+    name: "{{ item }}"
+    policy: services
+  with_items:
+    - "ldap/eddings.{{ domain }}"
+  become: true
+
+- name: Create Service Keytab for LDAP Server
+  script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
+  become: true
+
+- file:
+    path: /etc/ldap/ldap.keytab
+    state: file
+    owner: openldap
+    group: openldap
+    mode: 'u=r,g=r,o='
+  become: true
+  notify:
+    - "Restart 'slapd'"
+
+# Not sure why, but applying these slapd config attributes via `ldap_attr` 
+# fails. It seems it doesn't handle list values correctly?
+- template:
+    src: templates/slapd-sasl.ldif.j2
+    dest: /etc/ldap/slapd-sasl.ldif
+  become: true
+  register: slapd_sasl_ldif
+- command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-sasl.ldif'
+  become: true
+  when: "{{ slapd_sasl_ldif.changed }}"
+

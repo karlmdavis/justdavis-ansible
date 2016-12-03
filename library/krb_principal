@@ -1,0 +1,67 @@
+#!/usr/bin/python
+
+try:
+    import pexpect
+    HAS_PEXPECT = True
+except ImportError:
+    HAS_PEXPECT = False
+
+DOCUMENTATION = '''
+---
+module: krb_principal
+short_description: Allows Kerberos principals to be created.
+'''
+
+def main():
+    # This `module` variable will end up with fields for each of the specified args, with the values specified 
+    # for this execution of the task.
+    module = AnsibleModule(
+        argument_spec = dict(
+            state=dict(default='present', choices=['present'], type='str'),
+            name=dict(required=True, type='str'),
+            policy=dict(default=None, type='str'),
+            password=dict(default=None, type='str', no_log=True),
+            pwexpire=dict(default=None, type='str'),
+        ),
+        supports_check_mode=True
+    )
+
+    state = module.params['state']
+    name = module.params['name']
+    policy = module.params['policy']
+    password = module.params['password']
+    pwexpire = module.params['pwexpire']
+
+    if not HAS_PEXPECT:
+        module.fail_json(msg='The pexpect python module is required')
+
+    add_principal_cmd = 'add_principal'
+    if policy is not None:
+        add_principal_cmd += ' -policy {}'.format(policy)
+    if password is None:
+        add_principal_cmd += ' -randkey'
+    if pwexpire is not None:
+        add_principal_cmd += ' -pwexpire \"{}\"'.format(pwexpire)
+    add_principal_cmd += ' {}'.format(name)
+
+    kadmin_process = pexpect.spawn('/usr/sbin/kadmin.local', ['-q', add_principal_cmd], timeout=30)
+    if password is not None:
+        kadmin_process.expect('Enter password for principal .*: ')
+        kadmin_process.sendline(password)
+        kadmin_process.expect('Re-enter password for principal .*: ')
+        kadmin_process.sendline(password)
+    kadmin_process.expect(pexpect.EOF)
+    kadmin_process.close()
+
+    if kadmin_process.exitstatus != 0 or kadmin_process.signalstatus is not None:
+        module.fail_json(msg='The kadmin.local process terminated abnormally.', exitstatus=kadmin_process.exitstatus, signalstatus=kadmin_process.signalstatus)
+
+    result = {}
+    result['changed'] = True
+    module.exit_json(**result)
+
+# Required for all Ansible modules.
+from ansible.module_utils.basic import AnsibleModule
+if __name__ == '__main__':
+    main()
+

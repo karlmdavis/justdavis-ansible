@@ -1,0 +1,23 @@
+---
+##
+# Creates an 'administrators' group in LDAP and configures the directories to honor it.
+##
+
+- name: Create 'administrators' Group in LDAP
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=administrators,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'groupOfNames'
+    cn: 'administrators'
+    member: 'uid=karl,ou=people,dc=justdavis,dc=com'
+
+- template:
+    src: templates/slapd-admins.ldif.j2
+    dest: /etc/ldap/slapd-admins.ldif
+  become: true
+  register: slapd_admins_ldif
+- command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-admins.ldif'
+  become: true
+  when: "{{ slapd_admins_ldif.changed }}"
+

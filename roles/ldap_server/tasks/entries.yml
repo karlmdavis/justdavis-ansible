@@ -8,26 +8,22 @@
 # Note: These entries are primarily additive. Any modifications will likely 
 # require additional tasks below to update/delete the existing data.
 
-- ldap_entry: 
+- name: Create LDAP OUs
+  ldap_entry: 
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
-    dn: 'ou=people,dc=justdavis,dc=com'
+    dn: "{{ item }}
     objectClass: ['organizationalUnit']
-- ldap_entry:
-    bind_dn: 'cn=admin,dc=justdavis,dc=com'
-    bind_pw: "{{ vault_ldap_root_password }}"
-    dn: 'ou=groups,dc=justdavis,dc=com'
-    objectClass: ['organizationalUnit']
-- ldap_entry:
-    bind_dn: 'cn=admin,dc=justdavis,dc=com'
-    bind_pw: "{{ vault_ldap_root_password }}"
-    dn: 'ou=services,dc=justdavis,dc=com'
-    objectClass: ['organizationalUnit']
+  with_items:
+    - 'ou=people,dc=justdavis,dc=com'
+    - 'ou=groups,dc=justdavis,dc=com'
+    - 'ou=services,dc=justdavis,dc=com'
 
 # Create `ou=people` entries for each `people` entry (in `../vars/main.yml`).
 # Note that the `ldap_entry` module being used here does not handles updates-- 
 # only inserts.
-- ldap_entry: 
+- name: Create LDAP User Accounts
+  ldap_entry: 
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
@@ -47,7 +43,8 @@
   no_log: true
 
 # Create `ou=groups` entries for each `people` entry (in `../vars/main.yml`).
-- ldap_entry:
+- name: Create LDAP User Groups
+  ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "cn={{ item.key }},ou=groups,dc=justdavis,dc=com"
@@ -58,7 +55,8 @@
   no_log: true
 
 # Update email addresses, as needed.
-- ldap_attr:
+- name: Update LDAP Email Addresses
+  ldap_attr:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"

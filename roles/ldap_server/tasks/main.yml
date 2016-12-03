@@ -4,4 +4,5 @@
 - include: config-ssl.yml
 - include: entries.yml
 - include: sasl-gssapi.yml
+- include: sasl-authd.yml
 

@@ -19,8 +19,8 @@
     regexp: "{{ item.key }}"
     line: "{{ item.value }}"
   with_dict:
-    - '.*START=.*': 'START=yes'
-    - '.*MECHANISMS=.*': 'MECHANISMS="kerberos"'
+    '.*START=.*': 'START=yes'
+    '.*MECHANISMS=.*': 'MECHANISMS="kerberos"'
   become: true
   notify:
     - "Restart 'saslauthd'"
@@ -36,5 +36,5 @@
     line: 'pwcheck_method: saslauthd'
   become: true
   notify:
-    - 'Restart slapd'
+    - "Restart 'slapd'"
 

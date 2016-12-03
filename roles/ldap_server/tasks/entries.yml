@@ -12,7 +12,7 @@
   ldap_entry: 
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
-    dn: "{{ item }}
+    dn: "{{ item }}"
     objectClass: ['organizationalUnit']
   with_items:
     - 'ou=people,dc=justdavis,dc=com'
@@ -23,7 +23,7 @@
 # Note that the `ldap_entry` module being used here does not handles updates-- 
 # only inserts.
 - name: Create LDAP User Accounts
-  ldap_entry: 
+  ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"

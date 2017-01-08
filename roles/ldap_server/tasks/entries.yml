@@ -66,3 +66,15 @@
   with_dict: "{{ people }}"
   no_log: true
 
+- name: Create 'karlanderica' Group in LDAP
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=karlanderica,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'posixGroup'
+    cn: 'karlanderica'
+    gidNumber: '11000'
+    memberUid:
+      - karl
+      - erica
+

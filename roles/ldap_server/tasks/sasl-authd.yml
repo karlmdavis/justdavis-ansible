@@ -20,7 +20,7 @@
     line: "{{ item.value }}"
   with_dict:
     '.*START=.*': 'START=yes'
-    '.*MECHANISMS=.*': 'MECHANISMS="kerberos"'
+    '.*MECHANISMS=.*': 'MECHANISMS="kerberos5"'
   become: true
   notify:
     - "Restart 'saslauthd'"
@@ -37,4 +37,15 @@
   become: true
   notify:
     - "Restart 'slapd'"
+
+- name: Allow OpenLDAP to use saslauthd
+  acl:
+    name: "{{ item.name }}"
+    etype: user
+    entity: openldap
+    permissions: "{{ item.permissions }}"
+    state: present
+  become: true
+  with_items:
+    - { name: '/run/saslauthd/', permissions: 'rx' }
 

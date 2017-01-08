@@ -1,0 +1,106 @@
+---
+
+- name: Install Auth Packages
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - krb5-user
+    - libpam-krb5
+    - libpam-ccreds
+    - libpam-ck-connector
+  become: true
+
+- name: Configure Kerberos Default Realm
+  lineinfile:
+    dest: /etc/krb5.conf
+    regexp: "^\\s+default_realm = {{ domain | upper }}"
+    line: "\tdefault_realm = {{ domain | upper }}"
+  become: true
+
+- name: Configure LDAP Clients
+  lineinfile:
+    dest: /etc/ldap/ldap.conf
+    insertafter: '^#URI'
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^BASE', line: "BASE\tdc=justdavis,dc=com" }
+    - { regexp: '^URI', line: "URI\tldaps://{{ domain }}" }
+  become: true
+
+- name: 'Configure LDAP Name Services (pre-install)'
+  debconf:
+    name: slapd
+    question: "{{ item.question }}"
+    value: "{{ item.value }}"
+    vtype: "{{ item.vtype }}"
+  with_items:
+    - { question: 'nslcd/ldap-uris', value: "ldaps://{{ domain }}", vtype: 'string' }
+    - { question: 'nslcd/ldap-base', value: 'dc=justdavis,dc=com', vtype: 'string' }
+    - { question: 'nslcd/ldap-reqcert', value: 'demand', vtype: 'select' }
+    - { question: 'nslcd/nsswitch', value: '', vtype: 'multiselect' }
+  become: true
+
+- name: Install LDAP Name Services
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - libnss-ldapd
+    - libnss-db
+    - nss-updatedb
+    - auth-client-config
+  register: install_ldapnss_result
+  become: true
+
+- name: Create NSS auth-client-config Profile
+  template:
+    src: templates/justdavis_nss.j2
+    dest: /etc/auth-client-config/profile.d/justdavis_nss
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  register: nss_config_result
+  become: true
+
+- name: Apply NSS auth-client-config Profile
+  command: /usr/sbin/auth-client-config -t nss -p justdavis_nss
+  when: nss_config_result.changed
+  notify:
+    - "Restart 'nscd'"
+  become: true
+
+- name: Populate NSS Cache from LDAP
+  command: /usr/sbin/nss_updatedb ldap
+  become: true
+  when: install_ldapnss_result.changed
+
+- name: Create cron Job to Refresh NSS Cache from LDAP
+  cron:
+    cron_file: refresh_nss_from_ldap
+    name: refresh_nss_from_ldap
+    special_time: hourly
+    user: root
+    job: /usr/sbin/nss_updatedb ldap
+  become: true
+
+- name: Configure Local Groups for LDAP Users
+  blockinfile:
+    dest: /etc/security/group.conf
+    content: |
+      # Ensure that network-authenticated users are added to the standard user groups
+      * ; *; *;Al0000-2400; adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, lxd
+  become: true
+
+- name: Create pam-auth-update Profile
+  template:
+    src: templates/justdavis_pam_config.j2
+    dest: /usr/share/pam-configs/justdavis
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  register: pam_config_result
+  become: true
+
+- name: Apply pam-auth-update Profile
+  command: /usr/sbin/pam-auth-update --package
+  become: true
+  when: pam_config_result.changed
+

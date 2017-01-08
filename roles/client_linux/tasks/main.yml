@@ -1,0 +1,7 @@
+---
+
+- include: auth.yml
+- include: samba.yml
+- include: test.yml
+  tags: test
+

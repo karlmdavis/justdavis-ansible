@@ -3,9 +3,12 @@ dependencies:
 
   # Apply and configure the `karlmdavis.tested-bind` role.
   - role: karlmdavis.tested-bind
+    eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip'] }}"
+    reverse_zone_name: "{{ eddings_public_ip.split('.')[2] + '.' + eddings_public_ip.split('.')[1] + '.' + eddings_public_ip.split('.')[0] + '.in-addr.arpa' }}"
     zones:
-      - {name: 'justdavis.com', template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}
-      - {name: 'davisonlinehome.name', template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
+      - {name: "{{ domain }}", template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}
+      - {name: "{{ domain_alias }}", template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
+      - {name: "{{ reverse_zone_name }}", template_source: 'roles/dns_server/templates/db.reverse_zone.j2'}
     forwarders:
       # Google's Public DNS Servers: https://developers.google.com/speed/public-dns/
       - 8.8.8.8

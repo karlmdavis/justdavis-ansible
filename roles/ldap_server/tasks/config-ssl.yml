@@ -41,6 +41,8 @@
 - command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'
   become: true
   when: "{{ slapd_ssl_ldif.changed }}"
+  notify:
+    - "Restart 'slapd'"
 - template:
     src: templates/slapd-defaults.j2
     dest: /etc/default/slapd

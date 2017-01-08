@@ -1,0 +1,42 @@
+---
+
+- name: Configure Timezone
+  template:
+    src: templates/timezone.j2
+    dest: /etc/timezone
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  register: timezone_file
+
+- name: Apply Timezone Change
+  command: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
+  become: true
+  when: "{{ timezone_file.changed }}"
+
+- name: Install 'ntp' and Other Base Packages
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - ntp
+  become: true
+
+- name: Configure 'hosts'
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '^127.0.1.1'
+    line: "127.0.1.1 {{ inventory_hostname_short }}.{{ domain }} {{ inventory_hostname_short }}"
+  become: true
+
+- name: Configure 'hostname' (permanent)
+  copy:
+    dest: /etc/hostname
+    content: "{{ inventory_hostname_short }}"
+  register: hostname_file
+  become: true
+
+- name: Configure 'hostname' (transient)
+  command: "/usr/bin/hostnamectl set-hostname {{ inventory_hostname_short }}"
+  become: true
+  when: hostname_file.changed
+

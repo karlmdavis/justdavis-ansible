@@ -19,8 +19,11 @@
   gather_facts: true
   
   roles:
+    - base
     - dns_server
     - apache
     - krb5_server
     - ldap_server
+    - client_linux
+    - samba_server
 

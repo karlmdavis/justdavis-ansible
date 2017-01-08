@@ -1,0 +1,31 @@
+---
+# Specifies the entries that should be stored in the OpenLDAP directory for use
+# in tests.
+
+- name: Create LDAP Test User Account
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'uid=test,ou=people,dc=justdavis,dc=com'
+    objectClass: ['inetOrgPerson', 'posixAccount']
+    uid: 'test'
+    cn: 'Test User'
+    displayName: 'Test User'
+    givenName: 'Test'
+    sn: 'User'
+    uidNumber: '10999'
+    gidNumber: '10999'
+    userPassword: "{SASL}test@{{ domain | upper }}"
+    loginShell: '/bin/bash'
+    homeDirectory: '/home/test'
+    mail: 'test@justdavis.com'
+
+- name: Create LDAP Test User Groups
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=test,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'posixGroup'
+    cn: 'test'
+    gidNumber: '10999'
+

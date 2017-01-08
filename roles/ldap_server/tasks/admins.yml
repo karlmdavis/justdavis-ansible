@@ -3,14 +3,26 @@
 # Creates an 'administrators' group in LDAP and configures the directories to honor it.
 ##
 
-- name: Create 'administrators' Group in LDAP
+- name: Create 'administrators_ldap' Group in LDAP
   ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
-    dn: 'cn=administrators,ou=groups,dc=justdavis,dc=com'
+    dn: 'cn=administrators_ldap,ou=groups,dc=justdavis,dc=com'
     objectClass: 'groupOfNames'
-    cn: 'administrators'
-    member: 'uid=karl,ou=people,dc=justdavis,dc=com'
+    cn: 'administrators_ldap'
+    member:
+      - 'uid=karl,ou=people,dc=justdavis,dc=com'
+
+- name: Create 'administrators_posix' Group in LDAP
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=administrators_posix,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'posixGroup'
+    cn: 'administrators_posix'
+    gidNumber: '11001'
+    memberUid:
+      - 'karl'
 
 - template:
     src: templates/slapd-admins.ldif.j2

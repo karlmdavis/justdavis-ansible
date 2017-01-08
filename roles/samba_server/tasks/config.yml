@@ -1,0 +1,51 @@
+---
+
+- name: Create Share Directories
+  file:
+    state: directory
+    path: "/var/lib/samba/{{ item.key }}"
+    owner: "{{ item.value.owner }}"
+    group: "{{ item.value.group }}"
+    mode: "{{ item.value.mode }}"
+  with_dict:
+    karlanderica:
+      owner: karl
+      group: karlanderica
+      mode: u=rwxs,g=rwxs,o=
+    sysadmin:
+      owner: karl
+      group: administrators_posix
+      mode: u=rwxs,g=rwxs,o=rx
+  become: true
+
+- name: Create Service Principal for Samba Server
+  krb_principal:
+    name: "cifs/eddings.{{ domain }}"
+    policy: services
+  become: true
+
+- name: Create Service Keytab for Samba Server
+  script: "roles/ldap_server/files/add-keytab.sh --principal cifs/eddings.{{ domain }} --keytab /etc/samba/smbd.keytab"
+  become: true
+
+- file:
+    path: /etc/samba/smbd.keytab
+    state: file
+    owner: root
+    group: root
+    mode: 'u=r,g=r,o='
+  become: true
+  notify:
+    - "Restart 'samba'"
+
+- name: Configure smb.conf
+  template:
+    src: templates/smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - "Restart 'samba'"
+

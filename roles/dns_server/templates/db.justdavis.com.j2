@@ -10,16 +10,27 @@ $TTL 1h ; sets the default time-to-live for this zone
                               )
 
 ; Nameserver Records
-; name             ttl    class   rr                name
-@                         IN      NS                ns1.{{ domain }}.
-                          IN      NS                ns6.gandi.net.
+{% if not is_test %}
+; name                   ttl    class   rr                name
+@                               IN      NS                ns1.{{ domain }}.
+                                IN      NS                ns6.gandi.net.
+
+; subdomain              ttl    class   rr                name
+tests.justdavis.com.            IN      NS                ns-357.awsdns-44.com.
+                                IN      NS                ns-1620.awsdns-10.co.uk.
+                                IN      NS                ns-770.awsdns-32.net.
+                                IN      NS                ns-1080.awsdns-07.org.
+{% else %}
+; name                   ttl    class   rr                name
+@                               IN      NS                ns1.{{ domain }}.
+{% endif %}
 
 ; IPv4 Address Records
 ; name             ttl    class   rr                name
-@                         IN      A                 96.244.76.235
-ns1                       IN      A                 96.244.76.235
+@                         IN      A                 {{ eddings_public_ip }}
+ns1                       IN      A                 {{ eddings_public_ip }}
 mail                      IN      A                 96.244.76.236
-eddings                   IN      A                 96.244.76.235
+eddings                   IN      A                 {{ eddings_public_ip }}
 piers                     IN      A                 96.244.76.236
 karlanderica              IN      A                 96.244.76.234
 
@@ -29,7 +40,6 @@ www                       IN      CNAME             @
 smtp                      IN      CNAME             mail
 kelso                     IN      CNAME             karlanderica
 kerberos                  IN      CNAME             @
-ldap                      IN      CNAME             @
 
 ; Mailserver Records
 ; name             ttl    class   rr     priority   name
@@ -54,11 +64,4 @@ _kpasswd._udp                   IN      SRV               0 0 464 eddings
 {{ domain }}.                  IN      AFSDB             1 eddings.{{ domain }}.
 
 ; NS Records
-; subdomain              ttl    class   rr                name
-{% if not is_test %}
-tests.justdavis.com.            IN      NS                ns-357.awsdns-44.com.
-                                IN      NS                ns-1620.awsdns-10.co.uk.
-                                IN      NS                ns-770.awsdns-32.net.
-                                IN      NS                ns-1080.awsdns-07.org.
-{% endif %}
 

@@ -3,7 +3,7 @@ changetype: modify
 replace: olcAccess
 olcAccess: to attrs=userPassword
     by dn="cn=admin,dc=justdavis,dc=com" write
-    by group.exact="cn=administrators,ou=groups,dc=justdavis,dc=com" write
+    by group.exact="cn=administrators_ldap,ou=groups,dc=justdavis,dc=com" write
     by anonymous auth
     by self write
     by * none
@@ -14,5 +14,5 @@ olcAccess: to dn.base=""
     by * read
 olcAccess: to *
     by dn="cn=admin,dc=justdavis,dc=com" write
-    by group.exact="cn=administrators,ou=groups,dc=justdavis,dc=com" write
+    by group.exact="cn=administrators_ldap,ou=groups,dc=justdavis,dc=com" write
     by * read

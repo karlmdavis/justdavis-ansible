@@ -1,0 +1,10 @@
+---
+
+##
+# Almost all of the config for this role is handled by the dependencies listed in 
+# `../meta/main.yml`. All we include besides that is some test-related config.
+##
+
+- include: test.yml
+  tags: test
+

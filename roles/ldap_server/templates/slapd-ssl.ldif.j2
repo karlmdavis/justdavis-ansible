@@ -1,6 +1,6 @@
 dn: cn=config
 replace: olcTLSCACertificateFile
-olcTLSCACertificateFile: /etc/ssl/certs/ca-certificates.crt
+olcTLSCACertificateFile: /var/lib/acme/live/{{ domain }}/chain
 -
 replace: olcTLSCertificateFile
 olcTLSCertificateFile: /var/lib/acme/live/{{ domain }}/cert

@@ -1,0 +1,19 @@
+---
+
+- meta: flush_handlers
+
+- name: Test Kerberos Auth
+  expect:
+    command: "/usr/bin/kinit test"
+    responses:
+      "^Password for test@.*: ": "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters length=32') }}"
+  register: kinit_result
+  failed_when: "kinit_result.rc != 0"
+
+# This verifies that GSSAPI/Kerberos integration is working for the LDAP client utilities. Note
+# that the above kinit test command obtained the Kerberos ticket needed.
+- name: 'Test LDAP Search (GSSAPI)'
+  command: "/usr/bin/ldapsearch -Y GSSAPI -H ldaps://{{ domain }} -b dc=justdavis,dc=com"
+  register: ldap_search_gssapi_result
+  failed_when: ldap_search_gssapi_result.rc != 0 or 'uid=test,ou=people,dc=justdavis,dc=com' not in ldap_search_gssapi_result.stdout
+

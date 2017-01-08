@@ -1,0 +1,8 @@
+---
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - samba
+  become: true
+

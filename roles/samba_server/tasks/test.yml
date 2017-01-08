@@ -1,0 +1,28 @@
+---
+
+- meta: flush_handlers
+
+- name: Wait for Samba Server
+  wait_for:
+    port: 139
+    delay: 5
+
+- name: List Samba Shares
+  command: "/usr/bin/smbclient --list=eddings.{{ domain }} --no-pass"
+  register: smbclient_list_result
+  failed_when: smbclient_list_result.rc != 0 or 'karlanderica' not in smbclient_list_result.stdout
+  changed_when: false
+
+- name: Acquire Kerberos Auth (as test)
+  expect:
+    command: "/usr/bin/kinit test"
+    responses:
+      "^Password for test@.*: ": "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters length=32') }}"
+  changed_when: false
+
+- name: Browse Samba User Share
+  command: "/usr/bin/smbclient //eddings.{{ domain }}/test --kerberos --command ls"
+  register: smbclient_ls_result
+  failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
+  changed_when: false
+

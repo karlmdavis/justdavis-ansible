@@ -1,12 +1,13 @@
 ---
+
 - name: "Restart 'slapd'"
-  service: 
+  service:
     name: slapd
     state: restarted
   become: true
 
 - name: "Restart 'saslauthd'"
-  service: 
+  service:
     name: saslauthd
     state: restarted
   become: true

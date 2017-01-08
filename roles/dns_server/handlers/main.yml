@@ -1,0 +1,6 @@
+---
+
+- name: "Restart 'eth0'"
+  shell: /sbin/ifdown eth0 && /sbin/ifup eth0
+  become: true
+

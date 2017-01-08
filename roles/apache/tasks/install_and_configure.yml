@@ -1,0 +1,45 @@
+---
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  become: yes
+  with_items:
+    - apache2
+- file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: u=rwx,g=rwx,o=rx
+  become: yes
+  with_items:
+    - "/var/apache2/{{ domain }}"
+    - "/var/apache2/{{ domain }}/logs"
+    - "/var/apache2/{{ domain }}/www"
+- lineinfile:
+    dest: /etc/apache2/ports.conf
+    regexp: '^(#?)Listen 80'
+    line: '#Listen 80'
+  become: yes
+  notify:
+    - apache-restart
+- apache2_module:
+    state: present
+    name: ssl
+  become: yes
+  notify:
+    - apache-restart
+- template:
+    src: domain-ssl.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+- command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
+  args:
+    creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"
+  become: yes
+  notify:
+    - apache-reload
+

@@ -3,4 +3,6 @@
 - include: install.yml
 - include: config-realm.yml
 - include: principals.yml
+- include: principals-test.yml
+  tags: test
 

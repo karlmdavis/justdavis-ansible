@@ -5,5 +5,5 @@
 # property.
 #
 
-eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python2.7
+eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python2.7 public_ip={{ ec2_eddings.instances[0].public_ip }}
 

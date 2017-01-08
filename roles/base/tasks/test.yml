@@ -1,0 +1,10 @@
+---
+
+- meta: flush_handlers
+
+- name: Verify FQDN
+  command: /bin/hostname --fqdn
+  register: fqdn_result
+  failed_when: "'{{ inventory_hostname_short }}.{{ domain }}' != fqdn_result.stdout"
+  changed_when: false
+

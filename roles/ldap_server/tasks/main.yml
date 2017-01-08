@@ -3,7 +3,11 @@
 - include: install.yml
 - include: config-ssl.yml
 - include: entries.yml
+- include: entries-test.yml
+  tags: test
 - include: admins.yml
 - include: sasl-gssapi.yml
 - include: sasl-authd.yml
+- include: test.yml
+  tags: test
 

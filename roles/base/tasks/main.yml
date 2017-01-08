@@ -1,5 +1,6 @@
 ---
-- include: install_and_configure.yml
+
+- include: config.yml
 - include: test.yml
   tags: test
 

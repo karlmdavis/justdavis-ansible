@@ -1,0 +1,53 @@
+---
+
+##
+# Postfix on Debian is not properly configured to run `saslauthd`: the `smtpd`
+# service is (by default) run inside a chroot environment at 
+# `/var/spool/postfix/`, which doesn't have access to the SASL socket file.
+#
+# This config adds that file (and friends) back into the chroot environment
+# using a mount bind. This fix is taken from here: 
+# <https://github.com/webmin/webmin/issues/58>, which is the only halfway 
+# decent solution to this problem I managed to come across.
+##
+
+- name: Add 'postfix' User to 'sasl' Group
+  user:
+    name: postfix
+    groups: sasl
+    append: true
+  become: true
+
+- name: Create Mount Point for SASL in Postfix chroot
+  file:
+    state: directory
+    path: "{{ item }}"
+    owner: root
+    group: sasl
+    mode: u=rwx,g=rwx,o=
+  with_items:
+    - /var/spool/postfix/var
+    - /var/spool/postfix/var/run
+    - /var/spool/postfix/var/run/saslauthd
+  become: true
+
+- name: Verify dpkg Override for SASL Mount Point
+  command: dpkg-statoverride --list /var/spool/postfix/var
+  register: dpkg_override_postfix_sasl
+  changed_when: false
+  failed_when: false
+
+- name: Configure dpkg to Handle SASL Mount Point Correctly
+  command: dpkg-statoverride --add root sasl 710 /var/spool/postfix/var
+  become: true
+  when: dpkg_override_postfix_sasl.rc != 0
+
+- name: Mount SASL in Postfix chroot
+  mount:
+    name: /var/spool/postfix/var/run/saslauthd
+    src: /var/run/saslauthd
+    fstype: bind
+    opts: defaults,nodev,bind
+    state: mounted
+  become: true
+

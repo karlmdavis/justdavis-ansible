@@ -1,0 +1,12 @@
+---
+
+- name: "Restart 'postfix'"
+  service:
+    name: postfix
+    state: restarted
+  become: true
+
+- name: "Run 'postmap' on 'virtual_mailbox_maps'"
+  command: /usr/sbin/postmap /etc/postfix/virtual_mailbox_maps
+  become: true
+

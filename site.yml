@@ -26,4 +26,5 @@
     - ldap_server
     - client_linux
     - samba_server
+    - mail_server
 

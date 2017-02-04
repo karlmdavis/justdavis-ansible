@@ -1,0 +1,18 @@
+---
+
+- meta: flush_handlers
+
+- name: Install Test Utilities
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - swaks
+  become: true
+
+- name: Send Mail (Unauthenticated and In-Network)
+  command: "/usr/bin/swaks --server localhost:25 --to karl@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network'"
+  changed_when: false
+
+- name: Send Mail (Authenticated and Out-of-Network)
+  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user test --auth-password {{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }} --to karl@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network'"
+  changed_when: false
+

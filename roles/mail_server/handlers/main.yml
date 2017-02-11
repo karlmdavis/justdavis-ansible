@@ -1,5 +1,17 @@
 ---
 
+- name: "Restart 'clamav-daemon'"
+  service:
+    name: clamav-daemon
+    state: restarted
+  become: true
+
+- name: "Restart 'amavis'"
+  service:
+    name: amavis
+    state: restarted
+  become: true
+
 - name: "Restart 'postfix'"
   service:
     name: postfix

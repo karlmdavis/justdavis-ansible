@@ -1,8 +1,7 @@
 ---
 
-- include: install.yml
+- include: base.yml
 - include: sasl-chroot-fix.yml 
-- include: config.yml
 - include: test.yml
   tags: test
 

@@ -1,0 +1,251 @@
+---
+
+##
+# Installs and configures a mail server. Postfix will be used for the MTA.
+#
+# Will enable and configure Postfix spam and virus filtering. Amavis will be 
+# used to coordinate all of that and will be configured to use several tools, 
+# such as SpamAssassin and ClamAV, to do the heavy lifting.
+##
+
+- debconf:
+    name: "{{ item.question.split('/')[0] }}"
+    question: "{{ item.question }}"
+    value: "{{ item.value }}"
+    vtype: "{{ item.vtype }}"
+  no_log: "{{ item.vtype == 'password' }}"
+  changed_when: false
+  become: true
+  with_items:
+    - { question: 'postfix/main_mailer_type', vtype: 'select', value: 'Internet Site' }
+    - { question: 'postfix/mailname', vtype: 'string', value: "{{ domain }}" }
+    - { question: 'postfix/root_address', vtype: 'string', value: "karl@{{ domain }}" }
+    - { question: 'postfix/destinations', vtype: 'string', value: "$myhostname, {{ domain }}, eddings.{{ domain }}, localhost.{{ domain }}, localhost" }
+    - { question: 'postfix/mynetworks', vtype: 'string', value: '127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128' }
+    - { question: 'postfix/mailbox_limit', vtype: 'string', value: 'string' }
+    - { question: 'postfix/protocols', vtype: 'select', value: 'all' }
+
+- name: Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - postfix
+    # Spam and Virus Filtering Tools:
+    - amavisd-new
+    - spamassassin
+    - clamav-daemon
+    - libnet-dns-perl
+    - libmail-spf-perl
+    - pyzor
+    - razor
+  become: true
+
+- name: Create 'vmail' User and Group
+  user:
+    name: vmail
+    createhome: false
+    shell: /bin/false
+    system: true
+  become: true
+
+- name: Add 'postfix' User to 'vmail' Group
+  user:
+    name: postfix
+    groups: vmail
+    append: true
+  become: true
+
+- name: Lookup 'vmail' UID
+  command: id --user vmail
+  register: uid_vmail
+  changed_when: false
+
+- name: Lookup 'vmail' GID
+  command: id --group vmail
+  register: gid_vmail
+  changed_when: false
+
+- name: Create Mail Directory
+  file:
+    path: /var/vmail
+    state: directory
+    owner: vmail
+    group: vmail
+    mode: u=rwx,g=rwx,o=
+  become: true
+
+- name: Add 'clamav' User to 'amavis' Group
+  user:
+    name: clamav
+    groups: amavis
+    append: true
+  become: true
+  notify:
+    - "Restart 'clamav-daemon'"
+
+- name: Add 'amavis' User to 'clamav' Group
+  user:
+    name: amavis
+    groups: clamav
+    append: true
+  become: true
+
+- name: Create Razor Config
+  command: /usr/bin/razor-admin -create
+  args:
+    creates: /var/lib/amavis/.razor/servers.discovery.lst
+  become: true
+  become_user: amavis
+
+- name: Register Razor Account
+  command: /usr/bin/razor-admin -register
+  args:
+    creates: /var/lib/amavis/.razor/identity
+  become: true
+  become_user: amavis
+
+- name: Discover Pyzor Servers
+  command: /usr/bin/pyzor discover
+  args:
+    creates: /var/lib/amavis/.pyzor/servers
+  become: true
+  become_user: amavis
+
+- name: Configure Postfix main.cf
+  lineinfile:
+    dest: /etc/postfix/main.cf
+    regexp: "^{{ item.key }} *=.*"
+    line: "{{ item.key }} = {{ item.value }}"
+  with_dict:
+    # We DON'T want to handle the primary domain via the local transport; we'll
+    # handle it the same way as all of the other virtual domains.
+    'mydestination': ''
+    'mydomain': "{{ domain }}"
+    'myhostname': "eddings.{{ domain }}"
+    # We want to use Maildir, rather than mbox, as it's easier to admin.
+    'home_mailbox': 'Maildir/'
+    # Set Postfix to use SASL for auth.
+    'smtpd_sasl_local_domain': ''
+    'smtpd_sasl_auth_enable': 'yes'
+    'broken_sasl_auth_clients': 'yes'
+    'smtpd_sasl_security_options': 'noanonymous,noplaintext'
+    'smtpd_sasl_tls_security_options': 'noanonymous'
+    # Require TLS for all SASL authentication attempts.
+    'smtpd_tls_auth_only': 'yes'
+    # Enable opportunistic encryption for connections to other SMTP servers.
+    'smtp_tls_security_level': 'may'
+    'smtpd_tls_security_level': 'may'
+    'smtpd_tls_key_file': "/var/lib/acme/live/{{ domain }}/privkey"
+    'smtpd_tls_cert_file': "/var/lib/acme/live/{{ domain }}/cert"
+    # The CAfile must contain the chain for both the cert_file and the certs offerred by all remote clients.
+    'smtpd_tls_CAfile': '/etc/ssl/certs/ca-certificates.crt'
+    # Only allow authenticated clients to send mail.
+    #'smtpd_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination'
+    'smtpd_relay_restrictions': 'permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination'
+    # Ensure that Postfix uses its own keytab.
+    'import_environment': 'KRB5_KTNAME=/etc/postfix/krb5.keytab'
+    # Configure the virtual domains to handle.
+    'virtual_mailbox_base': '/var/vmail'
+    'virtual_uid_maps': "static:{{ uid_vmail.stdout }}"
+    'virtual_gid_maps': "static:{{ gid_vmail.stdout }}"
+    'virtual_mailbox_domains': "{{ domain }} {{ domain_alias }}"
+    'virtual_mailbox_maps': 'hash:/etc/postfix/virtual_mailbox_maps'
+    # Send mail to Amavis for spam and virus filtering.
+    'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
+  become: true
+  notify:
+    - "Restart 'postfix'"
+
+- name: Configure Postfix Virtual Users and Aliases
+  copy:
+    dest: /etc/postfix/virtual_mailbox_maps
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    # Each entry here defines an email address that will be accepted, and then 
+    # the `virtual_mailbox_base` subdirectory that mail for that address will 
+    # be delivered to. Each subdirectory's trailing `/` indicates that the 
+    # Maildir format should be used and MUST be present, else mail will be 
+    # delivered to an mbox file (which we don't want).
+    # I've organized it as follows: 1) canonical addresses, 2) system user 
+    # aliases, 3) other aliases.
+    content: |
+      karl@{{ domain }}              karl@{{ domain }}/
+      postmaster@{{ domain }}        karl@{{ domain }}/
+      acme@eddings.{{ domain }}      karl@{{ domain }}/
+      root@eddings.{{ domain }}      karl@{{ domain }}/
+      foo@example.com                bar/
+  become: true
+  notify:
+    - "Run 'postmap' on 'virtual_mailbox_maps'"
+
+- name: Configure SASL for Postfix
+  copy:
+    dest: /etc/postfix/sasl/smtpd.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    content: |
+      pwcheck_method: saslauthd
+  become: true
+  notify:
+    - "Restart 'postfix'"
+
+- name: Configure Amavis
+  lineinfile:
+    name: /etc/amavis/conf.d/50-user
+    insertbefore: '^1;.*'
+    regexp: "^{{ item.key }} = .*"
+    line: "{{ item.key }} = {{ item.value }};"
+  with_dict:
+    # Ensure that all valid email domains are filtered.
+    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_alias }}\" )"
+    # Always tag mail with spam score headers.
+    '$sa_tag_level_deflt': '-999'
+    # Until spam scoring is dialed in, deliver all mail.
+    # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
+    '$sa_kill_level_deflt': '999'
+    '$sa_dsn_cutoff_level': '999'
+    '$sa_quarantine_cutoff_level': '999'
+    '$final_banned_destiny': 'D_PASS'
+    '$final_spam_destiny': 'D_PASS'
+  become: true
+  notify:
+    - "Restart 'amavis'"
+
+- name: Configure ClamAV Permissions for Amavis
+  lineinfile:
+    name: /etc/clamav/clamd.conf
+    regexp: '^AllowSupplementaryGroups.*'
+    line: "AllowSupplementaryGroups true"
+  become: true
+  notify:
+    - "Restart 'clamav-daemon'"
+
+- name: Enable Spam and Virus Filtering in Amavis
+  blockinfile:
+    name: /etc/amavis/conf.d/15-content_filter_mode
+    insertbefore: '^1;.*'
+    marker: "# {mark} ANSIBLE-MANAGED BLOCK: {{ item.key }}"
+    block: "{{ item.value }}"
+  with_dict:
+    'virus': |
+      @bypass_virus_checks_maps = (
+         \%bypass_virus_checks, \@bypass_virus_checks_acl, \$bypass_virus_checks_re);
+    'spam': |
+      @bypass_spam_checks_maps = (
+         \%bypass_spam_checks, \@bypass_spam_checks_acl, \$bypass_spam_checks_re);
+  become: true
+  notify:
+    - "Restart 'amavis'"
+
+- name: Configure Postfix Services for Amavis
+  template:
+    src: master.cf.j2
+    dest: /etc/postfix/master.cf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - "Restart 'postfix'"
+

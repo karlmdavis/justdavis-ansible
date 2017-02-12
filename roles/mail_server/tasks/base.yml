@@ -194,7 +194,8 @@
   lineinfile:
     name: /etc/amavis/conf.d/50-user
     insertbefore: '^1;.*'
-    regexp: "^{{ item.key }} = .*"
+    # Note: Have to hackily handle the regex control chars in the keys here.
+    regexp: "^[\\$@]{{ item.key[1:] }} = .*"
     line: "{{ item.key }} = {{ item.value }};"
   with_dict:
     # Ensure that all valid email domains are filtered.

@@ -34,3 +34,7 @@
   failed_when: (shell_find_virus_count.stdout | int) < 1
   changed_when: false
 
+- name: Check Mail via IMAP (SSL)
+  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user test:{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }} --verbose"
+  changed_when: false
+

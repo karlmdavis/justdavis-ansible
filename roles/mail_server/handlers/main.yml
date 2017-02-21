@@ -22,3 +22,9 @@
   command: /usr/sbin/postmap /etc/postfix/virtual_mailbox_maps
   become: true
 
+- name: "Restart 'dovecot'"
+  service:
+    name: dovecot
+    state: restarted
+  become: true
+

@@ -29,6 +29,8 @@
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - postfix
+    - dovecot-imapd
+    - dovecot-ldap
     # Spam and Virus Filtering Tools:
     - amavisd-new
     - spamassassin
@@ -242,7 +244,7 @@
 
 - name: Configure Postfix Services for Amavis
   template:
-    src: master.cf.j2
+    src: postfix/master.cf.j2
     dest: /etc/postfix/master.cf
     owner: root
     group: root
@@ -250,4 +252,21 @@
   become: true
   notify:
     - "Restart 'postfix'"
+
+- name: Configure Dovecot
+  template:
+    src: "dovecot/{{ item.name }}.j2"
+    dest: "/etc/dovecot/{{ item.path }}{{ item.name }}"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  with_items:
+    - { name: '10-auth.conf', path: 'conf.d/' }
+    - { name: 'auth-ldap.conf.ext', path: 'conf.d/' }
+    - { name: 'dovecot-ldap.conf.ext', path: '' }
+    - { name: '10-logging.conf', path: 'conf.d/' }
+    - { name: '10-ssl.conf', path: 'conf.d/' }
+  notify:
+    - "Restart 'dovecot'"
 

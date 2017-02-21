@@ -13,7 +13,7 @@
   changed_when: false
 
 - name: Send Mail (Authenticated and Out-of-Network)
-  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user test --auth-password {{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }} --to karl@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network'"
+  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to karl@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network'"
   changed_when: false
 
 # Try to send a message with the EICAR virus filter test pattern, verify it's quarantined.
@@ -35,6 +35,6 @@
   changed_when: false
 
 - name: Check Mail via IMAP (SSL)
-  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user test:{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }} --verbose"
+  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
 

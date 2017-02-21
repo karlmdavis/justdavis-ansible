@@ -15,13 +15,13 @@
 
 - name: Acquire Kerberos Auth (as test)
   expect:
-    command: "/usr/bin/kinit test"
+    command: "/usr/bin/kinit {{ test_username }}"
     responses:
-      "^Password for test@.*: ": "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters length=32') }}"
+      "^Password for .*: ": "{{ test_password }}"
   changed_when: false
 
 - name: Browse Samba User Share
-  command: "/usr/bin/smbclient //eddings.{{ domain }}/test --kerberos --command ls"
+  command: "/usr/bin/smbclient //eddings.{{ domain }}/{{ test_username }} --kerberos --command ls"
   register: smbclient_ls_result
   failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
   changed_when: false

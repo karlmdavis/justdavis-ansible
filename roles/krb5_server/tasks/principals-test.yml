@@ -5,8 +5,8 @@
 
 - name: Add Test User Principal
   krb_principal:
-    name: 'test'
-    password: "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }}"
+    name: "{{ test_username }}"
+    password: "{{ test_password }}"
     policy: default
   become: true
   no_log: true

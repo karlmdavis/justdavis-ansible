@@ -4,9 +4,9 @@
 
 - name: Test Kerberos Auth
   expect:
-    command: "/usr/bin/kinit test"
+    command: "/usr/bin/kinit {{ test_username }}"
     responses:
-      "^Password for test@.*: ": "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters length=32') }}"
+      "^Password for .*: ": "{{ test_password }}"
   register: kinit_result
   failed_when: "kinit_result.rc != 0"
 
@@ -15,5 +15,5 @@
 - name: 'Test LDAP Search (GSSAPI)'
   command: "/usr/bin/ldapsearch -Y GSSAPI -H ldaps://{{ domain }} -b dc=justdavis,dc=com"
   register: ldap_search_gssapi_result
-  failed_when: ldap_search_gssapi_result.rc != 0 or 'uid=test,ou=people,dc=justdavis,dc=com' not in ldap_search_gssapi_result.stdout
+  failed_when: ldap_search_gssapi_result.rc != 0 or test_user_dn not in ldap_search_gssapi_result.stdout
 

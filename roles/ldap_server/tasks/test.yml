@@ -6,17 +6,17 @@
   command: '/usr/bin/ldapsearch -Y EXTERNAL -H ldapi:/// -b dc=justdavis,dc=com'
   become: true
   register: ldap_search_sudo_result
-  failed_when: ldap_search_sudo_result.rc != 0 or 'uid=test,ou=people,dc=justdavis,dc=com' not in ldap_search_sudo_result.stdout
+  failed_when: ldap_search_sudo_result.rc != 0 or test_user_dn not in ldap_search_sudo_result.stdout
   changed_when: false
 
 - name: 'Test LDAP Search (SSL)'
   command: "/usr/bin/ldapsearch -H ldaps://{{ domain }} -x -b dc=justdavis,dc=com"
   register: ldap_search_ssl_result
-  failed_when: ldap_search_ssl_result.rc != 0 or 'uid=test,ou=people,dc=justdavis,dc=com' not in ldap_search_ssl_result.stdout
+  failed_when: ldap_search_ssl_result.rc != 0 or test_user_dn not in ldap_search_ssl_result.stdout
   changed_when: false
 
 - name: 'Test saslauthd'
-  command: "/usr/sbin/testsaslauthd -u test -p {{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits,punctuation length=32') }}"
+  command: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }}"
   become: true
   no_log: true
   register: testsaslauthd_result

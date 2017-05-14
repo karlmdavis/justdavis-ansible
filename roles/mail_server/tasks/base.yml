@@ -31,6 +31,8 @@
     - postfix
     - dovecot-imapd
     - dovecot-ldap
+    - dovecot-lmtpd
+    - dovecot-sieve
     # Spam and Virus Filtering Tools:
     - amavisd-new
     - spamassassin
@@ -153,6 +155,10 @@
     'virtual_mailbox_maps': 'hash:/etc/postfix/virtual_mailbox_maps'
     # Send mail to Amavis for spam and virus filtering.
     'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
+    # Use Dovecot's LMTP service for delivery of virtual mail. This allows the
+    # use of Dovecot's sieve to ensure that incoming mail flagged as spam is
+    # dropped into Junk folders, rather than user's INBOXes.
+    'virtual_transport': 'lmtp:unix:private/dovecot-lmtp'
   become: true
   notify:
     - "Restart 'postfix'"
@@ -170,12 +176,13 @@
     # delivered to an mbox file (which we don't want).
     # I've organized it as follows: 1) canonical addresses, 2) system user 
     # aliases, 3) other aliases.
+    # Each of the targets must correspond to a single account in LDAP.
     content: |
-      karl@{{ domain }}              karl@{{ domain }}/
-      postmaster@{{ domain }}        karl@{{ domain }}/
-      acme@eddings.{{ domain }}      karl@{{ domain }}/
-      root@eddings.{{ domain }}      karl@{{ domain }}/
-      foo@example.com                bar/
+      karl@{{ domain }}                    karl@{{ domain }}/
+      postmaster@{{ domain }}              karl@{{ domain }}/
+      acme@eddings.{{ domain }}            karl@{{ domain }}/
+      root@eddings.{{ domain }}            karl@{{ domain }}/
+      {{ test_username }}@{{ domain }}     {{ test_username }}@{{ domain }}/
   become: true
   notify:
     - "Run 'postmap' on 'virtual_mailbox_maps'"
@@ -262,11 +269,38 @@
     mode: u=rw,g=r,o=r
   become: true
   with_items:
+    - { name: '10-master.conf', path: 'conf.d/' }
+    - { name: '10-mail.conf', path: 'conf.d/' }
     - { name: '10-auth.conf', path: 'conf.d/' }
     - { name: 'auth-ldap.conf.ext', path: 'conf.d/' }
     - { name: 'dovecot-ldap.conf.ext', path: '' }
     - { name: '10-logging.conf', path: 'conf.d/' }
     - { name: '10-ssl.conf', path: 'conf.d/' }
+    - { name: '15-mailboxes.conf', path: 'conf.d/' }
+    - { name: '20-lmtp.conf', path: 'conf.d/' }
+    - { name: '90-sieve.conf', path: 'conf.d/' }
   notify:
     - "Restart 'dovecot'"
+
+- name: Create Dovecot Global Sieve Rules Directory
+  file:
+    path: /var/lib/dovecot/sieve.d
+    state: directory
+    owner: root
+    group: vmail
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Configure Dovecot Global Sieve Rules
+  template:
+    src: "dovecot/{{ item }}.j2"
+    dest: "/var/lib/dovecot/sieve.d/{{ item }}"
+    owner: root
+    group: vmail
+    mode: u=rw,g=r,o=r
+  become: true
+  with_items:
+    - '10-spam.sieve'
+  notify:
+    - 'Compile Dovecot Global Sieve Rules'
 

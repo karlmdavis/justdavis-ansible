@@ -12,14 +12,18 @@
     state: restarted
   become: true
 
+- name: "Run 'postmap' on 'virtual_mailbox_maps'"
+  command: /usr/sbin/postmap /etc/postfix/virtual_mailbox_maps
+  become: true
+
 - name: "Restart 'postfix'"
   service:
     name: postfix
     state: restarted
   become: true
 
-- name: "Run 'postmap' on 'virtual_mailbox_maps'"
-  command: /usr/sbin/postmap /etc/postfix/virtual_mailbox_maps
+- name: 'Compile Dovecot Global Sieve Rules'
+  command: /usr/bin/sievec /var/lib/dovecot/sieve.d/
   become: true
 
 - name: "Restart 'dovecot'"

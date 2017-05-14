@@ -31,10 +31,24 @@
   shell: "/usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
   become: true
   register: shell_find_virus_count
-  failed_when: (shell_find_virus_count.stdout | int) < 1
+  until: (shell_find_virus_count.stdout | int) > 0
+  retries: 20
+  delay: 3
   changed_when: false
 
 - name: Check Mail via IMAP (SSL)
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
+
+# Per <https://easyengine.io/tutorials/mail/server/testing/spam/>, the GTUBE
+# pattern should always be flagged as spam.
+- name: Send Mail (Unauthenticated, In-Network, and with Spam Pattern)
+  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --body 'GTUBE: XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'"
+  changed_when: false
+
+- name: Verify that Spam was Filtered
+  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'EXAMINE Junk'"
+  register: curl_mail_junk
+  changed_when: false
+  failed_when: curl_mail_junk.rc != 0 or '0 EXISTS' in curl_mail_junk.stdout
 

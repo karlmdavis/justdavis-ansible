@@ -212,7 +212,7 @@
     # Ensure that all valid email domains are filtered.
     '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_alias }}\" )"
     # Always tag mail with spam score headers.
-    '$sa_tag_level_deflt': '-999'
+    '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which 
     # will cause Dovecot's sieve rules to file it as junk/spam.
     '$sa_tag2_level_deflt': '5'
@@ -220,9 +220,9 @@
     # Until spam scoring is dialed in, deliver all mail.
     # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
     # Note: It only makes sense to maintain the relationship: sa_tag_level <= sa_tag2_level <= sa_kill_level < sa_dsn_cutoff <= sa_quarantine_cutoff_level 
-    '$sa_kill_level_deflt': '999'
-    '$sa_dsn_cutoff_level': '999'
-    '$sa_quarantine_cutoff_level': '999'
+    '$sa_kill_level_deflt': '9999'
+    '$sa_dsn_cutoff_level': '9999'
+    '$sa_quarantine_cutoff_level': '9999'
     '$final_banned_destiny': 'D_PASS'
     '$final_spam_destiny': 'D_PASS'
   become: true

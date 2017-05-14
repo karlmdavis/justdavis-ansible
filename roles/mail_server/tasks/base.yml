@@ -176,7 +176,9 @@
     # delivered to an mbox file (which we don't want).
     # I've organized it as follows: 1) canonical addresses, 2) system user 
     # aliases, 3) other aliases.
-    # Each of the targets must correspond to a single account in LDAP.
+    # Each of the targets must correspond to a single account in LDAP, as 
+    # our Dovecot config only supports a 1:1 relationship between logins and
+    # Maildirs.
     content: |
       karl@{{ domain }}                    karl@{{ domain }}/
       postmaster@{{ domain }}              karl@{{ domain }}/
@@ -211,6 +213,10 @@
     '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_alias }}\" )"
     # Always tag mail with spam score headers.
     '$sa_tag_level_deflt': '-999'
+    # Anything above this score will get an `X-Spam-Flag: YES` header, which 
+    # will cause Dovecot's sieve rules to file it as junk/spam.
+    '$sa_tag2_level_deflt': '5'
+    '$sa_spam_subject_tag': "''"
     # Until spam scoring is dialed in, deliver all mail.
     # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
     # Note: It only makes sense to maintain the relationship: sa_tag_level <= sa_tag2_level <= sa_kill_level < sa_dsn_cutoff <= sa_quarantine_cutoff_level 

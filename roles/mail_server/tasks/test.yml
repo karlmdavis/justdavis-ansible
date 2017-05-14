@@ -36,6 +36,9 @@
   delay: 3
   changed_when: false
 
+  # Apparently, curl can also handle some basic IMAP browsing -- who knew? See
+  # this site for details:
+  # <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
 - name: Check Mail via IMAP (SSL)
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false

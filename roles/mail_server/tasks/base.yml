@@ -266,6 +266,14 @@
   notify:
     - "Restart 'postfix'"
 
+# The Dovecot config here isn't too exciting, it's basically just setting it up
+# to auth via LDAP. Dovecot's sieve plugin is used, along with the amavis spam
+# filtering settings above, to ensure that each user can actually manage their
+# spam: the spam is delivered into their Maildir, in a separate IMAP folder.
+# The following sieve config references were helpful:
+# * https://wiki1.dovecot.org/LDA/Sieve#SpamAssassin.2BAC8-Amavis_tagged_mail_filtering
+# * https://gist.github.com/MartinEnders/c3bbbc6ce5145658451d
+# * https://wiki2.dovecot.org/HowTo/PostfixDovecotLMTP#preview
 - name: Configure Dovecot
   template:
     src: "dovecot/{{ item.name }}.j2"

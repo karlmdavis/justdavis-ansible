@@ -255,6 +255,18 @@
   notify:
     - "Restart 'amavis'"
 
+- name: Configure Cron to Remove Old Quarantined Viruses
+  cron:
+    name: Remove Old Quarantined Viruses
+    special_time: daily
+    job: /usr/bin/find /var/lib/amavis/virusmails/ -name "virus-*" -mtime +365 -exec rm {} ; &>> /var/log/quarantine_cleanup.log
+  become: true
+
+# At some point, we'll need to examine how to train/retrain the SpamAssassin 
+# filter being used by Amavis. When that need arises, this is so far the best
+# reference I've found: 
+# <https://finninday.net/wiki/index.php/Amavis_and_Spamassassin_howto>.
+
 - name: Configure Postfix Services for Amavis
   template:
     src: postfix/master.cf.j2

@@ -12,8 +12,8 @@
     state: restarted
   become: true
 
-- name: "Run 'postmap' on 'virtual_mailbox_maps'"
-  command: /usr/sbin/postmap /etc/postfix/virtual_mailbox_maps
+- name: "Run 'postmap' on 'virtual_alias_maps'"
+  command: /usr/sbin/postmap /etc/postfix/virtual_alias_maps
   become: true
 
 - name: "Restart 'postfix'"

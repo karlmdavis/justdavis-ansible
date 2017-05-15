@@ -8,13 +8,44 @@
     - swaks
   become: true
 
-- name: Send Mail (Unauthenticated and In-Network)
-  command: "/usr/bin/swaks --server localhost:25 --to karl@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network'"
+# Apparently, curl can also handle some basic IMAP browsing -- who knew? It's 
+# used a bunch here to verify that mail is being processed correctly. See this 
+# site for details:
+# <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
+
+- name: Check Mail via IMAP (SSL)
+  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
 
-- name: Send Mail (Authenticated and Out-of-Network)
-  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to karl@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network'"
+- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Send Mail (Unauthenticated and In-Network)
+  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network - {{ message_key }}'"
   changed_when: false
+- name: Verify that Mail was Received
+  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  register: curl_mail_inbox
+  changed_when: false
+  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
+
+- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Send Mail (Authenticated and Out-of-Network)
+  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
+  changed_when: false
+- name: Verify that Mail was Received
+  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  register: curl_mail_inbox
+  changed_when: false
+  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
+
+- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Send Mail (To Alias, Authenticated, and Out-of-Network)
+  local_action: "command /usr/bin/swaks --server {{ hostvars['eddings.justdavis.com']['ansible_host'] }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
+  changed_when: false
+- name: Verify that Mail was Received
+  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  register: curl_mail_inbox
+  changed_when: false
+  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
 
 # Try to send a message with the EICAR virus filter test pattern, verify it's quarantined.
 # Reference: http://www.eicar.org/86-0-Intended-use.html
@@ -24,7 +55,7 @@
     content: 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
 
 - name: Send Mail (Unauthenticated, In-Network, and with Virus Pattern)
-  command: "/usr/bin/swaks --server localhost:25 --to karl@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --attach /tmp/eicar"
+  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --attach /tmp/eicar"
   changed_when: false
 
 - name: Verify that Virus was Quarantined
@@ -34,13 +65,6 @@
   until: (shell_find_virus_count.stdout | int) > 0
   retries: 20
   delay: 3
-  changed_when: false
-
-  # Apparently, curl can also handle some basic IMAP browsing -- who knew? See
-  # this site for details:
-  # <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
-- name: Check Mail via IMAP (SSL)
-  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
 
 # Per <https://easyengine.io/tutorials/mail/server/testing/spam/>, the GTUBE

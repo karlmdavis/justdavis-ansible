@@ -152,7 +152,7 @@
     'virtual_uid_maps': "static:{{ uid_vmail.stdout }}"
     'virtual_gid_maps': "static:{{ gid_vmail.stdout }}"
     'virtual_mailbox_domains': "{{ domain }} {{ domain_alias }}"
-    'virtual_mailbox_maps': 'hash:/etc/postfix/virtual_mailbox_maps'
+    'virtual_alias_maps': 'hash:/etc/postfix/virtual_alias_maps'
     # Send mail to Amavis for spam and virus filtering.
     'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
     # Use Dovecot's LMTP service for delivery of virtual mail. This allows the
@@ -163,9 +163,9 @@
   notify:
     - "Restart 'postfix'"
 
-- name: Configure Postfix Virtual Users and Aliases
+- name: Configure Postfix Virtual Aliases
   copy:
-    dest: /etc/postfix/virtual_mailbox_maps
+    dest: /etc/postfix/virtual_alias_maps
     owner: root
     group: root
     mode: u=rw,g=r,o=r
@@ -180,14 +180,14 @@
     # our Dovecot config only supports a 1:1 relationship between logins and
     # Maildirs.
     content: |
-      karl@{{ domain }}                    karl@{{ domain }}/
-      postmaster@{{ domain }}              karl@{{ domain }}/
-      acme@eddings.{{ domain }}            karl@{{ domain }}/
-      root@eddings.{{ domain }}            karl@{{ domain }}/
-      {{ test_username }}@{{ domain }}     {{ test_username }}@{{ domain }}/
+      postmaster@{{ domain }}                    karl@{{ domain }}
+      acme@eddings.{{ domain }}                  karl@{{ domain }}
+      root@eddings.{{ domain }}                  karl@{{ domain }}
+      {{ test_username }}@{{ domain }}           {{ test_username }}@{{ domain }}
+      {{ test_username }}_alias@{{ domain }}     {{ test_username }}@{{ domain }}
   become: true
   notify:
-    - "Run 'postmap' on 'virtual_mailbox_maps'"
+    - "Run 'postmap' on 'virtual_alias_maps'"
 
 - name: Configure SASL for Postfix
   copy:

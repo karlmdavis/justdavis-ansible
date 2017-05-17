@@ -47,7 +47,9 @@ kerberos                  IN      CNAME             @
 
 ; TXT Records
 ; name             ttl    class   rr                name
-@                         IN      TXT               "v=spf1 ip4:96.244.76.236 ~all"
+; Other servers should accept mail for this domain that comes from systems
+; matching at least one of our MX records. All other mail should be rejected.
+@                         IN      TXT               "v=spf1 mx -all"
 _kerberos                 IN      TXT               "{{ domain | upper }}"
 2C1B581A-34C6-11E5-B653-7B34DD816394._domainkey IN      TXT     ( "v=DKIM1; k=rsa; "
           "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVsRq7QzJ+cGi3xwJu/cKfcbyeR8XG2XDqcKQDoHOUH1iCIbQbYT5gnMvmhWcihNRKtn4/W80RZA7w+8QWUoFsl+KJOyZpU42u65kAqHDlYuXQlb/CFVLVtWh12FwXl4G3ukb4+NK4MStEoiz9im67/vqhLbBNCaMaFVeW9Joo/QIDAQAB" )  ; ----- DKIM key 2C1B581A-34C6-11E5-B653-7B34DD816394 for justdavis.com

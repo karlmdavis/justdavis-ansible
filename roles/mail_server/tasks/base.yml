@@ -41,6 +41,7 @@
     - libmail-spf-perl
     - pyzor
     - razor
+    - postfix-policyd-spf-python
   become: true
 
 - name: Create 'vmail' User and Group
@@ -143,18 +144,23 @@
     # The CAfile must contain the chain for both the cert_file and the certs offerred by all remote clients.
     'smtpd_tls_CAfile': '/etc/ssl/certs/ca-certificates.crt'
     # Only allow authenticated clients to send mail.
-    #'smtpd_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination'
     'smtpd_relay_restrictions': 'permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination'
     # Ensure that Postfix uses its own keytab.
     'import_environment': 'KRB5_KTNAME=/etc/postfix/krb5.keytab'
+    # Allow incoming mail from authenticated or local users, don't relay mail
+    # for domains we don't control, and (for non-auth/local senders) verify that
+    # they pass an SPF check.
+    'smtpd_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,check_policy_service unix:private/policy-spf'
+    # Don't timeout while SPF is processing.
+    'policy-spf_time_limit': '3600s'
+    # Send mail to Amavis for spam and virus filtering.
+    'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
     # Configure the virtual domains to handle.
     'virtual_mailbox_base': '/var/vmail'
     'virtual_uid_maps': "static:{{ uid_vmail.stdout }}"
     'virtual_gid_maps': "static:{{ gid_vmail.stdout }}"
     'virtual_mailbox_domains': "{{ domain }} {{ domain_alias }}"
     'virtual_alias_maps': 'hash:/etc/postfix/virtual_alias_maps'
-    # Send mail to Amavis for spam and virus filtering.
-    'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
     # Use Dovecot's LMTP service for delivery of virtual mail. This allows the
     # use of Dovecot's sieve to ensure that incoming mail flagged as spam is
     # dropped into Junk folders, rather than user's INBOXes.

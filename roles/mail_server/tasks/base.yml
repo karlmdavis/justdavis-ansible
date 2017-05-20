@@ -42,6 +42,8 @@
     - pyzor
     - razor
     - postfix-policyd-spf-python
+    - opendkim
+    - opendkim-tools
   become: true
 
 - name: Create 'vmail' User and Group
@@ -153,6 +155,11 @@
     'smtpd_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,check_policy_service unix:private/policy-spf'
     # Don't timeout while SPF is processing.
     'policy-spf_time_limit': '3600s'
+    # Sign outgoing mail using OpenDKIM.
+    'milter_default_action': 'accept'
+    'milter_protocol': '2'
+    'smtpd_milters': 'local:/var/run/opendkim/opendkim.sock'
+    'non_smtpd_milters': 'local:/var/run/opendkim/opendkim.sock'
     # Send mail to Amavis for spam and virus filtering.
     'content_filter': 'smtp-amavis:[127.0.0.1]:10024'
     # Configure the virtual domains to handle.
@@ -335,4 +342,23 @@
     - '10-spam.sieve'
   notify:
     - 'Compile Dovecot Global Sieve Rules'
+
+- name: Configure OpenDKIM
+  template:
+    src: opendkim/opendkim.conf.j2
+    dest: /etc/opendkim.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create OpenDKIM Key
+  command: /usr/bin/opendkim-genkey --domain={{ domain }} --selector=a --directory=/etc/dkimkeys
+  args:
+    creates: /etc/dkimkeys/a.private
+  become: true
+  become_user: opendkim
+  notify:
+    - 'Update opendkim DNS Include'
+    - "Restart 'opendkim'"
 

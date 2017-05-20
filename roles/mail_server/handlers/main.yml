@@ -12,6 +12,16 @@
     state: restarted
   become: true
 
+- name: Update opendkim DNS Include
+  command: /bin/cp /etc/dkimkeys/a.txt /etc/bind/dkim-{{ domain }}.record
+  become: true
+
+- name: "Restart 'opendkim'"
+  service:
+    name: opendkim
+    state: restarted
+  become: true
+
 - name: "Run 'postmap' on 'virtual_alias_maps'"
   command: /usr/sbin/postmap /etc/postfix/virtual_alias_maps
   become: true

@@ -3,8 +3,10 @@ Jinja2==2.9.6
 MarkupSafe==1.0
 PyYAML==3.12
 ansible==2.3.0.0
+appdirs==1.4.3
 argparse==1.2.1
 asn1crypto==0.22.0
+boto==2.46.1
 cffi==1.10.0
 cryptography==1.8.1
 enum34==1.1.6

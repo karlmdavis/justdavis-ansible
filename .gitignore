@@ -10,3 +10,6 @@ vault.password
 # Ignore Ansible's `.retry` files.
 *.retry
 
+# Ignore the test host inventory.
+test/hosts-test
+

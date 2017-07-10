@@ -20,3 +20,9 @@
     - ldap-utils
   become: true
 
+- name: Firewall - Allow LDAPS
+  ufw:
+    rule: allow
+    name: OpenLDAP LDAPS
+  become: true
+

@@ -1,0 +1,9 @@
+---
+
+- name: Firewall - Allow HTTP for ACME
+  ufw:
+    rule: allow
+    port: 80
+    proto: tcp
+  become: true
+

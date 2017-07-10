@@ -1,6 +1,9 @@
 ---
 dependencies:
 
+  # Before the L-P.acmetool role can be enabled, we need to open the firewall.
+  - role: apache_pre
+
   # Apply and configure the `L-P.acmetool` role. This will start a Let's Encrypt client that listens on port 
   # 80, answering LE challenges, and redirecting all other traffic to port 443.
   # LE certificates will be created as `/var/lib/acme/live/HOSTNAME/{cert,chain,fullchain,privkey}`.

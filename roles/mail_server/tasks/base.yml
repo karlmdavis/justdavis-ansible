@@ -49,6 +49,16 @@
     - libspf2-2
   become: true
 
+- name: Firewall - Allow Mail Traffic
+  ufw:
+    rule: allow
+    name: "{{ item }}"
+  with_items:
+    - Postfix
+    - Postfix SMTPS
+    - Dovecot Secure IMAP
+  become: true
+
 - name: Create 'vmail' User and Group
   user:
     name: vmail

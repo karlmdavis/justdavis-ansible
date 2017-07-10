@@ -5,6 +5,12 @@
 # `../meta/main.yml`.
 ##
 
+- name: Firewall - Allow DNS Traffic
+  ufw:
+    rule: allow
+    name: Bind9
+  become: true
+
 - name: Ensure Stub OpenDKIM Record Exists
   command: /usr/bin/touch /etc/bind/dkim-{{ domain }}.record
   args:

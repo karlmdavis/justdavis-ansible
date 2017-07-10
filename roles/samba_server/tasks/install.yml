@@ -6,3 +6,9 @@
     - samba
   become: true
 
+- name: Firewall - Allow Samba
+  ufw:
+    rule: allow
+    name: Samba
+  become: true
+

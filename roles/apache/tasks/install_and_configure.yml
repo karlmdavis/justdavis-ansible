@@ -5,6 +5,13 @@
   become: yes
   with_items:
     - apache2
+
+- name: Firewall - Allow HTTPS
+  ufw:
+    rule: allow
+    name: Apache Secure
+  become: true
+
 - file:
     path: "{{ item }}"
     state: directory
@@ -16,6 +23,7 @@
     - "/var/apache2/{{ domain }}"
     - "/var/apache2/{{ domain }}/logs"
     - "/var/apache2/{{ domain }}/www"
+
 - lineinfile:
     dest: /etc/apache2/ports.conf
     regexp: '^(#?)Listen 80'
@@ -23,12 +31,14 @@
   become: yes
   notify:
     - apache-restart
+
 - apache2_module:
     state: present
     name: ssl
   become: yes
   notify:
     - apache-restart
+
 - template:
     src: domain-ssl.conf
     dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
@@ -36,6 +46,7 @@
   become: yes
   notify:
     - apache-reload
+
 - command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
   args:
     creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"

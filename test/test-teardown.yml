@@ -45,6 +45,6 @@
  
     - name: Remove Test Inventory
       local_action: file
-        path=./test/hosts-test
+        path=hosts-test
         state=absent
 

@@ -59,3 +59,21 @@
   become: true
   when: hostname_file.changed
 
+- name: Auto Upgrade - Install
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - unattended-upgrades
+  become: true
+
+- name: Auto Upgrade - Configure
+  template:
+    src: "{{ item.src }}"
+    dest: "/etc/apt/apt.conf.d/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  with_items:
+    - { src: '50unattended-upgrades.j2', dest: '50unattended-upgrades' }
+    - { src: '20auto-upgrades.j2', dest: '20auto-upgrades' }
+  become: true
+

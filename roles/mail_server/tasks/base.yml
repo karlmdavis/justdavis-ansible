@@ -47,6 +47,8 @@
     # I'm not sure this is enough to get SA actually _working_ with SPF, but
     # installing this package allows SA to at least _try_ to check SPF.
     - libspf2-2
+    # Allows use of mailx to send mail from shell and scripts.
+    - mailutils
   become: true
 
 - name: Firewall - Allow Mail Traffic

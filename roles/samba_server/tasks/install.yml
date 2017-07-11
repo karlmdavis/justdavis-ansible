@@ -10,5 +10,6 @@
   ufw:
     rule: allow
     name: Samba
+    src: "{{ network_home_cidr }}"
   become: true
 

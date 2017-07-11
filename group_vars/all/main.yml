@@ -25,6 +25,12 @@ domain_site_aliases:
   - "{{ 'www.davisonlinehome.name' if not is_test else 'www.tests.davisonlinehome.name' }}"
 domain_webmaster: "karl@{{ domain }}"
 
+# The WAN IP addresses of the "home" network. Connections from these IPs will 
+# have more privileges.
+# Note: This is the Longview static IP block assigned by Comcast, as of 
+# 2017-07-10.
+network_home_cidr: '96.86.32.136/29'
+
 people:
   karl:
     givenName: Karl

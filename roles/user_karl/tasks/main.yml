@@ -1,0 +1,53 @@
+---
+
+- name: Create User Home Directory
+  command: /sbin/mkhomedir_helper karl
+  args:
+    creates: /home/karl
+  become: true
+
+- name: Create User .ssh Directory
+  file: 
+    state: directory
+    dest: /home/karl/.ssh
+    mode: u=rwx,g=,o= 
+    owner: karl
+    group: karl
+  become: true
+
+- name: Copy SSH Public Key
+  copy: 
+    content: "{{ ssh_key_karlmdavis.public }}" 
+    dest: "/home/karl/.ssh/id_rsa.pub"
+    owner: karl
+    group: karl
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Copy SSH Private Key
+  copy: 
+    content: "{{ ssh_key_karlmdavis.private }}" 
+    dest: "/home/karl/.ssh/id_rsa"
+    owner: karl
+    group: karl
+    mode: u=rw,g=,o=
+  become: true
+  no_log: true
+
+- name: Add GitHub to the Global ssh_known_hosts
+  known_hosts:
+    path: /etc/ssh/ssh_known_hosts
+    name: github.com
+    key: "{{ ssh_known_host_github }}"
+  become: true
+
+- name: Install and Configure RCM
+  include_role:
+    name: karlmdavis.rcm
+  vars:
+    rcm_user: karl
+    rcm_install_mode: default
+    rcm_repos:
+      - repo: 'git@github.com:karlmdavis/dotfiles.git'
+        dest: '/home/karl/.dotfiles-karlmdavis.git'
+

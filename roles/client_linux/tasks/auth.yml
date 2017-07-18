@@ -104,3 +104,29 @@
   become: true
   when: pam_config_result.changed
 
+- name: Enable Kerberos/GSSAPI SSH Server Logins
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    insertafter: '^#GSSAPIAuthentication '
+    regexp: '^GSSAPIAuthentication '
+    line: 'GSSAPIAuthentication yes'
+  become: true
+
+- name: Disable Password-Based SSH Server Logins
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    insertafter: '^#PasswordAuthentication '
+    regexp: '^PasswordAuthentication '
+    line: 'PasswordAuthentication no'
+  become: true
+
+- name: Enable Kerberos/GSSAPI SSH Client Logins
+  blockinfile:
+    path: /etc/ssh/ssh_config
+    block: |
+      Host *.{{ domain }}
+          PreferredAuthentications gssapi-with-mic,publickey,password
+          GSSAPIAuthentication yes
+          GSSAPIDelegateCredentials no
+  become: true
+

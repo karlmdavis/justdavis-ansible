@@ -28,4 +28,5 @@
     - samba_server
     - mail_server
     - user_karl
+    - spideroak
 

@@ -1,0 +1,23 @@
+---
+
+- set_fact: spideroakone_device="{{ (ansible_hostname + '-test2') if is_test else ansible_hostname }}"
+- name: Create Temporary Setup File
+  template:
+    src: setup.json.j2
+    dest: /home/backups/spideroak-setup.json
+    owner: backups
+    group: backups
+    mode: u=rw,g=,o=
+  become: true
+
+- name: Run SpiderOak Setup
+  command: "/usr/bin/SpiderOakONE --setup=/home/backups/spideroak-setup.json"
+  become_user: backups
+  become: true
+
+- name: Remove Temporary Setup File
+  file:
+    path: /home/backups/spideroak-setup.json
+    state: absent
+  become: true
+

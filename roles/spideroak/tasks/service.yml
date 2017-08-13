@@ -1,0 +1,44 @@
+---
+
+- name: Create Backup Script
+  copy:
+    src: spideroak-backups.sh
+    dest: /usr/local/bin/spideroak-backups.sh
+    owner: backups
+    group: backups
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Create Service Status Mailer Unit
+  copy:
+    src: status-email-root@.service
+    dest: /etc/systemd/system/status-email-root@.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Reload Service Definitions
+
+- name: Create Backup Service Definition
+  copy:
+    src: spideroak-backups.service
+    dest: /etc/systemd/system/spideroak-backups.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Reload Service Definitions
+
+- name: Create Backup Service Timer
+  copy:
+    src: spideroak-backups.timer
+    dest: /etc/systemd/system/spideroak-backups.timer
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Reload Service Definitions
+

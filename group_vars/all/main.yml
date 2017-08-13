@@ -63,3 +63,7 @@ test_username: 'test'
 test_user_dn: "uid={{ test_username }},ou=people,dc=justdavis,dc=com"
 test_password: "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits length=32') }}"
 
+# SpiderOakONE Login.
+spideroakone_username: "{{ vault_spideroakone_username }}"
+spideroakone_password: "{{ vault_spideroakone_password }}"
+

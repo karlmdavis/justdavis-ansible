@@ -1,0 +1,9 @@
+[Unit]
+Description=SpiderOak Backups
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/backups
+ExecStart=/usr/local/bin/spideroak-backups.sh
+User=backups
+

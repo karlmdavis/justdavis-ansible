@@ -62,7 +62,7 @@ ssh_key_karlmdavis:
 # The account to create and use for test purposes.
 test_username: 'test'
 test_user_dn: "uid={{ test_username }},ou=people,dc=justdavis,dc=com"
-test_password: "{{ lookup('password', '/tmp/justdavis-ansible-test-password chars=ascii_letters,digits length=32') }}"
+test_password: "{{ vault_test_password }}"
 
 # SpiderOakONE Login.
 spideroakone_username: "{{ vault_spideroakone_username }}"

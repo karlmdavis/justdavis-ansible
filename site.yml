@@ -20,6 +20,7 @@
   
   roles:
     - base
+    - virtual_machines
     - dns_server
     - apache
     - krb5_server

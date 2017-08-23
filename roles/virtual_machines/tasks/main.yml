@@ -1,0 +1,8 @@
+---
+##
+# Installs the utilities required to host virtual machines using KVM/libvirt.
+# Note: KVM is not supported on AWS, so there are no automated tests for this.
+##
+
+- include: install.yml
+

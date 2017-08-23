@@ -1,5 +1,10 @@
 ---
 
+# Configure networking, except during tests in AWS (because networking there is
+# completely different and incompatible).
+- include: networking.yml
+  when: is_test == false
+
 - include: config.yml
 - include: test.yml
   tags: test

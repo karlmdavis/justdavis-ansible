@@ -1,0 +1,26 @@
+---
+
+##
+# Configures the system's networking correctly:
+#
+# * Use a public static IP on eth0.
+# * Create a network bridge on eth0, for use by VMs.
+##
+
+- name: Install Network Bridging Utilities
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - bridge-utils
+  become: true
+
+- name: Configure Network Interfaces
+  copy:
+    src: network_interfaces
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Restart networking
+

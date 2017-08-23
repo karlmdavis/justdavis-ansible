@@ -1,0 +1,32 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+##
+# This server has the following network interfaces:
+#
+# * eth0 & eth1: Not actually available (I think they're firewire or somesuch).
+# * eth2: The lowest port builtin to the motherboard.
+# * eth3: The middle port builtin to the motherboard.
+# * eth4: A temporary PCIe replacement NIC. (eth2 and eth3 were disabled during a 2018-08-18 lightning storm.)
+# * (unnamed): The top port builtin to the motherboard is for the board's Management Engine.
+##
+
+# The network interface for WAN connectivity.
+auto eth4
+iface eth0 inet manual
+
+# The bridge used by libvirt guests, runs on eth0 (the WAN).
+auto br0
+iface br0 inet static
+	address 96.86.32.137
+	netmask 255.255.255.248
+	gateway 96.86.32.142
+	bridge_ports eth4
+	bridge_stp off
+	bridge_fd 0
+	bridge_maxwait 0
+

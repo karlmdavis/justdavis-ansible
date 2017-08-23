@@ -23,9 +23,11 @@
   changed_when: false
 - name: Verify that Mail was Received
   command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
-  register: curl_mail_inbox
   changed_when: false
-  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
+  register: curl_mail_inbox
+  until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
+  retries: 10
+  delay: 1
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Authenticated and Out-of-Network)
@@ -33,9 +35,11 @@
   changed_when: false
 - name: Verify that Mail was Received
   command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
-  register: curl_mail_inbox
   changed_when: false
-  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
+  register: curl_mail_inbox
+  until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
+  retries: 10
+  delay: 1
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (To Alias, Authenticated, and Out-of-Network)
@@ -43,9 +47,11 @@
   changed_when: false
 - name: Verify that Mail was Received
   command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
-  register: curl_mail_inbox
   changed_when: false
-  failed_when: curl_mail_inbox.rc != 0 or (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is none
+  register: curl_mail_inbox
+  until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
+  retries: 10
+  delay: 1
 
 # Try to send a message with the EICAR virus filter test pattern, verify it's quarantined.
 # Reference: http://www.eicar.org/86-0-Intended-use.html
@@ -58,14 +64,15 @@
   command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --attach /tmp/eicar"
   changed_when: false
 
+# Debug Note: This will sometimes fail, when freshclam doesn't complete quickly enough. Once freshclam _has_ run successfully, a `sudo systemctl restart clamav-daemon.service` should fix things. See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=775112 for a similar problem.
 - name: Verify that Virus was Quarantined
   shell: "/usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
   become: true
+  changed_when: false
   register: shell_find_virus_count
   until: (shell_find_virus_count.stdout | int) > 0
   retries: 20
   delay: 3
-  changed_when: false
 
 # Per <https://easyengine.io/tutorials/mail/server/testing/spam/>, the GTUBE
 # pattern should always be flagged as spam.
@@ -75,7 +82,9 @@
 
 - name: Verify that Spam was Filtered
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'EXAMINE Junk'"
-  register: curl_mail_junk
   changed_when: false
-  failed_when: curl_mail_junk.rc != 0 or '0 EXISTS' in curl_mail_junk.stdout
+  register: curl_mail_junk
+  until: curl_mail_junk.rc == 0 and '0 EXISTS' not in curl_mail_junk.stdout
+  retries: 10
+  delay: 1
 

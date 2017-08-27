@@ -14,6 +14,9 @@
   command: "/usr/bin/SpiderOakONE --setup=/home/backups/spideroak-setup.json"
   become_user: backups
   become: true
+  # This task typically takes about 90 minutes to complete. If not run asynchronously, any SSH connection failures will cause the task to fail.
+  async: "{{ 60 * 60 * 4 }}"
+  poll: 10
 
 - name: Remove Temporary Setup File
   file:

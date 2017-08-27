@@ -11,7 +11,9 @@
   become: true
 
 - name: Run SpiderOak Setup
-  command: "/usr/bin/SpiderOakONE --setup=/home/backups/spideroak-setup.json"
+  shell: "/usr/bin/SpiderOakONE --setup=/home/backups/spideroak-setup.json |& /usr/bin/tee --append /home/backups/spideroak-setup.log"
+  args:
+    executable: /bin/bash
   become_user: backups
   become: true
   # This task typically takes about 90 minutes to complete. If not run asynchronously, any SSH connection failures will cause the task to fail.

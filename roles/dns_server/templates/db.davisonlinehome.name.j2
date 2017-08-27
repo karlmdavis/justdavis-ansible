@@ -31,9 +31,10 @@ smtp                      IN      CNAME             mail
 
 ; TXT Records
 ; name             ttl    class   rr                name
-@                         IN      TXT               "v=spf1 ip4:96.244.76.236 ~all"
+@                         IN      TXT               "v=spf1 mx -all"
 23324326-34C6-11E5-BA9F-6834DD816394._domainkey IN      TXT     ( "v=DKIM1; k=rsa; "
           "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC1HonCzDWBdtv2eCK3rHjwrH9tO8uP7F/QTRdlZCkPfOWukaPe+jHF2uSOH7kZTVuC3kX2CCHgzaNyFiJIRwfuuxilc/QZr7nKwtjXvmBqdevt4KrcQErvWjrfKo5kVJ0iR98jL9wm13LKlFZgXtPhWzuZdsor6uILjT5gwQIsAQIDAQAB" )  ; ----- DKIM key 23324326-34C6-11E5-BA9F-6834DD816394 for davisonlinehome.name
+; FIXME Use DKIM for new mail server, after switch.
 
 ; SRV Records
 ; name                   ttl    class   rr                name

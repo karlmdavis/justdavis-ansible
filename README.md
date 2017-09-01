@@ -34,9 +34,9 @@ Next, create a virtual environment for this project and install the project's de
 
 The `source` command above will need to be run every time you open a new terminal to work on this project.
 
-Be sure to update the `requirements.txt` file after `pip install`ing a new dependency for this project:
+Be sure to update the `requirements.frozen.txt` file after `pip install`ing a new dependency for this project:
 
-    $ pip freeze > requirements.txt
+    $ pip freeze > requirements.frozen.txt
 
 ### Ansible Roles
 

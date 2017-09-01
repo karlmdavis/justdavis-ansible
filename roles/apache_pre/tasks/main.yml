@@ -7,3 +7,17 @@
     proto: tcp
   become: true
 
+- name: Firewall - Allow Challenges for ACME on 402
+  ufw:
+    rule: allow
+    port: 402
+    proto: tcp
+  become: true
+
+- name: Firewall - Allow Challenges for ACME on 4402
+  ufw:
+    rule: allow
+    port: 4402
+    proto: tcp
+  become: true
+

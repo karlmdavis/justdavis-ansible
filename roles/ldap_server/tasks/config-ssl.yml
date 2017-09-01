@@ -6,17 +6,38 @@
 # primary domain. Accordingly, all LDAP connections will have to use a matching 
 # URL, e.g. `ldaps://justdavis.com/`.
 
-- acl:
-    name: "{{ item }}"
+# Note: POSIX ACLs are tricky: this will only work if the ACL "mask" allows 
+# these permissions. That mask basically boils down to "what are the basic 
+# group permissions? (Just noting that here: resolving that is the 
+# responsibility of whatever sets up the certificates in the first place.)
+- name: Allow openldap Access to Existing Certificate Private Keys
+  acl:
+    path: /var/lib/acme/keys
     state: present
     etype: user
     entity: openldap
-    permissions: "rx"
+    permissions: "rX"
     recursive: true
+    follow: true
   become: true
-  with_items:
-    - "/var/lib/acme/live/{{ domain }}"
-    - '/var/lib/acme/keys'
+- name: Allow openldap Access to New Certificate Private Keys
+  acl:
+    path: /var/lib/acme/keys
+    state: present
+    etype: user
+    entity: openldap
+    permissions: "rX"
+    default: true
+    recursive: true
+    follow: true
+  become: true
+
+- name: Ensure that slapd is Reloaded for New Certificates
+  lineinfile:
+    path: /etc/default/acme-reload
+    line: 'SERVICES="$SERVICES slapd"'
+  become: true
+
 - template:
     src: templates/slapd-apparmor.j2
     dest: /etc/apparmor.d/local/usr.sbin.slapd

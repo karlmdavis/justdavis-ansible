@@ -3,8 +3,8 @@
 ##
 # Configures the system's networking correctly:
 #
-# * Use a public static IP on eth0.
-# * Create a network bridge on eth0, for use by VMs.
+# * Use a public static IP on enp2s0f0.
+# * Create a network bridge on enp2s0f0, for use by VMs.
 ##
 
 - name: Install Network Bridging Utilities
@@ -15,7 +15,7 @@
 
 - name: Configure Network Interfaces
   copy:
-    src: network_interfaces
+    src: eddings_network_interfaces
     dest: /etc/network/interfaces
     owner: root
     group: root

@@ -18,16 +18,20 @@
   name: Configure Systems
   gather_facts: true
   
-  roles:
-    - base
-    - virtual_machines
-    - dns_server
-    - apache
-    - krb5_server
-    - ldap_server
-    - client_linux
-    - samba_server
-    - mail_server
-    - user_karl
-    - spideroak
+  tasks:
+    # Configure networking, except during tests in AWS (because networking there is
+    # completely different and incompatible).
+    - include: tasks/eddings_networking.yml
+      when: is_test == false
+    - include_role: name=base
+    - include_role: name=virtual_machines
+    - include_role: name=dns_server
+    - include_role: name=apache
+    - include_role: name=krb5_server
+    - include_role: name=ldap_server
+    - include_role: name=client_linux
+    - include_role: name=samba_server
+    - include_role: name=mail_server
+    - include_role: name=user_karl
+    - include_role: name=spideroak
 

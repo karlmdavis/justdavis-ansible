@@ -1,12 +1,6 @@
 ---
 
 - include: config.yml
-
-# Configure networking, except during tests in AWS (because networking there is
-# completely different and incompatible).
-- include: networking.yml
-  when: is_test == false
-
 - include: sensors.yml
 
 - include: test.yml

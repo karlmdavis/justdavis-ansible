@@ -28,8 +28,8 @@ fi
 
 # If there is no test inventory, provision the test systems and create it.
 if [[ ! -e ./test/hosts-test ]]; then
-  AWS_PROFILE=${AWS_PROFILE} ansible-playbook test/test-provision.yml --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}"
+  AWS_PROFILE=${AWS_PROFILE} ansible-playbook test/provision.yml --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}"
 fi
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "is_test=true"
-AWS_PROFILE=${AWS_PROFILE} ansible-playbook test/test-teardown.yml --inventory-file=test/hosts-test --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}"
+AWS_PROFILE=${AWS_PROFILE} ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}"
 

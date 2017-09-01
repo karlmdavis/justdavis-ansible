@@ -22,5 +22,5 @@
     mode: u=rw,g=r,o=r
   become: true
   notify:
-    - Restart networking
+    - Restart Networking
 

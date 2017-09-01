@@ -63,7 +63,7 @@ Ensure that the EC2 key to be used is loaded into SSH Agent:
 
 Running the following command will run the `site.yml` Ansible playbook against the hosts specified in the `hosts` file:
 
-    $ ansible-playbook site.yml
+    $ ansible-playbook site.yml |& tee "logs/ansible-$(date --iso-8601=seconds)".log
 
 ### Test
 

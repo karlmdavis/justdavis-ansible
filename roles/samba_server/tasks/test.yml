@@ -2,6 +2,15 @@
 
 - meta: flush_handlers
 
+- name: Create Test User Home Share Directory
+  file:
+    state: directory
+    path: /var/lib/samba/users/test
+    owner: test
+    group: test
+    mode: u=rwx,g=rx,o=
+  become: true
+
 - name: Wait for Samba Server
   wait_for:
     port: 139

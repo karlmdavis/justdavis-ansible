@@ -277,8 +277,10 @@
 
 [homes]
    comment = Home Directories
-   browseable = no
+   path = /var/lib/samba/users/%S
    read only = no
+   # TODO: I haven't yet come up with a good way to allow users to browse other users' home directory shares. Just setting this to `yes` doesn't work, as the path is still dynamic, so `homes` just ends up being an alias for `homes/%S`.
+   browseable = no
 
 [karlanderica]
    comment = Shared Files for Karl and Erica

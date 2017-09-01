@@ -1,9 +1,18 @@
 ---
 
-- name: Create Share Directories
+- name: Create Group Share Directory Root
   file:
     state: directory
-    path: "/var/lib/samba/{{ item.key }}"
+    path: /var/lib/samba/groupshares
+    owner: root
+    group: sambashare
+    mode: u=rwx,g=rwx,o=t
+  become: true
+
+- name: Create Group Share Directories
+  file:
+    state: directory
+    path: "/var/lib/samba/groupshares/{{ item.key }}"
     owner: "{{ item.value.owner }}"
     group: "{{ item.value.group }}"
     mode: "{{ item.value.mode }}"
@@ -11,11 +20,21 @@
     karlanderica:
       owner: karl
       group: karlanderica
-      mode: u=rwxs,g=rwxs,o=
+      mode: u=rwxs,g=rwxs,o=t
     sysadmin:
       owner: karl
       group: administrators_posix
-      mode: u=rwxs,g=rwxs,o=rx
+      mode: u=rwxs,g=rwxs,o=rxst
+  become: true
+
+- name: Create User Share Directories
+  file:
+    state: directory
+    path: "/var/lib/samba/usershares/{{ item.key }}"
+    owner: "{{ item.key }}"
+    group: "{{ item.key }}"
+    mode: u=rwxs,g=rwxs,o=
+  with_dict: "{{ people }}"
   become: true
 
 - name: Create Service Principal for Samba Server

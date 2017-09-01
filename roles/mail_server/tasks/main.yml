@@ -2,6 +2,7 @@
 
 - include: base.yml
 - include: sasl-chroot-fix.yml 
-- include: test.yml
-  tags: test
+# FIXME Can't run tests unless/until DNS records are switched to point to eddings as mail server.
+#- include: test.yml
+#  tags: test
 

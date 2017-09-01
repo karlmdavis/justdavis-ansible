@@ -2,7 +2,7 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.{{ domain_alias }}.           hostmaster.{{ domain_alias }}. (
-                              2016081300 ; sn = serial number (yyyymmdd##)
+                              2017083100 ; sn = serial number (yyyymmdd##)
                               1h         ; ref = refresh
                               15M        ; ret = update retry
                               4W         ; ex = expiry
@@ -16,9 +16,11 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; IPv4 Address Records
 ; name             ttl    class   rr                name
-@                         IN      A                 96.244.76.235
-ns1                       IN      A                 96.244.76.235
-mail                      IN      A                 96.244.76.236
+@                         IN      A                 {{ eddings_public_ip }}
+ns1                       IN      A                 {{ eddings_public_ip }}
+; FIXME Switch mail server records, after switch.
+mail                      IN      A                 96.86.32.138
+;mail                      IN      A                 {{ eddings_public_ip }}
 
 ; CNAME Records
 ; name             ttl    class   rr                name
@@ -38,9 +40,6 @@ smtp                      IN      CNAME             mail
 
 ; SRV Records
 ; name                   ttl    class   rr                name
-
-; AFSDB Records
-; cell                   ttl    class   rr                name
 
 ; NS Records
 ; subdomain              ttl    class   rr                name

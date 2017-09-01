@@ -5,7 +5,7 @@
 #
 #     $ ansible-playbook site.yml
 
-- hosts: eddings.justdavis.com
+- hosts: os_ubuntu_1604
   name: Bootstrap Ubuntu Hosts with Python 2.7
   gather_facts: false
   
@@ -15,9 +15,8 @@
     - raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
 
 - hosts: eddings.justdavis.com
-  name: Configure Systems
+  name: Configure Eddings
   gather_facts: true
-  
   tasks:
     # Configure networking, except during tests in AWS (because networking there is
     # completely different and incompatible).
@@ -32,6 +31,13 @@
     - include_role: name=client_linux
     - include_role: name=samba_server
     - include_role: name=mail_server
-    - include_role: name=user_karl
     - include_role: name=spideroak
+
+- hosts: all
+  name: Apply Common Configuration to Workstations
+  gather_facts: true
+  tasks:
+    - include_role: name=base
+    - include_role: name=client_linux
+    - include_role: name=user_karl
 

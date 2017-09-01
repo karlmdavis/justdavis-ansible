@@ -32,7 +32,7 @@
 - name: Apply Timezone Change
   command: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
   become: true
-  when: "{{ timezone_file.changed }}"
+  when: timezone_file.changed
 
 - name: Install 'ntp' and Other Base Packages
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"

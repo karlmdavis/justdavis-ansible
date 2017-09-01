@@ -31,5 +31,5 @@
   register: slapd_admins_ldif
 - command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-admins.ldif'
   become: true
-  when: "{{ slapd_admins_ldif.changed }}"
+  when: slapd_admins_ldif.changed
 

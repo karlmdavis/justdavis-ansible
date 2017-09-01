@@ -56,5 +56,5 @@
   register: slapd_sasl_ldif
 - command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-sasl.ldif'
   become: true
-  when: "{{ slapd_sasl_ldif.changed }}"
+  when: slapd_sasl_ldif.changed
 

@@ -9,5 +9,5 @@
   become: true
   notify:
     - "Restart 'eth0'"
-  when: "is_test"
+  when: is_test
 

@@ -8,7 +8,7 @@
     responses:
       "^Password for .*: ": "{{ test_password }}"
   register: kinit_result
-  failed_when: "kinit_result.rc != 0"
+  failed_when: kinit_result.rc != 0
 
 # This verifies that GSSAPI/Kerberos integration is working for the LDAP client utilities. Note
 # that the above kinit test command obtained the Kerberos ticket needed.

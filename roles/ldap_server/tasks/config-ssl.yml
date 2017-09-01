@@ -51,7 +51,7 @@
     name: apparmor
     state: reloaded
   become: true
-  when: "{{ slapd_apparmor.changed }}"
+  when: slapd_apparmor.changed
 # Not sure why, but applying these slapd config attributes via `ldap_attr` 
 # fails. It seems they need to be written in a single transaction?
 - template:
@@ -61,7 +61,7 @@
   register: slapd_ssl_ldif
 - command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'
   become: true
-  when: "{{ slapd_ssl_ldif.changed }}"
+  when: slapd_ssl_ldif.changed
   notify:
     - "Restart 'slapd'"
 - template:

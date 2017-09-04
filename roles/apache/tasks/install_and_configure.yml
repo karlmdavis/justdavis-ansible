@@ -57,6 +57,21 @@
     - apache-restart
 
 - template:
+    src: shared-ssl.conf
+    dest: "/etc/apache2/conf-available/ssl.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+
+- command: "/usr/sbin/a2enconf ssl.conf"
+  args:
+    creates: "/etc/apache2/conf-enabled/ssl.conf"
+  become: yes
+  notify:
+    - apache-reload
+
+- template:
     src: domain-ssl.conf
     dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
     mode: u=rw,g=rw,o=r

@@ -28,7 +28,7 @@
     - include_role: name=krb5_server
     - include_role: name=ldap_server
     - include_role: name=client_linux
-    - include_role: name=samba_server
+    - include_role: name=file_server
     - include_role: name=mail_server
     - include_role: name=spideroak
 

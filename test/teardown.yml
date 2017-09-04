@@ -47,4 +47,5 @@
       local_action: file
         path=hosts-test
         state=absent
+      run_once: true
 

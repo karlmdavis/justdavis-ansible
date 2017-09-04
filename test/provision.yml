@@ -60,9 +60,15 @@
         group:
           - default
           - all
-        # This instance type has 2 vCPUs and 4GB RAM
-        instance_type: t2.medium
+        # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
+        # For eddings, this seems to be the minimum workable number of CPU credits.
+        instance_type: t2.small
         image: "{{ ami_id_ubuntu_16 }}"
+        user_data: |
+                   #!/bin/sh
+                   # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
+                   # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
+                   sudo apt-get update -qq && sudo apt-get install -y -qq haveged
         region: "{{ region }}"
         wait: true
         exact_count: 1
@@ -72,6 +78,30 @@
           Name: eddings
           CreatedBy: "{{ whoami.stdout }}"
       register: ec2_eddings
+    
+    - name: EC2 - Provision 'jordan-u'
+      ec2:
+        key_name: "{{ ec2_key_name }}"
+        group:
+          - default
+          - ssh-all
+        # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
+        instance_type: t2.micro
+        image: "{{ ami_id_ubuntu_14 }}"
+        user_data: |
+                   #!/bin/sh
+                   # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
+                   # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
+                   sudo apt-get update -qq && sudo apt-get install -y -qq haveged
+        region: "{{ region }}"
+        wait: true
+        exact_count: 1
+        count_tag:
+          Name: jordan-u
+        instance_tags:
+          Name: jordan-u
+          CreatedBy: "{{ whoami.stdout }}"
+      register: ec2_jordan_u
 
     # Most of the Ansible configs will use the server being stood up as the 
     # primary DNS server during tests. However, there are some services (e.g. 
@@ -103,7 +133,7 @@
  
     - name: EC2 - Wait for SSH
       wait_for: host={{ item.public_dns_name }} search_regex=OpenSSH port=22 state=started
-      with_items: "{{ ec2_eddings.instances }}"
+      with_items: "{{ ec2_eddings.instances + ec2_jordan_u.instances }}"
 
     - name: Write Test Inventory
       template:

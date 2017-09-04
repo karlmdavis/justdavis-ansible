@@ -15,6 +15,12 @@
     group: karl
   become: true
 
+- name: Authorize SSH Key
+  authorized_key:
+    user: karl
+    key: "{{ ssh_key_karlmdavis.public }}"
+  become: true
+
 - name: Copy SSH Public Key
   copy: 
     content: "{{ ssh_key_karlmdavis.public }}" 

@@ -8,11 +8,12 @@
     owner: root
     group: staff
     mode: u=rw,g=r,o=r
-  register: staging_ca_result
+  register: download_staging_ca_result
   become: true
+  when: is_test == true
 
 - name: Update CA Certificates Index
   command: /usr/sbin/update-ca-certificates
-  when: staging_ca_result.changed
+  when: download_staging_ca_result.changed
   become: true
 

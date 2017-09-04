@@ -94,11 +94,12 @@
         - { zone: 'tests.justdavis.com', record: 'www.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.davisonlinehome.name', record: 'tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.davisonlinehome.name', record: 'www.tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.justdavis.com', record: 'eddings.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.justdavis.com', record: '_kerberos.tests.justdavis.com', type: 'TXT', value: '"TESTS.JUSTDAVIS.COM"' }
-        - { zone: 'tests.justdavis.com', record: '_kerberos._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings' }
-        - { zone: 'tests.justdavis.com', record: '_kerberos-master._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings' }
-        - { zone: 'tests.justdavis.com', record: '_kerberos-adm._tcp.tests.justdavis.com', type: 'SRV', value: '0 0 749 eddings' }
-        - { zone: 'tests.justdavis.com', record: '_kpasswd._udp.tests.justdavis.com', type: 'SRV', value: '0 0 464 eddings' }
+        - { zone: 'tests.justdavis.com', record: '_kerberos._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings.tests.justdavis.com.' }
+        - { zone: 'tests.justdavis.com', record: '_kerberos-master._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings.tests.justdavis.com.' }
+        - { zone: 'tests.justdavis.com', record: '_kerberos-adm._tcp.tests.justdavis.com', type: 'SRV', value: '0 0 749 eddings.tests.justdavis.com.' }
+        - { zone: 'tests.justdavis.com', record: '_kpasswd._udp.tests.justdavis.com', type: 'SRV', value: '0 0 464 eddings.tests.justdavis.com.' }
  
     - name: EC2 - Wait for SSH
       wait_for: host={{ item.public_dns_name }} search_regex=OpenSSH port=22 state=started

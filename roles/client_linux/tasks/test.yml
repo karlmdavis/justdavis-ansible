@@ -24,13 +24,43 @@
     command: "/usr/bin/kinit {{ test_username }}"
     responses:
       "^Password for .*: ": "{{ test_password }}"
-  register: kinit_result
-  failed_when: kinit_result.rc != 0
+  when: ansible_distribution != 'Ubuntu' or ansible_distribution_release != 'trusty'
+  changed_when: false
+  no_log: true
+- name: Test Kerberos Auth
+  shell: |
+    set timeout 30
+    
+    # Run the kinit command and send it the password.
+    spawn /usr/bin/kinit {{ test_username }}
+    expect -re "Password for .*: "
+    send "{{ test_password }}\n"
+    
+    # Wait for the kinit command to exit.
+    expect eof
+    
+    # Catch the kinit command's exit status and save it to the `result` variable.
+    catch wait result
+    
+    # Exit this script with the kinit command's return code.
+    exit [lindex $result 3]
+  args:
+    executable: /usr/bin/expect
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'trusty'
+  changed_when: false
+  no_log: true
 
 # This verifies that GSSAPI/Kerberos integration is working for the LDAP client utilities. Note
 # that the above kinit test command obtained the Kerberos ticket needed.
 - name: 'Test LDAP Search (GSSAPI)'
-  command: "/usr/bin/ldapsearch -Y GSSAPI -H ldaps://{{ domain }} -b dc=justdavis,dc=com"
+  command: '/usr/bin/ldapsearch -Y GSSAPI'
   register: ldap_search_gssapi_result
+  changed_when: false
   failed_when: ldap_search_gssapi_result.rc != 0 or test_user_dn not in ldap_search_gssapi_result.stdout
+
+- name: 'Test getent passwd'
+  command: '/usr/bin/getent passwd'
+  register: getent_passwd
+  changed_when: false
+  failed_when: getent_passwd.rc != 0 or 'test' not in getent_passwd.stdout
 

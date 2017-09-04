@@ -21,7 +21,8 @@ SLAPD_PIDFILE=
 # sockets.
 # Example usage:
 # SLAPD_SERVICES="ldap://127.0.0.1:389/ ldaps:/// ldapi:///"
-SLAPD_SERVICES="ldaps:/// ldapi:///"
+# FIXME: Remove ldap:/// once Ubuntu 14 doesn't need to be supported anymore
+SLAPD_SERVICES="ldaps:/// ldapi:/// ldap:///"
 
 # If SLAPD_NO_START is set, the init script will not start or restart
 # slapd (but stop will still work).  Uncomment this if you are

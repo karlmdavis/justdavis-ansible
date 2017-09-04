@@ -1,4 +1,9 @@
 dn: cn=config
+# Tried this to get LDAPS working with Ubuntu Trusty clients, but it didn't work.
+# See this page for the available options: https://gnutls.org/manual/html_node/Priority-Strings.html
+#replace: olcTLSCipherSuite
+#olcTLSCipherSuite: LEGACY
+#-
 replace: olcTLSCACertificateFile
 olcTLSCACertificateFile: /var/lib/acme/live/{{ domain }}/chain
 -

@@ -77,3 +77,12 @@
     - { src: '20auto-upgrades.j2', dest: '20auto-upgrades' }
   become: true
 
+- name: Install Expect Utility
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    # These two packages are used by several other server & client roles.
+    # Note: The Ansible expect module can't be used on all clients, due to https://github.com/ansible/ansible/issues/23851.
+    - expect
+    - python-pexpect
+  become: true
+

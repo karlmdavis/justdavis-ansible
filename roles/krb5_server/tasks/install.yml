@@ -13,20 +13,11 @@
     - debconf: name=krb5-admin-server question='krb5-admin-server/newrealm' value='' vtype='note'
   become: true
 
-- name: Install Pre-requisites
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
-  with_items:
-    - expect
-    - python-pexpect
-  become: true
-
 - name: Install
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - krb5-kdc
     - krb5-admin-server
-    - expect
-    - python-pexpect
   become: true
   register: 'install_krb'
 

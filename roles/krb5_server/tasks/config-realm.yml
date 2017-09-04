@@ -9,6 +9,7 @@
       'Re-enter KDC database master key to verify:': "{{ vault_kerberos_master_key }}"
   when: install_krb.changed
   become: true
+  no_log: true
 
 - block:
     - command: kadmin.local -q "add_policy -minlength 12 -minclasses 3 default"

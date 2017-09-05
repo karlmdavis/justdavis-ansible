@@ -4,6 +4,7 @@
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - smbclient
+    - cifs-utils
   become: true
 
 - name: Add Fileshare Mounts for Users

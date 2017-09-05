@@ -1,0 +1,16 @@
+---
+
+- name: Install Samba Client Packages
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - smbclient
+  become: true
+
+- name: Add Fileshare Mounts for Users
+  lineinfile:
+    path: /etc/fstab
+    regexp: "^//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
+    line: "//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,user={{ item.key }},cruid={{ item.key }},sec=krb5,gid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }} 0 0"
+  become: true
+  with_dict: "{{ people }}"
+

@@ -1,36 +1,24 @@
 ---
 
-- name: Create Group Share Directory Root
+- name: Create File Share Directories
   file:
     state: directory
-    path: /var/lib/samba/groupshares
-    owner: root
-    group: sambashare
-    mode: u=rwx,g=rwx,o=t
-  become: true
-
-- name: Create Group Share Directories
-  file:
-    state: directory
-    path: "/var/lib/samba/groupshares/{{ item.key }}"
-    owner: "{{ item.value.owner }}"
-    group: "{{ item.value.group }}"
-    mode: "{{ item.value.mode }}"
-  with_dict:
-    karlanderica:
-      owner: karl
-      group: karlanderica
-      mode: u=rwxs,g=rwxs,o=t
-    sysadmin:
-      owner: karl
-      group: administrators_posix
-      mode: u=rwxs,g=rwxs,o=rxst
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { path: '/var/fileshares', owner: 'root', group: 'root', mode: 'u=rwx,g=rwx,o=rxt' }
+    - { path: "/var/fileshares/{{ domain }}/users", owner: 'root', group: 'root', mode: 'u=rwx,g=rwx,o=rxt' }
+    - { path: "/var/fileshares/{{ domain }}/groups", owner: 'root', group: 'root', mode: 'u=rwx,g=rwx,o=rxt' }
+    - { path: "/var/fileshares/{{ domain }}/groups/karlanderica", owner: 'karl', group: 'karlanderica', mode: 'u=rwxs,g=rwxs,o=t' }
+    - { path: "/var/fileshares/{{ domain }}/groups/sysadmin", owner: 'karl', group: 'administrators_posix', mode: 'u=rwxs,g=rwxs,o=rxst' }
   become: true
 
 - name: Create User Share Directories
   file:
     state: directory
-    path: "/var/lib/samba/usershares/{{ item.key }}"
+    path: "/var/fileshares/{{ domain }}/users/{{ item.key }}"
     owner: "{{ item.key }}"
     group: "{{ item.key }}"
     mode: u=rwxs,g=rwxs,o=
@@ -47,7 +35,8 @@
   script: "roles/ldap_server/files/add-keytab.sh --principal cifs/eddings.{{ domain }} --keytab /etc/samba/smbd.keytab"
   become: true
 
-- file:
+- name: Secure Samba Server Keytab
+  file:
     path: /etc/samba/smbd.keytab
     state: file
     owner: root

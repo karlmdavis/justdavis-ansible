@@ -11,7 +11,7 @@
   lineinfile:
     path: /etc/fstab
     regexp: "^//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
-    line: "//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,user={{ item.key }},cruid={{ item.key }},sec=krb5,gid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }} 0 0"
+    line: "//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
   become: true
   with_dict: "{{ people }}"
 

@@ -53,6 +53,7 @@
   vars:
     rcm_user: karl
     rcm_install_mode: default
+    rcm_replace_existing_files: true
     rcm_repos:
       - repo: 'git@github.com:karlmdavis/dotfiles.git'
         dest: '/home/karl/.dotfiles-karlmdavis.git'

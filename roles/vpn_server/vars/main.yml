@@ -1,0 +1,7 @@
+---
+
+openvpn_port_udp: 1194
+openvpn_port_tcp: "{{ '443' if is_test == true else '1443' }}"  # Test Ec2 instance only has 1 IP, which is already running Apache on 443.
+openvpn_cipher: "AES-256-CBC"
+openvpn_ncp_ciphers: "AES-256-GCM:AES-128-GCM"
+openvpn_auth_digest: "SHA256"

@@ -1,0 +1,18 @@
+---
+
+- name: Create the vpn-ipforwarding Service
+  copy:
+    src: vpn-ipforwarding.sh
+    dest: /etc/init.d/vpn-ipforwarding
+    mode: u=rwx,g=rwx,o=r
+  become: true
+  notify:
+    - Restart VPN IP Forwarding Service
+
+- name: Enable the vpn-ipforwarding Service
+  service:
+    name: vpn-ipforwarding
+    enabled: true
+  become: true
+  notify:
+    - Restart VPN IP Forwarding Service

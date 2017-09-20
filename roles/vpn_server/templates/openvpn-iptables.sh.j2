@@ -1,0 +1,30 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          openvpn-iptables
+# Required-Start:    $network $remote_fs $local_fs
+# Required-Stop:     $network $remote_fs $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Persist OpenVPN Firewall Routing and Forwarding Rules
+### END INIT INFO
+
+# Allow already-established traffic to pass back and forth.
+iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Allow traffic from the VPN to access the LAN.
+iptables -A FORWARD -s 10.8.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j ACCEPT
+iptables -A FORWARD -s 10.9.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j ACCEPT
+
+# NAT/masquerade traffic from the VPN to the LAN.
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.9.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j MASQUERADE
+
+# Allow traffic from the VPN to access the internet.
+iptables -A FORWARD -s 10.8.0.0/24 -j ACCEPT
+iptables -A FORWARD -s 10.9.0.0/24 -j ACCEPT
+
+# NAT/masquerade traffic from the VPN to the internet.
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o {{ vpn_gateway_ip }} -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.9.0.0/24 -o {{ vpn_gateway_ip }} -j MASQUERADE
+
+exit 0

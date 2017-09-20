@@ -1,0 +1,30 @@
+---
+
+- name: Create Client Profile Directory
+  file:
+    path: /etc/openvpn/client-profiles
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=,o=
+  become: true
+
+- name: Generate Client Connection Profiles
+  template:
+    src: client.ovpn.j2
+    dest: "/etc/openvpn/client-profiles/client-{{ hostvars[item].inventory_hostname }}.ovpn"
+    owner: root
+    group: root
+    mode: u=rwx,g=,o=
+  become: true
+  with_inventory_hostnames:
+    - all
+
+- name: Read Client Connection Profiles into Variable
+  slurp:
+    src: "/etc/openvpn/client-profiles/client-{{ hostvars[item].inventory_hostname }}.ovpn"
+  become: true
+  with_inventory_hostnames:
+    - all
+  register: slurp_vpn_client_profiles
+  changed_when: false

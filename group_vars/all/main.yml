@@ -32,7 +32,10 @@ domain_webmaster: "karl@{{ domain }}"
 # have more privileges.
 # Note: This is the Longview static IP block assigned by Comcast, as of 
 # 2017-07-10.
-network_home_cidr: '96.86.32.136/29'
+network_home_public_cidr: '96.86.32.136/29'
+
+# The LAN IP addresses of the "home" network.
+network_home_private_cidr: '10.0.0.0/24'
 
 people:
   karl:

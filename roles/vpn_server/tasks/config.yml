@@ -1,0 +1,32 @@
+---
+
+# This is used by OpenVPN to provide Perfect Forward Secrecy.
+- name: Generate a Diffie-Hellman Group (this will take a while)
+  command: /usr/bin/openssl dhparam -out /etc/ssl/dhparams.pem 2048
+  args:
+    creates: /etc/ssl/dhparams.pem
+  become: true
+
+- name: Set Diffie-Hellman Group Permissions
+  file:
+    path: /etc/ssl/dhparams.pem
+    state: file
+    owner: root
+    group: root
+    mode: u=rw,g=,o=
+  become: true
+
+- name: Configure OpenVPN Server
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/openvpn/{{ item }}"
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+  become: true
+  notify:
+    - Restart OpenVPN Service
+  with_items:
+    - server-common.conf-include
+    - server-udp.conf
+    - server-tcp.conf

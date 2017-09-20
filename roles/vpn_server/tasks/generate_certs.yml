@@ -1,0 +1,137 @@
+---
+##
+# Generates the certificate authority and keypairs that will be used by the
+# OpenVPN server and clients.
+##
+
+- name: Create Certificates Directory
+  file:
+    path: /etc/openvpn/certificates
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=,o=
+  become: true
+
+- name: Create Private Keys for Server Certificates
+  command: "openssl genrsa -out {{ item.path }} {{ item.keySize }}"
+  args:
+    creates: "{{ item.path }}"
+  # Ensure the keys are private when first created.
+  become: true
+  with_items:
+    - { path: /etc/openvpn/certificates/vpn_ca.key, keySize: 4096 }
+    - { path: /etc/openvpn/certificates/vpn_server.key, keySize: 2048 }
+
+- name: Create Private Keys for Client Certificates
+  command: "openssl genrsa -out /etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.key 2048"
+  args:
+    creates: "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.key"
+  # Ensure the keys are private when first created.
+  become: true
+  with_inventory_hostnames:
+    - all
+
+- name: Read Client Private Keys into Variable
+  slurp:
+    src: "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.key"
+  become: true
+  with_inventory_hostnames:
+    - all
+  register: slurp_vpn_client_keys
+  changed_when: false
+
+- name: Generate CA Certificate
+  # Valid for 30 years.
+  command: openssl req -nodes -batch -new -x509 -key /etc/openvpn/certificates/vpn_ca.key -out /etc/openvpn/certificates/vpn_ca.crt -days 10950 -subj "/C=US/ST=Maryland/O=Davis Family"
+  args:
+    creates: /etc/openvpn/certificates/vpn_ca.crt
+  become: true
+
+- name: Read CA Certificate into Variable
+  slurp:
+    src: /etc/openvpn/certificates/vpn_ca.crt
+  become: true
+  register: slurp_vpn_ca_crt
+  changed_when: false
+
+- name: Write Configuration for Server Certificate Generation
+  template:
+    src: openssl-certificates.cnf.j2
+    dest: /etc/openvpn/certificates/openssl-certificates.cnf
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+  become: true
+
+# This file will be updated by OpenSSL each time the CA is used to generate a certificate.
+- name: Create CA Database File
+  copy:
+    content: ''
+    dest: /etc/openvpn/certificates/vpn_ca_index.txt
+    force: false
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+  become: true
+
+- name: Create Server Certificate Serial File
+  copy:
+    content: '01'
+    dest: /etc/openvpn/certificates/vpn_server.srl
+    force: false
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+  become: true
+
+- name: Generate Server Certificate CSR
+  command: /usr/bin/openssl req -batch -extensions server -new -key /etc/openvpn/certificates/vpn_server.key -out /etc/openvpn/certificates/vpn_server.csr -subj "/C=US/ST=Maryland/O=Davis Family/CN={{ inventory_hostname }}" -config /etc/openvpn/certificates/openssl-certificates.cnf
+  args:
+    creates: /etc/openvpn/certificates/vpn_server.csr
+  become: true
+
+- name: Generate Server Certificate
+  command: /usr/bin/openssl ca -batch -extensions server -in /etc/openvpn/certificates/vpn_server.csr -out /etc/openvpn/certificates/vpn_server.crt -config /etc/openvpn/certificates/openssl-certificates.cnf
+  args:
+    creates: /etc/openvpn/certificates/vpn_server.crt
+  become: true
+
+- name: Generate Client Certificate CSRs
+  command: /usr/bin/openssl req -new -extensions client -new -key "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.key" -out "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.csr" -subj "/C=US/ST=Maryland/O=Davis Family/CN={{ hostvars[item].inventory_hostname }}" -config /etc/openvpn/certificates/openssl-certificates.cnf
+  args:
+    creates: "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.csr"
+  become: true
+  with_inventory_hostnames:
+    - all
+
+- name: Generate Client Certificates
+  command: /usr/bin/openssl x509 -extensions client -CA /etc/openvpn/certificates/vpn_ca.crt -CAkey /etc/openvpn/certificates/vpn_ca.key -CAcreateserial -req -days 10950 -in "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.csr" -out "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.crt" -extfile /etc/openvpn/certificates/openssl-certificates.cnf
+  args:
+    creates: "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.crt"
+  become: true
+  with_inventory_hostnames:
+    - all
+
+- name: Read Client Certificates into Variable
+  slurp:
+    src: "/etc/openvpn/certificates/vpn_client_{{ hostvars[item].inventory_hostname }}.crt"
+  become: true
+  with_inventory_hostnames:
+    - all
+  register: slurp_vpn_client_crts
+  changed_when: false
+
+- name: Generate TLS Auth Key
+  command: /usr/sbin/openvpn --genkey --secret /etc/openvpn/tls_auth.key
+  args:
+    creates: /etc/openvpn/tls_auth.key
+  # Ensure the key is private when first created.
+  become: true
+
+- name: Read TLS Auth Key into Variable
+  slurp:
+    src: /etc/openvpn/tls_auth.key
+  become: true
+  register: slurp_vpn_tls_auth_key
+  changed_when: false

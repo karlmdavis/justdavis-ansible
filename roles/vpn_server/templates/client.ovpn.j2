@@ -1,0 +1,40 @@
+client
+
+<connection>
+remote {{ vpn_gateway_ip }} {{ openvpn_port_udp }} udp
+</connection>
+<connection>
+remote {{ vpn_gateway_ip }} {{ openvpn_port_tcp }} tcp
+connect-timeout 10
+</connection>
+
+dev tun
+cipher {{ openvpn_cipher }}
+auth {{ openvpn_auth_digest }}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+verify-x509-name "/C=US/ST=Maryland/O=Davis Family" name
+tls-version-min 1.2
+comp-lzo
+key-direction 1
+verb 3
+route {{ vpn_gateway_ip }} 255.255.255.255 net_gateway
+
+<ca>
+{{ slurp_vpn_ca_crt.content | b64decode }}
+</ca>
+
+<cert>
+{{ slurp_vpn_client_crts.results | selectattr('item', 'equalto', hostvars[item].inventory_hostname) | map(attribute='content') | list | first | b64decode }}
+</cert>
+
+<key>
+{{ slurp_vpn_client_keys.results | selectattr('item', 'equalto', hostvars[item].inventory_hostname) | map(attribute='content') | list | first | b64decode }}
+</key>
+
+<tls-auth>
+{{ slurp_vpn_tls_auth_key.content | b64decode }}
+</tls-auth>

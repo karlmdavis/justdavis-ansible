@@ -1,0 +1,27 @@
+dev tun
+ca /etc/openvpn/certificates/vpn_ca.crt
+cert /etc/openvpn/certificates/vpn_server.crt
+key /etc/openvpn/certificates/vpn_server.key
+dh /etc/ssl/dhparams.pem
+ifconfig-pool-persist ipp.txt
+push "redirect-gateway def1"
+
+# Fix for the Windows 10 DNS leak described here:
+# https://community.openvpn.net/openvpn/ticket/605
+push block-outside-dns
+
+client-to-client
+remote-cert-tls client
+duplicate-cn
+keepalive 1800 3600
+tls-auth tls_auth.key 0
+cipher {{ openvpn_cipher }}
+ncp-ciphers {{ openvpn_ncp_ciphers }}
+auth {{ openvpn_auth_digest }}
+tls-version-min 1.2
+compress lzo
+user nobody
+group nogroup
+persist-key
+persist-tun
+verb 0

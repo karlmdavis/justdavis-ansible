@@ -1,0 +1,72 @@
+---
+
+- meta: flush_handlers
+
+# This MUST NOT be done in production, but is required for the tests to work.
+- name: Trust Let's Encrypt Staging CA
+  get_url:
+    url: 'https://letsencrypt.org/certs/fakelerootx1.pem'
+    dest: '/usr/local/share/ca-certificates/fakelerootx1.crt'
+    owner: root
+    group: staff
+    mode: u=rw,g=r,o=r
+  register: download_staging_ca_result
+  become: true
+  when: is_test == true
+
+- name: Update CA Certificates Index
+  command: /usr/sbin/update-ca-certificates
+  when: download_staging_ca_result.changed
+  become: true
+
+- name: Test Kerberos Auth
+  expect:
+    command: "/usr/bin/kinit {{ test_username }}"
+    responses:
+      "^Password for .*: ": "{{ test_password }}"
+  when: ansible_distribution != 'Ubuntu' or ansible_distribution_release != 'trusty'
+  changed_when: false
+  no_log: true
+- name: Test Kerberos Auth
+  shell: |
+    set timeout 30
+    
+    # Run the kinit command and send it the password.
+    spawn /usr/bin/kinit {{ test_username }}
+    expect -re "Password for .*: "
+    send "{{ test_password }}\n"
+    
+    # Wait for the kinit command to exit.
+    expect eof
+    
+    # Catch the kinit command's exit status and save it to the `result` variable.
+    catch wait result
+    
+    # Exit this script with the kinit command's return code.
+    exit [lindex $result 3]
+  args:
+    executable: /usr/bin/expect
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'trusty'
+  changed_when: false
+  no_log: true
+
+# This verifies that GSSAPI/Kerberos integration is working for the LDAP client utilities. Note
+# that the above kinit test command obtained the Kerberos ticket needed.
+- name: 'Test LDAP Search (GSSAPI)'
+  command: '/usr/bin/ldapsearch -Y GSSAPI'
+  register: ldap_search_gssapi_result
+  changed_when: false
+  failed_when: ldap_search_gssapi_result.rc != 0 or test_user_dn not in ldap_search_gssapi_result.stdout
+
+- name: 'Test getent passwd for All Users'
+  command: '/usr/bin/getent passwd'
+  register: getent_passwd
+  changed_when: false
+  failed_when: getent_passwd.rc != 0 or test_username not in getent_passwd.stdout
+
+- name: 'Test getent passwd for Test User'
+  command: "/usr/bin/getent passwd {{ test_username }}"
+  register: getent_passwd
+  changed_when: false
+  failed_when: getent_passwd.rc != 0 or test_username not in getent_passwd.stdout
+

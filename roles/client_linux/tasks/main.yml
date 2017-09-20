@@ -1,8 +1,0 @@
----
-
-- include: auth.yml
-- include: fileshares.yml
-- include: openvpn.yml
-- include: test.yml
-  tags: test
-

@@ -4,6 +4,8 @@
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - samba
+    # The client is needed in our tests.
+    - smbclient
   become: true
 
 - name: Firewall - Allow Samba

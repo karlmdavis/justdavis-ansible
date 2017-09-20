@@ -2,24 +2,7 @@
 
 - meta: flush_handlers
 
-# This MUST NOT be done in production, but is required for the tests to work.
-- name: Trust Let's Encrypt Staging CA
-  get_url:
-    url: 'https://letsencrypt.org/certs/fakelerootx1.pem'
-    dest: '/usr/local/share/ca-certificates/fakelerootx1.crt'
-    owner: root
-    group: staff
-    mode: u=rw,g=r,o=r
-  register: download_staging_ca_result
-  become: true
-  when: is_test == true
-
-- name: Update CA Certificates Index
-  command: /usr/sbin/update-ca-certificates
-  when: download_staging_ca_result.changed
-  become: true
-
-- name: Test Kerberos Auth
+- name: Get Kerberos Ticket for Test User
   expect:
     command: "/usr/bin/kinit {{ test_username }}"
     responses:
@@ -27,7 +10,7 @@
   when: ansible_distribution != 'Ubuntu' or ansible_distribution_release != 'trusty'
   changed_when: false
   no_log: true
-- name: Test Kerberos Auth
+- name: Get Kerberos Ticket for Test User
   shell: |
     set timeout 30
     
@@ -50,23 +33,8 @@
   changed_when: false
   no_log: true
 
-# This verifies that GSSAPI/Kerberos integration is working for the LDAP client utilities. Note
-# that the above kinit test command obtained the Kerberos ticket needed.
-- name: 'Test LDAP Search (GSSAPI)'
-  command: '/usr/bin/ldapsearch -Y GSSAPI'
-  register: ldap_search_gssapi_result
-  changed_when: false
-  failed_when: ldap_search_gssapi_result.rc != 0 or test_user_dn not in ldap_search_gssapi_result.stdout
-
 - name: Browse Samba User Share
   command: "/usr/bin/smbclient //eddings.{{ domain }}/{{ domain }} --kerberos --directory users/{{ test_username }} --command ls"
   register: smbclient_ls_result
   failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
   changed_when: false
-
-- name: 'Test getent passwd'
-  command: '/usr/bin/getent passwd'
-  register: getent_passwd
-  changed_when: false
-  failed_when: getent_passwd.rc != 0 or 'test' not in getent_passwd.stdout
-

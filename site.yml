@@ -27,9 +27,9 @@
     - include_role: name=apache
     - include_role: name=krb5_server
     - include_role: name=ldap_server
+    - include_role: name=auth_client
     - include_role: name=vpn_server
     - include_role: name=file_server
-    - include_role: name=client_linux
     - include_role: name=mail_server
     - include_role: name=spideroak
 
@@ -38,6 +38,8 @@
   gather_facts: true
   tasks:
     - include_role: name=base
-    - include_role: name=client_linux
+    - include_role: name=auth_client
+    - include_role: name=file_client
+    - include_role: name=vpn_client
     - include_role: name=user_karl
 

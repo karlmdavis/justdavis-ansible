@@ -1,0 +1,5 @@
+---
+
+- include: config.yml
+- include: test.yml
+  tags: test

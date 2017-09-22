@@ -30,6 +30,9 @@ iface br0 inet static
 	bridge_fd 0
 	bridge_maxwait 0
 	dns-nameservers 8.8.8.8 8.8.4.4
+	# Also assign the VPN gateway's IP to this (WAN-connected) interface.
+	up /sbin/ip address add 96.86.32.139/29 dev br0 label br0:0
+	down /sbin/ip address del 96.86.32.139/29 dev br0 label br0:0
 
 # The ethernet connection for LAN connectivity.
 # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.

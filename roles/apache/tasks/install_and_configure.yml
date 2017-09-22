@@ -41,10 +41,13 @@
     - "/var/apache2/{{ domain }}/logs"
     - "/var/apache2/{{ domain }}/www"
 
-- lineinfile:
+- name: Configure the Ports and IPs for Apache
+  template:
+    src: ports.conf.j2
     dest: /etc/apache2/ports.conf
-    regexp: '^(#?)Listen 80'
-    line: '#Listen 80'
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
   become: yes
   notify:
     - apache-restart

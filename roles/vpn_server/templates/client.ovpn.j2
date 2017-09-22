@@ -16,12 +16,19 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-verify-x509-name "/C=US/ST=Maryland/O=Davis Family" name
+verify-x509-name "C=US, ST=Maryland, O=Davis Family, CN=eddings.justdavis.com" subject
 tls-version-min 1.2
 comp-lzo
 key-direction 1
 verb 3
+
 route {{ vpn_gateway_ip }} 255.255.255.255 net_gateway
+
+# These scripts are present in Ubuntu, and will allow OpenVPN to apply
+# server-pushed DNS settings.
+script-security 2
+up /etc/openvpn/update-resolv-conf
+down /etc/openvpn/update-resolv-conf
 
 <ca>
 {{ slurp_vpn_ca_crt.content | b64decode }}

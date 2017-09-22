@@ -9,22 +9,31 @@
 ### END INIT INFO
 
 # Allow already-established traffic to pass back and forth.
-iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables --table filter --delete FORWARD --match state --state RELATED,ESTABLISHED --jump ACCEPT
+iptables --table filter --append FORWARD --match state --state RELATED,ESTABLISHED --jump ACCEPT
 
 # Allow traffic from the VPN to access the LAN.
-iptables -A FORWARD -s 10.8.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j ACCEPT
-iptables -A FORWARD -s 10.9.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j ACCEPT
+iptables --table filter --delete FORWARD --source 10.8.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump ACCEPT
+iptables --table filter --append FORWARD --source 10.8.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump ACCEPT
+iptables --table filter --delete FORWARD --source 10.9.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump ACCEPT
+iptables --table filter --append FORWARD --source 10.9.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump ACCEPT
 
 # NAT/masquerade traffic from the VPN to the LAN.
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j MASQUERADE
-iptables -t nat -A POSTROUTING -s 10.9.0.0/24 -d {{ network_home_private_cidr }} -o {{ private_ip }} -j MASQUERADE
+iptables --table nat --delete POSTROUTING --source 10.8.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump MASQUERADE
+iptables --table nat --append POSTROUTING --source 10.8.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump MASQUERADE
+iptables --table nat --delete POSTROUTING --source 10.9.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump MASQUERADE
+iptables --table nat --append POSTROUTING --source 10.9.0.0/24 --destination {{ network_home_private_cidr }} --out-interface {{ private_ip_interface }} --jump MASQUERADE
 
 # Allow traffic from the VPN to access the internet.
-iptables -A FORWARD -s 10.8.0.0/24 -j ACCEPT
-iptables -A FORWARD -s 10.9.0.0/24 -j ACCEPT
+iptables --table filter --delete FORWARD --source 10.8.0.0/24 --jump ACCEPT
+iptables --table filter --append FORWARD --source 10.8.0.0/24 --jump ACCEPT
+iptables --table filter --delete FORWARD --source 10.9.0.0/24 --jump ACCEPT
+iptables --table filter --append FORWARD --source 10.9.0.0/24 --jump ACCEPT
 
 # NAT/masquerade traffic from the VPN to the internet.
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o {{ vpn_gateway_ip }} -j MASQUERADE
-iptables -t nat -A POSTROUTING -s 10.9.0.0/24 -o {{ vpn_gateway_ip }} -j MASQUERADE
+iptables --table nat --delete POSTROUTING --source 10.8.0.0/24 --out-interface {{ public_ip_interface }} --jump MASQUERADE
+iptables --table nat --append POSTROUTING --source 10.8.0.0/24 --out-interface {{ public_ip_interface }} --jump MASQUERADE
+iptables --table nat --delete POSTROUTING --source 10.9.0.0/24 --out-interface {{ public_ip_interface }} --jump MASQUERADE
+iptables --table nat --append POSTROUTING --source 10.9.0.0/24 --out-interface {{ public_ip_interface }} --jump MASQUERADE
 
 exit 0

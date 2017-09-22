@@ -36,5 +36,5 @@
   ufw:
     rule: allow
     name: OpenVPN Server
-    from_ip: "{{ vpn_gateway_ip }}"
+    to_ip: "{{ vpn_gateway_ip }}"
   become: true

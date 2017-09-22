@@ -1,5 +1,11 @@
 server 10.8.0.0 255.255.255.0
 push "dhcp-option DNS 10.8.0.1"
-proto tcp
+proto tcp4
+local {{ vpn_gateway_ip }}
 port {{ openvpn_port_tcp }}
+
+# This will be the virtual network interface created on the server for this
+# VPN server instance.
+dev tun1
+
 {% include "server-common.conf-include.j2" %}

@@ -1,20 +1,36 @@
-dev tun
 ca /etc/openvpn/certificates/vpn_ca.crt
 cert /etc/openvpn/certificates/vpn_server.crt
 key /etc/openvpn/certificates/vpn_server.key
 dh /etc/ssl/dhparams.pem
+topology subnet
 ifconfig-pool-persist ipp.txt
-push "redirect-gateway def1"
+
+# Configure all clients to redirect their default network gateway through the
+# VPN, causing all IP traffic such as web browsing and and DNS lookups to go
+# through the VPN.
+push "redirect-gateway def1 bypass-dhcp"
 
 # Fix for the Windows 10 DNS leak described here:
 # https://community.openvpn.net/openvpn/ticket/605
 push block-outside-dns
 
+# Allow different clients to be able to "see" each other.
 client-to-client
+
 remote-cert-tls client
-duplicate-cn
+
+# TODO: Remove this once we know it's not needed. Allows multiple clients to connect with same cert CN.
+# duplicate-cn
+
 keepalive 1800 3600
+
+# Provides extra security beyond that provided by SSL/TLS, creating an "HMAC
+# firewall" to help block DoS attacks and UDP port flooding.
+#
+# The server and each client must have a copy of this key. The second parameter
+# should be '0' on the server and '1' on the clients.
 tls-auth tls_auth.key 0
+
 cipher {{ openvpn_cipher }}
 ncp-ciphers {{ openvpn_ncp_ciphers }}
 auth {{ openvpn_auth_digest }}
@@ -24,4 +40,11 @@ user nobody
 group nogroup
 persist-key
 persist-tun
+
+# Set the appropriate level of log file verbosity.
+#
+# 0 is silent, except for fatal errors
+# 4 is reasonable for general usage
+# 5 and 6 can help to debug connection problems
+# 9 is extremely verbose
 verb 0

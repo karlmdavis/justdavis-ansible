@@ -25,15 +25,23 @@
   with_dict: "{{ people }}"
   become: true
 
-- name: Create Service Principal for Samba Server
+- name: Create Service Principals for Samba Server
   krb_principal:
-    name: "cifs/eddings.{{ domain }}"
+    name: "cifs/{{ item }}.{{ domain }}"
     policy: services
   become: true
+  with_items:
+    # Not sure this is needed, since Samba isn't listening on that IP. Doesn't hurt, though.
+    - eddings
+    # Samba listens on the LAN/VPN-only IP that this resolves to.
+    - eddings.karlanderica
 
 - name: Create Service Keytab for Samba Server
-  script: "roles/ldap_server/files/add-keytab.sh --principal cifs/eddings.{{ domain }} --keytab /etc/samba/smbd.keytab"
+  script: "roles/ldap_server/files/add-keytab.sh --principal cifs/{{ item }}.{{ domain }} --keytab /etc/samba/smbd.keytab"
   become: true
+  with_items:
+    - eddings
+    - eddings.karlanderica
 
 - name: Secure Samba Server Keytab
   file:

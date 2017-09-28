@@ -17,7 +17,7 @@
     delay: 5
 
 - name: List Samba Shares
-  command: "/usr/bin/smbclient --list=eddings.{{ domain }} --no-pass"
+  command: "/usr/bin/smbclient --list=eddings.karlanderica.{{ domain }} --no-pass"
   register: smbclient_list_result
   failed_when: smbclient_list_result.rc != 0 or domain not in smbclient_list_result.stdout
   changed_when: false
@@ -30,7 +30,7 @@
   changed_when: false
 
 - name: Browse Samba User Share
-  command: "/usr/bin/smbclient //eddings.{{ domain }}/{{ domain }} --kerberos --directory users/{{ test_username }} --command ls"
+  command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --kerberos --directory users/{{ test_username }} --command ls"
   register: smbclient_ls_result
   failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
   changed_when: false

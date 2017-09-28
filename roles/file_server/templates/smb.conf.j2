@@ -49,6 +49,7 @@
 # This can be either the interface name or an IP address/netmask;
 # interface names are normally preferred
 ;   interfaces = 127.0.0.0/8 eth0
+   interfaces = {{ private_ip_interface }} lo
 
 # Only bind to the named interfaces and/or networks; you must use the
 # 'interfaces' option above to use this.
@@ -56,6 +57,7 @@
 # not protected by a firewall or is a firewall itself.  However, this
 # option cannot handle dynamic or non-broadcast interfaces correctly.
 ;   bind interfaces only = yes
+   bind interfaces only = yes
 
 
 

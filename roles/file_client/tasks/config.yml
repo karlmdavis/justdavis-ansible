@@ -10,8 +10,8 @@
 - name: Add Fileshare Mounts for Users
   lineinfile:
     path: /etc/fstab
-    regexp: "^//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
-    line: "//eddings.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
+    regexp: "^//eddings.*{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
+    line: "//eddings.karlanderica.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
   become: true
   with_dict: "{{ people }}"
 

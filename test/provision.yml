@@ -125,6 +125,7 @@
         - { zone: 'tests.davisonlinehome.name', record: 'tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.davisonlinehome.name', record: 'www.tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.justdavis.com', record: 'eddings.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.justdavis.com', record: 'eddings.karlanderica.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].private_ip }}" }
         - { zone: 'tests.justdavis.com', record: '_kerberos.tests.justdavis.com', type: 'TXT', value: '"TESTS.JUSTDAVIS.COM"' }
         - { zone: 'tests.justdavis.com', record: '_kerberos._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings.tests.justdavis.com.' }
         - { zone: 'tests.justdavis.com', record: '_kerberos-master._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings.tests.justdavis.com.' }

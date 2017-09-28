@@ -12,6 +12,5 @@
   ufw:
     rule: allow
     name: Samba
-    src: "{{ network_home_public_cidr if is_test == false else '0.0.0.0/0' }}"
   become: true
 

@@ -4,6 +4,7 @@ dependencies:
   # Apply and configure the `karlmdavis.tested-bind` role.
   - role: karlmdavis.tested-bind
     eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip'] }}"
+    eddings_private_ip: "{{ hostvars['eddings.justdavis.com']['private_ip'] }}"
     reverse_zone_name: "{{ eddings_public_ip.split('.')[2] + '.' + eddings_public_ip.split('.')[1] + '.' + eddings_public_ip.split('.')[0] + '.in-addr.arpa' }}"
     zones:
       - {name: "{{ domain }}", template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}

@@ -34,7 +34,7 @@
   no_log: true
 
 - name: Browse Samba User Share
-  command: "/usr/bin/smbclient //eddings.{{ domain }}/{{ domain }} --kerberos --directory users/{{ test_username }} --command ls"
+  command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --kerberos --directory users/{{ test_username }} --command ls"
   register: smbclient_ls_result
   failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
   changed_when: false

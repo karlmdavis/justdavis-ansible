@@ -36,6 +36,13 @@ eddings                   IN      A                 {{ eddings_public_ip }}
 piers                     IN      A                 96.86.32.138
 karlanderica              IN      A                 96.86.32.141
 
+; IPv4 Address Records for Private "karlanderica" LAN.
+; name             ttl    class   rr                name
+eddings.karlanderica      IN      A                 {{ eddings_private_ip }}
+jordan-u.karlanderica     IN      A                 10.0.0.50
+brooks.karlanderica       IN      A                 10.0.0.51
+dumas.karlanderica        IN      A                 10.0.0.52
+
 ; CNAME Records
 ; name             ttl    class   rr                name
 www                       IN      CNAME             @

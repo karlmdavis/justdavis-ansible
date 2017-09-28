@@ -25,7 +25,7 @@
   copy:
     src: kerberos-server.ufw.profile
     dest: /etc/ufw/applications.d/kerberos-server.ufw.profile
-    mode: u=rw,g=rw,o=r
+    mode: u=rw,g=r,o=r
   become: yes
   register: ufw_profile_kerberos_server
 

@@ -1,10 +1,11 @@
 ---
-# Note: Ansible 2.2 runs handlers in the order that they're defined, not the order that they're triggered.
-
 - name: apache-restart
-  command: /usr/sbin/service apache2 restart
-  become: yes
+  service:
+    name: apache2
+    state: restarted
+  become: true
 - name: apache-reload
-  command: /usr/sbin/service apache2 reload
-  become: yes
-
+  service:
+    name: apache2
+    state: reloaded
+  become: true

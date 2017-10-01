@@ -12,11 +12,14 @@
   become: true
 
 - name: Ensure Stub OpenDKIM Record Exists
-  command: /usr/bin/touch /etc/bind/dkim-{{ domain }}.record
-  args:
-    creates: /etc/bind/dkim-{{ domain }}.record
+  copy:
+    content: ''
+    dest: "/etc/bind/dkim-{{ domain }}.record"
+    force: false
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
   become: true
 
 - include: test.yml
   tags: test
-

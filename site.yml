@@ -19,27 +19,27 @@
   tasks:
     # Configure networking, except during tests in AWS (because networking there is
     # completely different and incompatible).
-    - include: tasks/eddings_networking.yml
+    - import_tasks: tasks/eddings_networking.yml
       when: is_test == false
-    - include_role: name=base
-    - include_role: name=virtual_machines
-    - include_role: name=dns_server
-    - include_role: name=apache
-    - include_role: name=krb5_server
-    - include_role: name=ldap_server
-    - include_role: name=auth_client
-    - include_role: name=vpn_server
-    - include_role: name=file_server
-    - include_role: name=mail_server
-    - include_role: name=spideroak
+    - import_role: name=base
+    - import_role: name=virtual_machines
+    - import_role: name=dns_server
+    - import_role: name=apache
+    - import_role: name=krb5_server
+    - import_role: name=ldap_server
+    - import_role: name=auth_client
+    - import_role: name=vpn_server
+    - import_role: name=file_server
+    - import_role: name=mail_server
+    - import_role: name=spideroak
 
 - hosts: all
   name: Apply Common Configuration to Workstations
   gather_facts: true
   tasks:
-    - include_role: name=base
-    - include_role: name=auth_client
-    - include_role: name=file_client
-    - include_role: name=vpn_client
-    - include_role: name=user_karl
+    - import_role: name=base
+    - import_role: name=auth_client
+    - import_role: name=file_client
+    - import_role: name=vpn_client
+    - import_role: name=user_karl
 

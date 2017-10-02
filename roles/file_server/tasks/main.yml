@@ -1,7 +1,7 @@
 ---
 
-- include: install.yml
-- include: config.yml
-- include: test.yml
+- import_tasks: install.yml
+- import_tasks: config.yml
+- import_tasks: test.yml
   tags: test
 

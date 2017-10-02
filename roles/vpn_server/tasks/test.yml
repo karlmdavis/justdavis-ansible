@@ -1,5 +1,0 @@
----
-##
-# Note: This role gets tested by the VPN Server client test tasks in the
-# `client_linux` role.
-##

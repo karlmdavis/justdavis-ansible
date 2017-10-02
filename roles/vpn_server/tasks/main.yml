@@ -1,10 +1,11 @@
 ---
 
-- include: install.yml
-- include: generate_certs.yml
-- include: config.yml
-- include: ip_forwarding.yml
-- include: firewall.yml
-- include: generate_client_profiles.yml
-- include: test.yml
-  tags: test
+- import_tasks: install.yml
+- import_tasks: generate_certs.yml
+- import_tasks: config.yml
+- import_tasks: ip_forwarding.yml
+- import_tasks: firewall.yml
+- import_tasks: generate_client_profiles.yml
+
+# Note: This role gets tested by the VPN Server client test tasks in the
+# `client_linux` role.

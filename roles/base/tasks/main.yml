@@ -1,8 +1,8 @@
 ---
 
-- include: config.yml
-- include: sensors.yml
+- import_tasks: config.yml
+- import_tasks: sensors.yml
 
-- include: test.yml
+- import_tasks: test.yml
   tags: test
 

@@ -9,9 +9,10 @@
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=administrators_ldap,ou=groups,dc=justdavis,dc=com'
     objectClass: 'groupOfNames'
-    cn: 'administrators_ldap'
-    member:
-      - 'uid=karl,ou=people,dc=justdavis,dc=com'
+    attributes:
+      cn: 'administrators_ldap'
+      member:
+        - 'uid=karl,ou=people,dc=justdavis,dc=com'
 
 - name: Create 'administrators_posix' Group in LDAP
   ldap_entry:
@@ -19,10 +20,11 @@
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=administrators_posix,ou=groups,dc=justdavis,dc=com'
     objectClass: 'posixGroup'
-    cn: 'administrators_posix'
-    gidNumber: '11001'
-    memberUid:
-      - 'karl'
+    attributes:
+      cn: 'administrators_posix'
+      gidNumber: '11001'
+      memberUid:
+        - 'karl'
 
 - template:
     src: templates/slapd-admins.ldif.j2
@@ -32,4 +34,3 @@
 - command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-admins.ldif'
   become: true
   when: slapd_admins_ldif.changed
-

@@ -28,17 +28,18 @@
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
     objectClass: ['inetOrgPerson', 'posixAccount']
-    uid: "{{ item.key }}"
-    cn: "{{ item.value.givenName }} {{ item.value.sn }}"
-    displayName: "{{ item.value.givenName }} {{ item.value.sn }}"
-    givenName: "{{ item.value.givenName }}"
-    sn: "{{ item.value.sn }}"
-    uidNumber: "{{ item.value.uidAndGidNumber }}"
-    gidNumber: "{{ item.value.uidAndGidNumber }}"
-    userPassword: "{SASL}{{ item.key }}@{{ domain | upper }}"
-    loginShell: '/bin/bash'
-    homeDirectory: "/home/{{ item.key }}"
-    mail: "{{ item.value.mail }}"
+    attributes:
+      uid: "{{ item.key }}"
+      cn: "{{ item.value.givenName }} {{ item.value.sn }}"
+      displayName: "{{ item.value.givenName }} {{ item.value.sn }}"
+      givenName: "{{ item.value.givenName }}"
+      sn: "{{ item.value.sn }}"
+      uidNumber: "{{ item.value.uidAndGidNumber }}"
+      gidNumber: "{{ item.value.uidAndGidNumber }}"
+      userPassword: "{SASL}{{ item.key }}@{{ domain | upper }}"
+      loginShell: '/bin/bash'
+      homeDirectory: "/home/{{ item.key }}"
+      mail: "{{ item.value.mail }}"
   with_dict: "{{ people }}"
   no_log: true
 
@@ -49,8 +50,9 @@
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "cn={{ item.key }},ou=groups,dc=justdavis,dc=com"
     objectClass: 'posixGroup'
-    cn: "{{ item.key }}"
-    gidNumber: "{{ item.value.uidAndGidNumber }}"
+    attributes:
+      cn: "{{ item.key }}"
+      gidNumber: "{{ item.value.uidAndGidNumber }}"
   with_dict: "{{ people }}"
   no_log: true
 
@@ -72,9 +74,9 @@
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=karlanderica,ou=groups,dc=justdavis,dc=com'
     objectClass: 'posixGroup'
-    cn: 'karlanderica'
-    gidNumber: '11000'
-    memberUid:
-      - karl
-      - erica
-
+    attributes:
+      cn: 'karlanderica'
+      gidNumber: '11000'
+      memberUid:
+        - karl
+        - erica

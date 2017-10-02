@@ -1,8 +1,8 @@
 ---
 
-- include: install.yml
-- include: config-realm.yml
-- include: principals.yml
-- include: principals-test.yml
+- import_tasks: install.yml
+- import_tasks: config-realm.yml
+- import_tasks: principals.yml
+- import_tasks: principals-test.yml
   tags: test
 

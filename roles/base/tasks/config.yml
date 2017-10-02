@@ -86,3 +86,12 @@
     - python-pexpect
   become: true
 
+# Ansible's `become_user` feature requires the `setfacl` command.
+- name: Install ACL Utilities
+  package:
+    name: acl
+    state: present
+  become: true
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - ansible_distribution_version == '14.04'

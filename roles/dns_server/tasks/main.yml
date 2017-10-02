@@ -1,9 +1,22 @@
 ---
 
-##
-# Almost all of the config for this role is handled by the dependencies listed in 
-# `../meta/main.yml`.
-##
+- import_role:
+    name: karlmdavis.bind-dns
+  vars:
+    eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip'] }}"
+    eddings_private_ip: "{{ hostvars['eddings.justdavis.com']['private_ip'] }}"
+    reverse_zone_name: "{{ eddings_public_ip.split('.')[2] + '.' + eddings_public_ip.split('.')[1] + '.' + eddings_public_ip.split('.')[0] + '.in-addr.arpa' }}"
+    zones:
+      - {name: "{{ domain }}", template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}
+      - {name: "{{ domain_alias }}", template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
+      - {name: "{{ reverse_zone_name }}", template_source: 'roles/dns_server/templates/db.reverse_zone.j2'}
+    forwarders:
+      # Google's Public DNS Servers: https://developers.google.com/speed/public-dns/
+      - 8.8.8.8
+      - 8.8.4.4
+    zone_transfer_peers:
+      # Gandi's ns6.gandi.net secondary name server
+      - 217.70.177.40
 
 - name: Firewall - Allow DNS Traffic
   ufw:
@@ -21,5 +34,5 @@
     mode: u=rw,g=r,o=r
   become: true
 
-- include: test.yml
+- import_tasks: test.yml
   tags: test

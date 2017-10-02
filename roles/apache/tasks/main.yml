@@ -1,5 +1,19 @@
 ---
-- include: install_and_configure.yml
-- include: test.yml
-  tags: test
+# The `acmetool` role requires some ports on the firewall to be opened, first.
+- import_tasks: firewall.yml
 
+# Apply and configure the `L-P.acmetool` role. This will start a Let's Encrypt client that listens on port 
+# 80, answering LE challenges, and redirecting all other traffic to port 443.
+# LE certificates will be created as `/var/lib/acme/live/HOSTNAME/{cert,chain,fullchain,privkey}`.
+- import_role:
+    name: L-P.acmetool
+  vars:
+    acmetool_email: "{{ domain_webmaster }}"
+    acmetool_domains: "{{ [domain] | union(domain_site_aliases) | join(' ') }}"
+    acmetool_server: "{{ 'https://acme-v01.api.letsencrypt.org/directory' if not is_test else 'https://acme-staging.api.letsencrypt.org/directory' }}"
+  become: true
+
+- import_tasks: install_and_configure.yml
+
+- import_tasks: test.yml
+  tags: test

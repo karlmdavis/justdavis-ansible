@@ -14,14 +14,12 @@
 
 # https://galaxy.ansible.com/karlmdavis/tested-bind/
 # Installs and configures the BIND DNS server.
-- src: karlmdavis.tested-bind
+- src: karlmdavis.bind-dns
 
 # https://galaxy.ansible.com/karlmdavis/jenkins2/
 # Installs and configures Jenkins 2.
-#- src: karlmdavis.jenkins2
+- src: karlmdavis.jenkins2
 
 # https://github.com/karlmdavis/rcm-ansible-role
 # This Ansible role can be used to install and configure RCM (https://github.com/thoughtbot/rcm), a management suite for dotfiles.
-- src: 'https://github.com/karlmdavis/rcm-ansible-role.git'
-  name: karlmdavis.rcm
-
+- src: karlmdavis.rcm-dotfiles

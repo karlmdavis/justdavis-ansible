@@ -27,7 +27,7 @@
   tasks:
     
     - name: Gather EC2 Facts
-      ec2_facts:
+      ec2_metadata_facts:
     
     # Disabled due to spam, but can be used to log all inventory data about 
     # each instance being terminated:
@@ -48,4 +48,3 @@
         path=hosts-test
         state=absent
       run_once: true
-

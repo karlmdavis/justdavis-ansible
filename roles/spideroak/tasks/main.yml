@@ -1,6 +1,6 @@
 ---
 
-- include: install.yml
+- import_tasks: install.yml
 
 - name: Check for SpiderOak Config
   stat:
@@ -10,8 +10,8 @@
   become: true
 
 # Initial setup takes over an hour; no time for that in tests.
-- include: account.yml
+- import_tasks: account.yml
   when: is_test == false and stat_spideroak_db.stat.isreg is not defined
 
-- include: service.yml
+- import_tasks: service.yml
 

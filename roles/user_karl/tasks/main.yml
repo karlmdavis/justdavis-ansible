@@ -48,8 +48,8 @@
   become: true
 
 - name: Install and Configure RCM
-  include_role:
-    name: karlmdavis.rcm
+  import_role:
+    name: karlmdavis.rcm-dotfiles
   vars:
     rcm_user: karl
     rcm_install_mode: default
@@ -57,4 +57,3 @@
     rcm_repos:
       - repo: 'git@github.com:karlmdavis/dotfiles.git'
         dest: '/home/karl/.dotfiles-karlmdavis.git'
-

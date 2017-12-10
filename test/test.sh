@@ -69,11 +69,17 @@ timestamp=$(date --iso-8601=seconds)
 # The `ansible.cfg` file tells Ansible to log to this file automatically.
 originalLog="${scriptDirectory}/../logs/ansible.log"
 
+# Create the file if it doesn't exist yet.
+if [ ! -f "${originalLog}" ]; then
+  touch "${originalLog}"
+fi
+
 # Call this function to rename the `ansible.log` file to include a timesatamp.
 timestampLog() {
   # Timestamp the log file.
   timestampedLog="${scriptDirectory}/../logs/ansible-test-${timestamp}.log"
   mv "${originalLog}" "${timestampedLog}"
+  echo "Log written to: ${timestampedLog}"
 }
 
 # This function will be called if the script is interrupted by a `ctrl+c`.

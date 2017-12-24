@@ -98,6 +98,7 @@
       - name: public
         member_repos:
           - central
+          - jboss
           - apache-snapshots
           - opensource-releases
           - opensource-snapshots
@@ -105,13 +106,7 @@
           - opensource-thirdparty-snapshots
       - name: madrivercode
         member_repos:
-          - central
-          - apache-snapshots
-          - opensource-releases
-          - opensource-snapshots
-          - opensource-thirdparty-releases
-          - opensource-thirdparty-snapshots
+          - public
           - madrivercode-releases
           - madrivercode-snapshots
   become: true
-

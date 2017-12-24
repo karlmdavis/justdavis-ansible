@@ -59,8 +59,7 @@
   with_items:
     - ssl
     # Used to proxy Jenkins and other apps:
-    - proxy
-    - proxy_http
+    - [proxy, proxy_http, headers]
   notify:
     - apache-restart
 

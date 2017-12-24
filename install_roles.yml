@@ -20,6 +20,10 @@
 # Installs and configures Jenkins 2.
 - src: karlmdavis.jenkins2
 
+# https://galaxy.ansible.com/savoirfairelinux/nexus3-oss/
+# Installs and configures Sonatype's Nexus OSS.
+- src: savoirfairelinux.nexus3-oss
+
 # https://github.com/karlmdavis/rcm-ansible-role
 # This Ansible role can be used to install and configure RCM (https://github.com/thoughtbot/rcm), a management suite for dotfiles.
 - src: karlmdavis.rcm-dotfiles

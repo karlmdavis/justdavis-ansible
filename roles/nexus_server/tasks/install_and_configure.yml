@@ -1,0 +1,111 @@
+---
+
+- import_role:
+    name: savoirfairelinux.nexus3-oss
+  vars:
+    nexus_version: '3.7.0-04'
+    nexus_timezone: 'America/New_York'
+    nexus_admin_password: "{{ vault_nexus_admin_password }}"
+    httpd_setup_enable: false
+    nexus_default_port: "{{ nexus_port }}"
+    nexus_default_context_path: "{{ nexus_context_path }}"
+    ldap_connections:
+      # Nexus requires `ldap_user_object_class` to be set to a single value,
+      # which constrains the LDAP config here a bit.
+      - ldap_name: 'justdavis.com LDAP'
+        ldap_protocol: 'ldaps'
+        ldap_hostname: "{{ domain }}"
+        ldap_port: 636
+        ldap_search_base: 'dc=justdavis,dc=com'
+        ldap_user_base_dn: 'ou=people'
+        ldap_user_object_class: 'inetOrgPerson'
+        ldap_user_id_attribute: 'uid'
+        ldap_user_real_name_attribute: 'cn'
+        ldap_user_email_attribute: 'mail'
+        ldap_map_groups_as_roles: true
+        ldap_group_base_dn: 'ou=groups'
+        ldap_group_object_class: 'groupOfNames'
+        ldap_group_id_attribute: 'cn'
+        ldap_group_member_attribute: 'member'
+        ldap_group_member_format: 'uid=${username},ou=people,dc=justdavis,dc=com'
+        ldap_group_subtree: false
+    nexus_anonymous_access: true
+    nexus_privileges:
+      - name: all-repos-manage
+        description: 'Full access to all repos'
+        repository: '*'
+        actions:
+          - '*'
+      - name: public-read
+        description: 'Read & Browse access to public group repo'
+        repository: 'public'
+        actions:
+          - read
+          - browse
+    nexus_roles:
+      # Maps to the LDAP group with the same CN.
+      - id: administrators-custom
+        name: administrators-custom
+        description: System administrators
+        privileges:
+          - nx-all
+      - id: anonymous-custom
+        name: anonymous-custom
+        description: Anonymous (unauthenticated) users
+        privileges:
+          - public-read
+    nexus_local_users:
+      - username: anonymous
+        first_name: Anonymous
+        last_name: User
+        email: anonymous@example.org
+        password: ''
+        roles:
+          - anonymous_custom
+    nexus_repos_maven_proxy:
+      - name: central
+        remote_url: 'https://repo1.maven.org/maven2/'
+        layout_policy: permissive
+      - name: apache-snapshots
+        remote_url: 'https://repository.apache.org/snapshots/'
+        layout_policy: permissive
+    nexus_repos_maven_hosted:
+      - name: madrivercode-releases
+        version_policy: release
+        write_policy: allow_once
+      - name: madrivercode-snapshots
+        version_policy: snapshot
+        write_poliicy: allow
+      - name: opensource-releases
+        version_policy: release
+        write_policy: allow_once
+      - name: opensource-snapshots
+        version_policy: snapshot
+        write_policy: allow
+      - name: opensource-thirdparty-releases
+        version_policy: release
+        write_policy: allow_once
+      - name: opensource-thirdparty-snapshots
+        version_policy: snapshot
+        write_policy: allow
+    nexus_repos_maven_group:
+      - name: public
+        member_repos:
+          - central
+          - apache-snapshots
+          - opensource-releases
+          - opensource-snapshots
+          - opensource-thirdparty-releases
+          - opensource-thirdparty-snapshots
+      - name: madrivercode
+        member_repos:
+          - central
+          - apache-snapshots
+          - opensource-releases
+          - opensource-snapshots
+          - opensource-thirdparty-releases
+          - opensource-thirdparty-snapshots
+          - madrivercode-releases
+          - madrivercode-snapshots
+  become: true
+

@@ -70,7 +70,10 @@ test_username: 'test'
 test_user_dn: "uid={{ test_username }},ou=people,dc=justdavis,dc=com"
 test_password: "{{ vault_test_password }}"
 
+# Post and Path of proxied Java web apps.
+nexus_port: 8081
+nexus_context_path: '/nexus/'
+
 # SpiderOakONE Login.
 spideroakone_username: "{{ vault_spideroakone_username }}"
 spideroakone_password: "{{ vault_spideroakone_password }}"
-

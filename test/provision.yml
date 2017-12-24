@@ -61,8 +61,8 @@
           - default
           - all
         # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
-        # For eddings, this seems to be the minimum workable number of CPU credits.
-        instance_type: t2.small
+        # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However, Sonatype Nexus needs at least 3GB RAM.
+        instance_type: t2.medium
         image: "{{ ami_id_ubuntu_16 }}"
         user_data: |
                    #!/bin/sh

@@ -54,8 +54,13 @@
 
 - apache2_module:
     state: present
-    name: ssl
+    name: "{{ item }}"
   become: yes
+  with_items:
+    - ssl
+    # Used to proxy Jenkins and other apps:
+    - proxy
+    - proxy_http
   notify:
     - apache-restart
 

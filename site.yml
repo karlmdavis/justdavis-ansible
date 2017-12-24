@@ -31,6 +31,7 @@
     - import_role: name=vpn_server
     - import_role: name=file_server
     - import_role: name=mail_server
+    - import_role: name=nexus_server
     - import_role: name=spideroak
 
 - hosts: all

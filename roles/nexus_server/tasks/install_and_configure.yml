@@ -1,6 +1,12 @@
 ---
 
 - import_role:
+    name: geerlingguy.java
+  vars:
+    java_packages: ['openjdk-8-jdk']
+  become: true
+
+- import_role:
     name: savoirfairelinux.nexus3-oss
   vars:
     nexus_version: '3.7.0-04'

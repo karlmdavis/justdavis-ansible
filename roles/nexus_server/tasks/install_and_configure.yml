@@ -67,7 +67,7 @@
         email: anonymous@example.org
         password: ''
         roles:
-          - anonymous_custom
+          - anonymous-custom
     nexus_repos_maven_proxy:
       - name: central
         remote_url: 'https://repo1.maven.org/maven2/'

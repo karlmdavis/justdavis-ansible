@@ -42,12 +42,6 @@
         repository: '*'
         actions:
           - '*'
-      - name: public-read
-        description: 'Read & Browse access to public group repo'
-        repository: 'public'
-        actions:
-          - read
-          - browse
     nexus_roles:
       # Maps to the LDAP group with the same CN.
       - id: administrators-custom
@@ -59,7 +53,22 @@
         name: anonymous-custom
         description: Anonymous (unauthenticated) users
         privileges:
-          - public-read
+          - nx-repository-view-maven2-maven-public-browse
+          - nx-repository-view-maven2-maven-public-read
+          - nx-repository-view-maven2-central-browse
+          - nx-repository-view-maven2-central-read
+          - nx-repository-view-maven2-jboss-browse
+          - nx-repository-view-maven2-jboss-read
+          - nx-repository-view-maven2-apache-snapshots-browse
+          - nx-repository-view-maven2-apache-snapshots-read
+          - nx-repository-view-maven2-opensource-releases-browse
+          - nx-repository-view-maven2-opensource-releases-read
+          - nx-repository-view-maven2-opensource-snapshots-browse
+          - nx-repository-view-maven2-opensource-snapshots-read
+          - nx-repository-view-maven2-opensource-thirdparty-releases-browse
+          - nx-repository-view-maven2-opensource-thirdparty-releases-read
+          - nx-repository-view-maven2-opensource-thirdparty-snapshots-browse
+          - nx-repository-view-maven2-opensource-thirdparty-snapshots-read
     nexus_local_users:
       - username: anonymous
         first_name: Anonymous

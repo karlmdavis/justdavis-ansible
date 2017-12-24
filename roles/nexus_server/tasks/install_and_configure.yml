@@ -104,7 +104,7 @@
         version_policy: snapshot
         write_policy: allow
     nexus_repos_maven_group:
-      - name: public
+      - name: maven-public
         member_repos:
           - central
           - jboss
@@ -115,7 +115,7 @@
           - opensource-thirdparty-snapshots
       - name: madrivercode
         member_repos:
-          - public
+          - maven-public
           - madrivercode-releases
           - madrivercode-snapshots
   become: true

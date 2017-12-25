@@ -9,7 +9,7 @@
 # and renew free SSL certificates.
 #- src: L-P.acmetool
 - src: 'https://github.com/karlmdavis/ansible-role-acmetool.git'
-  version: issue-1-multiple-domains
+  version: prerelease
   name: L-P.acmetool
 
 # https://galaxy.ansible.com/karlmdavis/tested-bind/

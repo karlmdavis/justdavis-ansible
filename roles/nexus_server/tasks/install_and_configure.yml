@@ -44,8 +44,8 @@
           - '*'
     nexus_roles:
       # Maps to the LDAP group with the same CN.
-      - id: administrators-custom
-        name: administrators-custom
+      - id: administrators_ldap
+        name: administrators_ldap
         description: System administrators
         privileges:
           - nx-all
@@ -53,6 +53,8 @@
         name: anonymous-custom
         description: Anonymous (unauthenticated) users
         privileges:
+          - nx-healthcheck-read
+          - nx-search-read
           - nx-repository-view-maven2-maven-public-browse
           - nx-repository-view-maven2-maven-public-read
           - nx-repository-view-maven2-central-browse

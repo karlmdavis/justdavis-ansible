@@ -4,6 +4,7 @@ Priority: 900
 Session-Type: Additional
 Session:
 	required			pam_mkhomedir.so umask=0022 skel=/etc/skel
+	required			pam_limits.so
 Auth-Type: Primary
 Auth:
 	required			pam_group.so use_first_pass

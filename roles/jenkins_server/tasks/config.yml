@@ -1,0 +1,47 @@
+---
+
+- name: Configure Jenkins Security
+  jenkins_script:
+    url: "{{ jenkins_url_local }}"
+    user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
+    password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
+    script: "{{ lookup('template', 'templates/configureSecurity.groovy.j2') }}"
+  register: jenkins_script_security
+  changed_when: "(jenkins_script_security | success) and 'Changed' not in jenkins_script_security.output"
+
+- name: Configure Maven as Tool
+  jenkins_script:
+    url: "{{ jenkins_url_local }}"
+    user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
+    password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
+    script: "{{ lookup('file', 'files/configureMaven.groovy') }}"
+  register: jenkins_script_maven_tool
+  changed_when: "(jenkins_script_maven_tool | success) and 'Changed' not in jenkins_script_maven_tool.output"
+
+- name: Configure File Provider Plugin
+  jenkins_script:
+    url: "{{ jenkins_url_local }}"
+    user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
+    password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
+    script: "{{ lookup('template', 'templates/configureFileProvider.groovy.j2') }}"
+  register: jenkins_script_file_provider
+  changed_when: "(jenkins_script_file_provider | success) and 'Changed' not in jenkins_script_file_provider.output"
+
+- name: Maven - .m2
+  file:
+    path: /var/lib/jenkins/.m2
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0755
+  become: true
+
+- name: Maven - Toolchains
+  copy:
+    src: maven_toolchains.xml
+    dest: /var/lib/jenkins/.m2/toolchains.xml
+    owner: jenkins
+    group: jenkins
+    mode: 0644
+  become: true
+

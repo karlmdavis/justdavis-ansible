@@ -30,7 +30,6 @@
   krb_principal:
     name: "{{ item }}"
     policy: services
-  with_items:
-    - "host/eddings.{{ domain }}"
+    password: "{{ vault_service_account_passwords[item] }}"
+  with_items: "{{ service_accounts }}"
   become: true
-

@@ -1,0 +1,32 @@
+---
+
+- import_role:
+    name: geerlingguy.java
+  vars:
+    java_packages: ['openjdk-8-jdk']
+  become: true
+
+- debug:
+    msg: "password={{ vault_service_account_passwords.jenkins }}"
+- import_role:
+    name: karlmdavis.jenkins2
+  vars:
+    jenkins_release_line: 'long_term_support'
+
+    # These two variables are defined in `/group_vars/all/main.yml`, because
+    # Apache also requires them (in order to proxy Jenkins).
+    # * `jenkins_port`
+    # * `jenkins_context_path`
+
+    # Ensure that Jenkins knows the URL that it's being proxied from via nginx.
+    jenkins_url_external: "https://{{ domain }}/jenkins"
+
+    # The LDAP user that should be used when logging into Jenkins to run
+    # configuration scripts.
+    jenkins_admin_username: jenkins
+    jenkins_admin_password: "{{ vault_service_account_passwords.jenkins }}"
+
+    jenkins_plugins_extra:
+      # Provides config files to jobs, e.g. Maven settings.xml files.
+      - config-file-provider
+

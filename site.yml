@@ -33,6 +33,7 @@
     - import_role: name=mail_server
     - import_role: name=nexus_server
     - import_role: name=sonarqube_server
+    - import_role: name=jenkins_server
     - import_role: name=spideroak
 
 - hosts: all

@@ -80,3 +80,14 @@
       memberUid:
         - karl
         - erica
+
+- name: Create LDAP Service Accounts
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: "cn={{ item }},ou=services,dc=justdavis,dc=com"
+    objectClass: ['organizationalRole', 'simpleSecurityObject']
+    attributes:
+      cn: "{{ item }}"
+      userPassword: "{SASL}{{ item }}@{{ domain | upper }}"
+  with_items: "{{ service_accounts }}"

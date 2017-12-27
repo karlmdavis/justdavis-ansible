@@ -1,0 +1,97 @@
+//
+// Configure Jenkins Security: Authentication and Authorization
+// 
+// This script was built from the following references:
+// * <https://github.com/Accenture/adop-jenkins/blob/master/resources/init.groovy.d/adop_ldap.groovy>
+// * <https://github.com/jenkinsci/ldap-plugin/blob/master/src/main/java/hudson/security/LDAPSecurityRealm.java>
+// * <https://github.com/jenkinsci/ldap-plugin/blob/master/src/main/java/jenkins/security/plugins/ldap/LDAPConfiguration.java>
+//
+
+// These are the basic imports that Jenkin's interactive script console 
+// automatically includes.
+import jenkins.*;
+import jenkins.model.*;
+import hudson.*;
+import hudson.model.*;
+
+// These are the imports required for this specific script.
+import hudson.security.SecurityRealm
+import hudson.security.LDAPSecurityRealm.CacheConfiguration
+import hudson.security.LDAPSecurityRealm
+import jenkins.security.plugins.ldap.LDAPConfiguration
+import jenkins.security.plugins.ldap.FromGroupSearchLDAPGroupMembershipStrategy
+import hudson.security.AuthorizationStrategy
+import hudson.security.FullControlOnceLoggedInAuthorizationStrategy
+
+
+//
+// Configure Jenkins' Authentication
+//
+println "Configuring authentication..."
+
+String ldapServerUri = 'ldaps://{{ domain }}'
+String ldapRootDn = 'dc=justdavis,dc=com'
+boolean ldapInhibitInferRootDn = true
+String ldapManagerDn = null
+String ldapManagerPassword = null
+String ldapUserSearchBase = '' // Need to include `ou=people` and `ou=services`
+String ldapUserSearchFilter = '(| (& (objectClass=inetOrgPerson) (uid={0}) ) (& (objectClass=simpleSecurityObject) (cn={0}) ) )'
+String ldapGroupSearchBase = 'ou=groups'
+
+LDAPConfiguration ldapConfiguration = new LDAPConfiguration(
+	ldapServerUri,
+	ldapRootDn,
+	ldapInhibitInferRootDn,
+	ldapManagerDn,
+	ldapManagerPassword
+)
+ldapConfiguration.setUserSearchBase(ldapUserSearchBase)
+ldapConfiguration.setUserSearch(ldapUserSearchFilter)
+ldapConfiguration.setGroupSearchBase(ldapGroupSearchBase)
+
+boolean ldapDisableMailAddressResolver = false
+CacheConfiguration ldapCacheConfiguration = new CacheConfiguration(
+	1000, // num cached items
+	300 // seconds to cache
+)
+IdStrategy ldapUserIdStrategy = IdStrategy.CASE_INSENSITIVE
+IdStrategy ldapGroupIdStrategy = IdStrategy.CASE_INSENSITIVE
+hudson.security.LDAPSecurityRealm securityRealm = new LDAPSecurityRealm(
+	java.util.Collections.singletonList(ldapConfiguration),
+	ldapDisableMailAddressResolver,
+	ldapCacheConfiguration,
+	ldapUserIdStrategy,
+	ldapGroupIdStrategy
+)
+
+// Check for equality, no need to modify the runtime if no settings changed
+if(!securityRealm.equals(Jenkins.instance.getSecurityRealm())) {
+	Jenkins.instance.setSecurityRealm(securityRealm)
+	Jenkins.instance.save()
+	println "Changed security realm."
+}
+
+println "Configured authentication."
+
+
+//
+// Configure Jenkins' Authorization
+//
+println "Configuring authorization..."
+
+// TODO Eventually, probably should switch to one of the matrix strategies, to
+// allow anon read of at least some projects. Unfortunately, the API for those
+// looks terrible and I'd rather go with something simple that works for now.
+
+FullControlOnceLoggedInAuthorizationStrategy authorizationStrategy = new FullControlOnceLoggedInAuthorizationStrategy()
+authorizationStrategy.setAllowAnonymousRead(false)
+
+// Check for equality, no need to modify the runtime if no settings changed
+if(!authorizationStrategy.equals(Jenkins.instance.getAuthorizationStrategy())) {
+	Jenkins.instance.setAuthorizationStrategy(authorizationStrategy)
+	Jenkins.instance.save()
+	println "Changed authorization strategy."
+}
+
+println "Configured authorization."
+

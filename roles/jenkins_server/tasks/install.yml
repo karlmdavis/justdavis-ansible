@@ -31,3 +31,5 @@
       - config-file-provider
       # Allows Jenkins to run SonarQube scanner jobs.
       - sonar
+      # Adds support for GH build status and commit hook triggers.
+      - github

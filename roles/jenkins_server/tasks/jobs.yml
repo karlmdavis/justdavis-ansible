@@ -1,0 +1,18 @@
+---
+
+- name: Install Prerequisites
+  apt:
+    name: "{{ item }}"
+  become: true
+  with_items:
+    # Some integration tests run in Jenkins will use a PostgreSQL DB.
+    # The psycopg2 lib is needed by Ansible's postgresql_db module.
+    - [postgresql, postgresql-client, python-psycopg2]
+
+- name: Create Database User
+  postgresql_user:
+    name: "{{ vault_postgres_builds_username }}"
+    password: "{{ vault_postgres_builds_password }}"
+    role_attr_flags: 'CREATEROLE,CREATEUSER,CREATEDB'
+  become: true
+  become_user: postgres

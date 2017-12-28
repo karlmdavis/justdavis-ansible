@@ -16,7 +16,7 @@ import hudson.*;
 import hudson.model.*;
 
 mavenName = "maven-3"
-mavenVersion = "3.5.0"
+mavenVersion = "3.5.2"
 println("Checking Maven installations...")
 
 // Grab the Maven "task" (which is the plugin handle).

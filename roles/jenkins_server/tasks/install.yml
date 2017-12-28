@@ -29,4 +29,5 @@
     jenkins_plugins_extra:
       # Provides config files to jobs, e.g. Maven settings.xml files.
       - config-file-provider
-
+      # Allows Jenkins to run SonarQube scanner jobs.
+      - sonar

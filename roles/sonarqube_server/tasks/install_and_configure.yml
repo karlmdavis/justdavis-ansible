@@ -8,6 +8,13 @@
 #   changed after install (it's stored in the database, hashed).
 # * SonarQube supports LDAP groups but groups with the same name as those in
 #   LDAP have to be manually created in its admin interface, first.
+#
+# Required Manual Installation Steps:
+# 1. Login to SonarQube as admin/admin and change the default admin password
+#    to something secure.
+# 2. Create a local `jenkins` user in SonarQube, generate an authentication
+#    token for it, and save that token's value in the Ansible vault as
+#    `vault_sonar_builds_auth_token`.
 ##
 
 

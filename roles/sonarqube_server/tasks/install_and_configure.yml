@@ -85,7 +85,7 @@
       line: "sonar.jdbc.password={{ vault_sonar_db_password }}"
     - insertafter: '^#sonar.web.context=$'
       regexp: '^sonar.web.context=.*$'
-      line: 'sonar.web.context=/sonar'
+      line: "sonar.web.context={{ sonar_context_path }}"
     - regexp: '^sonar.security.realm=.*$'
       line: 'sonar.security.realm=LDAP'
     - regexp: '^ldap.url=.*$'

@@ -79,6 +79,8 @@ jenkins_port: 8080
 jenkins_context_path: '/jenkins/'
 nexus_port: 8081
 nexus_context_path: '/nexus/'
+sonar_port: 9000
+sonar_context_path: '/sonar'
 
 # SpiderOakONE Login.
 spideroakone_username: "{{ vault_spideroakone_username }}"

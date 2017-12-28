@@ -8,7 +8,7 @@
 			<id>openjdk-8-jdk</id>
 		</provides>
 		<configuration>
-			<jdkHome>/usr/lib/jvm/openjdk-8-jdk</jdkHome>
+			<jdkHome>/usr/lib/jvm/java-8-openjdk-amd64</jdkHome>
 		</configuration>
 	</toolchain>
 </toolchains>

@@ -7,7 +7,7 @@
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
     script: "{{ lookup('template', 'templates/configureSecurity.groovy.j2') }}"
   register: jenkins_script_security
-  changed_when: "(jenkins_script_security | success) and 'Changed' not in jenkins_script_security.output"
+  changed_when: "(jenkins_script_security | success) and 'Changed' in jenkins_script_security.output"
 
 - name: Configure Java JDKs as Tools
   jenkins_script:
@@ -16,7 +16,7 @@
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
     script: "{{ lookup('file', 'files/configureJavaJdks.groovy') }}"
   register: jenkins_script_jdks_tool
-  changed_when: "(jenkins_script_jdks_tool | success) and 'Changed' not in jenkins_script_jdks_tool.output"
+  changed_when: "(jenkins_script_jdks_tool | success) and 'Changed' in jenkins_script_jdks_tool.output"
 
 - name: Configure Maven as Tool
   jenkins_script:
@@ -25,7 +25,7 @@
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
     script: "{{ lookup('file', 'files/configureMaven.groovy') }}"
   register: jenkins_script_maven_tool
-  changed_when: "(jenkins_script_maven_tool | success) and 'Changed' not in jenkins_script_maven_tool.output"
+  changed_when: "(jenkins_script_maven_tool | success) and 'Changed' in jenkins_script_maven_tool.output"
 
 - name: Configure File Provider Plugin
   jenkins_script:
@@ -34,7 +34,7 @@
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
     script: "{{ lookup('template', 'templates/configureFileProvider.groovy.j2') }}"
   register: jenkins_script_file_provider
-  changed_when: "(jenkins_script_file_provider | success) and 'Changed' not in jenkins_script_file_provider.output"
+  changed_when: "(jenkins_script_file_provider | success) and 'Changed' in jenkins_script_file_provider.output"
 
 - name: Maven - .m2
   file:
@@ -61,4 +61,4 @@
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
     script: "{{ lookup('template', 'templates/configureSonarQube.groovy.j2') }}"
   register: jenkins_script_sonar
-  changed_when: "(jenkins_script_sonar | success) and 'Changed' not in jenkins_script_sonar.output"
+  changed_when: "(jenkins_script_sonar | success) and 'Changed' in jenkins_script_sonar.output"

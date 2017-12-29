@@ -13,6 +13,6 @@
   postgresql_user:
     name: "{{ vault_postgres_builds_username }}"
     password: "{{ vault_postgres_builds_password }}"
-    role_attr_flags: 'CREATEROLE,CREATEUSER,CREATEDB'
+    role_attr_flags: 'CREATEDB'
   become: true
   become_user: postgres

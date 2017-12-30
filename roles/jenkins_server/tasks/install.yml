@@ -27,6 +27,8 @@
     jenkins_admin_password: "{{ vault_service_account_passwords.jenkins }}"
 
     jenkins_plugins_extra:
+      # Used by the jobs copied over from the old eddings.
+      - maven-plugin
       # Provides config files to jobs, e.g. Maven settings.xml files.
       - config-file-provider
       # Allows Jenkins to run SonarQube scanner jobs.

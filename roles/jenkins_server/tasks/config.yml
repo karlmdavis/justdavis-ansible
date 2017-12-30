@@ -71,3 +71,28 @@
     script: "{{ lookup('template', 'templates/configureSonarQube.groovy.j2') }}"
   register: jenkins_script_sonar
   changed_when: "(jenkins_script_sonar | success) and 'Changed' in jenkins_script_sonar.output"
+
+- name: Jenkins GPG Key - Copy
+  copy:
+    dest: "/var/lib/jenkins/{{ item.dest_name }}"
+    content: "{{ item.content }}"
+    owner: jenkins
+    group: jenkins
+    mode: u=r,g=,o=
+  register: copy_gpg_build_key
+  become: true
+  no_log: true
+  with_items:
+    - dest_name: gpg-justdavis-build-key-public.asc
+      content: "{{ lookup('file', 'files/gpg-justdavis-build-key-public.asc') }}"
+    - dest_name: gpg-justdavis-build-key-private.asc
+      content: "{{ vault_gpg_justdavis_build_key_private }}"
+
+- name: Jenkins GPG Key - Import
+  command: gpg --import "/var/lib/jenkins/{{ item }}"
+  when: copy_gpg_build_key.changed
+  become: true
+  become_user: jenkins
+  with_items:
+    - gpg-justdavis-build-key-public.asc
+    - gpg-justdavis-build-key-private.asc

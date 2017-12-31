@@ -155,6 +155,8 @@
     'smtpd_tls_auth_only': 'yes'
     # Enable opportunistic encryption for connections to other SMTP servers.
     'smtp_tls_security_level': 'may'
+    # Enable encryption for incoming SMTP deliveries. (This will be the
+    # optional STARTTLS variant, still on port 25.)
     'smtpd_tls_security_level': 'may'
     'smtpd_tls_key_file': "/var/lib/acme/live/{{ domain }}/privkey"
     'smtpd_tls_cert_file': "/var/lib/acme/live/{{ domain }}/cert"

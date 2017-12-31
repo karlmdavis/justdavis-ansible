@@ -71,7 +71,6 @@ settingsConfigComment = ""
 // compile errors. (Note: If all you need is a "standard" settings.xml, you can
 // use the value of `settingsFileProvider.newConfig().content`, instead.
 settingsConfigContent = new String(Base64.getDecoder().decode("{{ lookup('template', 'templates/mavenSettings.xml.j2') | b64encode }}"), java.nio.charset.StandardCharsets.UTF_8)
-println("Settings Content: " + settingsConfigContent)
 settingsConfigReplaceAll = true
 settingsConfigCredentials = [
   new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus-madrivercode-releases", credentialsId),
@@ -89,14 +88,47 @@ settingsConfigNew = new org.jenkinsci.plugins.configfiles.maven.MavenSettingsCon
 // Check for an existing config file.
 settingsConfig = settingsFileProvider.getConfigById(settingsConfigId)
 
-// Update or create the config file.
-if(settingsConfig != null && !settingsConfig.equals(settingsConfigNew)) {
-  println("Found config file ${settingsConfigId}. Replacing...")
-  settingsFileProvider.remove(settingsConfigId)
-  settingsFileProvider.save(settingsConfigNew)
-  println("Changed config file: ${settingsConfigId}")
-} else if (settingsConfig == null) {
+// Create the config file if it's missing.
+if (settingsConfig == null) {
   println("Did not find config file ${settingsConfigId}. Creating...")
   settingsFileProvider.save(settingsConfigNew)
   println("Changed by creating config file: ${settingsConfigId}")
+}
+
+def areCredentialsEqual = { credentials1, credentials2 ->
+  if (credentials1 == null && credentials2 != null)
+    return false
+  if (credentials2 == null && credentials1 != null)
+    return false
+  if (credentials1.size != credentials2.size)
+    return false
+
+  for (int i = 0; i < credentials1.size; i++) {
+    credentialFrom1 = credentials1[i]
+    credentialFrom2 = credentials2[i]
+
+    if (credentialFrom1 == null && credentialFrom2 != null)
+      return false
+    if (credentialFrom2 == null && credentialFrom1 != null)
+      return false
+    if (credentialFrom1.serverId != credentialFrom2.serverId
+        || credentialFrom1.credentialsId != credentialFrom2.credentialsId)
+      return false
+  }
+
+  return true
+}
+
+// Update the config file if it's out of date.
+if (settingsConfig.id != settingsConfigNew.id
+    || settingsConfig.name != settingsConfigNew.name
+    || settingsConfig.name != settingsConfigNew.name
+    || settingsConfig.comment != settingsConfigNew.comment
+    || settingsConfig.content != settingsConfigNew.content
+    || settingsConfig.isReplaceAll != settingsConfigNew.isReplaceAll
+    || !areCredentialsEqual(settingsConfig.serverCredentialMappings, settingsConfigNew.serverCredentialMappings)) {
+  println("Found config file '${settingsConfigId}'. Replacing...")
+  settingsFileProvider.remove(settingsConfigId)
+  settingsFileProvider.save(settingsConfigNew)
+  println("Changed: replaced config file '${settingsConfigId}'.")
 }

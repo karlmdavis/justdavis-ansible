@@ -9,6 +9,15 @@
   register: jenkins_script_security
   changed_when: "(jenkins_script_security | success) and 'Changed' in jenkins_script_security.output"
 
+- name: Configure Jenkins Email
+  jenkins_script:
+    url: "{{ jenkins_url_local }}"
+    user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
+    password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
+    script: "{{ lookup('template', 'templates/configureEmail.groovy.j2') }}"
+  register: jenkins_script_email
+  changed_when: "(jenkins_script_email | success) and 'Changed' in jenkins_script_email.output"
+
 - name: Configure Java JDKs as Tools
   jenkins_script:
     url: "{{ jenkins_url_local }}"

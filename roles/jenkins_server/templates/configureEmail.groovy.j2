@@ -1,0 +1,56 @@
+//
+// Configure Email and SMTP Settings
+//
+// References:
+// * https://pghalliday.com/jenkins/groovy/sonar/chef/configuration/management/2014/09/21/some-useful-jenkins-groovy-scripts.html
+
+
+// These are the basic imports that Jenkin's interactive script console 
+// automatically includes.
+import jenkins.*;
+import jenkins.model.*;
+import hudson.*;
+import hudson.model.*;
+
+println("Configuring Email and SMTP...")
+
+// Configure the admin email address.
+jenkinsLocationConfiguration = JenkinsLocationConfiguration.get()
+adminEmailAddress = 'Jenkins Build Server <jenkins@{{ domain }}>'
+if (adminEmailAddress != jenkinsLocationConfiguration.adminAddress) {
+  jenkinsLocationConfiguration.adminAddress = adminEmailAddress
+  jenkinsLocationConfiguration.save()
+  println "Changed: admin email address."
+}
+
+// Configure the SMTP settings.
+smtpUsername = null
+smtpPassword = null
+mailReplyToAddress = 'noreply@{{ domain }}'
+smtpHost = 'localhost'
+smtpPort = '25'
+// Setting `smtpUseSsl` to `true` seems to force the SSL wrapper mode (which
+// isn't STARTTLS, and isn't typically run on port 25).
+smtpUseSsl = false 
+mailCharset = java.nio.charset.StandardCharsets.UTF_8.name()
+
+mailerConfig = Jenkins.instance.getDescriptor("hudson.tasks.Mailer")
+if (smtpUsername != mailerConfig.smtpAuthUserName
+    || smtpPassword != mailerConfig.smtpAuthPassword
+    || mailReplyToAddress != mailerConfig.replyToAddress
+    || smtpHost != mailerConfig.smtpHost
+    || smtpPort != mailerConfig.smtpPort
+    || smtpUseSsl != mailerConfig.useSsl
+    || mailCharset != mailerConfig.charset) {
+  mailerConfig.setSmtpAuth(smtpUsername, smtpPassword)
+  mailerConfig.setReplyToAddress(mailReplyToAddress)
+  mailerConfig.setSmtpHost(smtpHost)
+  mailerConfig.setUseSsl(smtpUseSsl)
+  mailerConfig.setSmtpPort(smtpPort)
+  mailerConfig.setCharset(mailCharset)
+
+  mailerConfig.save()
+  println("Changed: SMTP config.")
+}
+
+println("Configured Email and SMTP.")

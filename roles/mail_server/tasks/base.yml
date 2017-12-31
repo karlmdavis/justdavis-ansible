@@ -213,6 +213,7 @@
       postmaster@{{ domain }}                    karl@{{ domain }}
       acme@eddings.{{ domain }}                  karl@{{ domain }}
       root@eddings.{{ domain }}                  karl@{{ domain }}
+      jenkins@{{ domain }}                       karl@{{ domain }}
       {{ test_username }}@{{ domain }}           {{ test_username }}@{{ domain }}
       {{ test_username }}_alias@{{ domain }}     {{ test_username }}@{{ domain }}
   become: true

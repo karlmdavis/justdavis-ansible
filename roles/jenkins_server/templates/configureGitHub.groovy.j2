@@ -59,7 +59,7 @@ def createOrUpdateSecret = { id, description, secretValue ->
 credentialsId = "github-token-karlmdavis"
 createOrUpdateSecret(
   credentialsId, 
-  "GitHub 'Personal Access Token' for karlmdavis with the 'admin:repo_hook' permission.", 
+  "GitHub 'Personal Access Token' for karlmdavis with the 'admin:repo_hook', 'repo:status', and 'repo_deployment' permissions.",
   "{{ vault_jenkins_github_token_karlmdavis }}"
 )
 

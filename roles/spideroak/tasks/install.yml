@@ -9,4 +9,3 @@
   user:
     name: backups
   become: true
-

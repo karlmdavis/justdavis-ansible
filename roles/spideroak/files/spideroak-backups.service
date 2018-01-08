@@ -1,9 +1,11 @@
 [Unit]
 Description=SpiderOak Backups
+Wants=postgresql-dumpall.service
+After=postgresql-dumpall.service
 
 [Service]
 Type=oneshot
 WorkingDirectory=/home/backups
 ExecStart=/usr/local/bin/spideroak-backups.sh
 User=backups
-
+OnFailure=status-email-root@%n.service

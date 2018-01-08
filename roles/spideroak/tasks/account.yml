@@ -15,6 +15,7 @@
   shell: "/usr/bin/nohup /usr/bin/SpiderOakONE --setup=/home/backups/spideroak-setup.json &> /home/backups/spideroak-setup.log &"
   args:
     executable: /bin/bash
+    creates: /home/backups/spideroak-setup.log
   become_user: backups
   become: true
 

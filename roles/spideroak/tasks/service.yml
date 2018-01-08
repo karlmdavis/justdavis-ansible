@@ -1,5 +1,74 @@
 ---
 
+- name: Service Status Mailer Unit - Write Definition
+  copy:
+    src: status-email-root@.service
+    dest: /etc/systemd/system/status-email-root@.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create Database Dump Directory
+  file:
+    path: /var/lib/postgresql/backups
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: u=rwx,g=,o=
+  become: true
+
+- name: Database Dump Service - Write Definition
+  # Note: doesn't need to be enabled, as it's only run as a dependency of the backup unit.
+  copy:
+    src: postgresql-dumpall.service
+    dest: /etc/systemd/system/postgresql-dumpall.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- set_fact:
+    backup_items:
+      - /var/fileshares
+      - /var/vmail
+      - /var/nexus/backup
+      - /var/lib/jenkins
+      - /var/lib/postgresql/backups
+
+- name: Assign Backup Permissions (Mask)
+  acl:
+    path: "{{ item }}"
+    state: present
+    etype: mask
+    permissions: rwx
+    recursive: true
+  become: true
+  with_items: "{{ backup_items }}"
+
+- name: Assign Backup Permissions (User)
+  acl:
+    path: "{{ item }}"
+    state: present
+    entity: backups
+    etype: user
+    permissions: rX
+    recursive: true
+  become: true
+  with_items: "{{ backup_items }}"
+
+- name: Assign Backup Permissions (User Default)
+  acl:
+    path: "{{ item }}"
+    state: present
+    entity: backups
+    etype: user
+    default: true
+    permissions: rX
+    recursive: true
+  become: true
+  with_items: "{{ backup_items }}"
+
 - name: Create Backup Script
   copy:
     src: spideroak-backups.sh
@@ -9,18 +78,7 @@
     mode: u=rwx,g=rx,o=rx
   become: true
 
-- name: Create Service Status Mailer Unit
-  copy:
-    src: status-email-root@.service
-    dest: /etc/systemd/system/status-email-root@.service
-    owner: root
-    group: root
-    mode: u=rw,g=r,o=r
-  become: true
-  notify:
-    - Reload Service Definitions
-
-- name: Create Backup Service Definition
+- name: Backup Service - Write Definition
   copy:
     src: spideroak-backups.service
     dest: /etc/systemd/system/spideroak-backups.service
@@ -28,10 +86,8 @@
     group: root
     mode: u=rw,g=r,o=r
   become: true
-  notify:
-    - Reload Service Definitions
 
-- name: Create Backup Service Timer
+- name: Backup Service Timer - Write Definition
   copy:
     src: spideroak-backups.timer
     dest: /etc/systemd/system/spideroak-backups.timer
@@ -39,6 +95,12 @@
     group: root
     mode: u=rw,g=r,o=r
   become: true
-  notify:
-    - Reload Service Definitions
 
+- name: Backup Service Timer - Enable and Start
+  systemd:
+    name: spideroak-backups.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+    no_block: true
+  become: true

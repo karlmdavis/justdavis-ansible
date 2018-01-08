@@ -22,7 +22,7 @@ function error() {
 # Trap any errors, calling error() when they're caught.
 trap 'error ${LINENO}' ERR
 
-backupTargets=( "/var/lib/samba" "/var/vmail" )
+backupTargets=( "/var/fileshares" "/var/vmail" "/var/nexus/backup" "/var/lib/jenkins" "/var/lib/postgresql/backups" )
 for backupTarget in "${backupTargets[@]}"; do
 	echo "SpiderOak Backup: starting ${backupTarget}..."
 	/usr/bin/SpiderOakONE --backup=${backupTarget}
@@ -31,7 +31,6 @@ done
 
 # Check the SpiderOak logs to see if any errors were thrown there. This is done
 # last to ensure that the backups for everything still at least try to run.
-if grep --quiet "[[:space:]]ERROR[[:space:]]" ~/.SpiderOak/*.log; then
+if grep --quiet "[[:space:]]ERROR[[:space:]]" ~/.config/SpiderOakONE/spider_*.log; then
 	error ${LINENO} "SpiderOak backup log has errors."
 fi
-

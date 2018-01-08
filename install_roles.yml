@@ -23,6 +23,9 @@
 # https://galaxy.ansible.com/savoirfairelinux/nexus3-oss/
 # Installs and configures Sonatype's Nexus OSS.
 - src: savoirfairelinux.nexus3-oss
+  # FIXME: Need a new release with the fix from: https://github.com/savoirfairelinux/ansible-nexus3-oss/commit/c91fa75a41d9ac08c30dc828986133cbd54144e7
+  #   Once > v1.7.1 is out, remove the `version` specifier here.
+  version: master
 
 # https://github.com/karlmdavis/rcm-ansible-role
 # This Ansible role can be used to install and configure RCM (https://github.com/thoughtbot/rcm), a management suite for dotfiles.

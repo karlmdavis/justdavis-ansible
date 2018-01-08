@@ -121,6 +121,7 @@ def areCacheConfigurationsEqual = { cache1, cache2 ->
 def areSecurityRealmsEqual = { realm1, realm2 ->
   if (realm1 == null && realm2 != null) return false
   if (realm2 == null && realm1 != null) return false
+  if (realm1.getClass() != realm2.getClass()) return false
   if (!areLdapConfigurationListsEqual(realm1.configurations, realm2.configurations)) return false
   if (realm1.disableMailAddressResolver != realm2.disableMailAddressResolver) return false
   if (realm1.disableRolePrefixing != realm2.disableRolePrefixing) return false

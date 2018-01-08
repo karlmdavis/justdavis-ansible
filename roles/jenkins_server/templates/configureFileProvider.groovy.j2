@@ -62,7 +62,6 @@ createOrUpdateUsernamePasswordCredentials(
 settingsFileProvider = org.jenkinsci.lib.configprovider.ConfigProvider
     .getByIdOrNull(org.jenkinsci.plugins.configfiles.maven.MavenSettingsConfig.class.getName())
 
-
 // Create a new, correct config file object, for use below.
 settingsConfigId = settingsFileProvider.getProviderId() + ":justdavis-settings-xml"
 settingsConfigName = "The settings.xml for justdavis.com projects"
@@ -92,6 +91,7 @@ settingsConfig = settingsFileProvider.getConfigById(settingsConfigId)
 if (settingsConfig == null) {
   println("Did not find config file ${settingsConfigId}. Creating...")
   settingsFileProvider.save(settingsConfigNew)
+  settingsConfig = settingsConfigNew
   println("Changed by creating config file: ${settingsConfigId}")
 }
 

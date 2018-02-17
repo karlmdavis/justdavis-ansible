@@ -41,7 +41,7 @@
     path: "{{ item }}"
     state: present
     etype: mask
-    permissions: rwx
+    permissions: rwX
     recursive: true
   become: true
   with_items: "{{ backup_items }}"

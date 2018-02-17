@@ -85,9 +85,27 @@
   ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
-    dn: "cn={{ item }},ou=services,dc=justdavis,dc=com"
-    objectClass: ['organizationalRole', 'simpleSecurityObject']
+    dn: "uid={{ item }},ou=services,dc=justdavis,dc=com"
+    # We have to include `inetOrgPerson` here as some services we integrate
+    # with (e.g. Sonatype Nexus) require all users accounts to share a common
+    # `objectClass`. Would also like to include `organizationalRole`, but it
+    # conflicts with `inetOrgPerson`.
+    objectClass: ['simpleSecurityObject','inetOrgPerson']
     attributes:
-      cn: "{{ item }}"
+      uid: "{{ item }}"
+      cn: "{{ item }} Service"
+      sn: "Service: {{ item }}"
       userPassword: "{SASL}{{ item }}@{{ domain | upper }}"
   with_items: "{{ service_accounts }}"
+
+- name: Create 'nexus_devs' Group in LDAP
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=nexus_devs,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'groupOfNames'
+    attributes:
+      cn: 'nexus_devs'
+      member:
+        - 'uid=jenkins,ou=services,dc=justdavis,dc=com'
+        - 'uid=karl,ou=people,dc=justdavis,dc=com'

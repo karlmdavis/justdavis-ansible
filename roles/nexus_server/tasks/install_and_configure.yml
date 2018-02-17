@@ -23,7 +23,8 @@
         ldap_hostname: "{{ domain }}"
         ldap_port: 636
         ldap_search_base: 'dc=justdavis,dc=com'
-        ldap_user_base_dn: 'ou=people'
+        ldap_user_base_dn: ''
+        ldap_user_subtree: true
         ldap_user_object_class: 'inetOrgPerson'
         ldap_user_id_attribute: 'uid'
         ldap_user_real_name_attribute: 'cn'
@@ -33,22 +34,23 @@
         ldap_group_object_class: 'groupOfNames'
         ldap_group_id_attribute: 'cn'
         ldap_group_member_attribute: 'member'
-        ldap_group_member_format: 'uid=${username},ou=people,dc=justdavis,dc=com'
+        ldap_group_member_format: '${dn}'
         ldap_group_subtree: false
     nexus_anonymous_access: true
-    nexus_privileges:
-      - name: all-repos-manage
-        description: 'Full access to all repos'
-        repository: '*'
-        actions:
-          - '*'
+    nexus_privileges: []
     nexus_roles:
       # Maps to the LDAP group with the same CN.
       - id: administrators_ldap
         name: administrators_ldap
-        description: System administrators
+        description: System administrators (LDAP)
         privileges:
           - nx-all
+      # Maps to the LDAP group with the same CN.
+      - id: nexus_devs
+        name: nexus_devs
+        description: Nexus developers (LDAP)
+        privileges:
+          - 'nx-repository-view-*-*-*'
       - id: anonymous-custom
         name: anonymous-custom
         description: Anonymous (unauthenticated) users

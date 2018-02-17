@@ -19,7 +19,7 @@
     # * `jenkins_context_path`
 
     # Ensure that Jenkins knows the URL that it's being proxied from via nginx.
-    jenkins_url_external: "https://{{ domain }}/jenkins"
+    jenkins_url_external: "https://{{ domain }}/jenkins/"
 
     # The LDAP user that should be used when logging into Jenkins to run
     # configuration scripts.

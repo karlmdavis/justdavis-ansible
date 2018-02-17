@@ -16,6 +16,19 @@ import hudson.model.*;
 
 println("Configuring Config File Provider Plugin...")
 
+// Grab the provider for Maven settings.xml files.
+settingsFileProvider = org.jenkinsci.lib.configprovider.ConfigProvider
+    .getByIdOrNull(org.jenkinsci.plugins.configfiles.maven.MavenSettingsConfig.class.getName())
+
+// Grab the provider for Maven toolchains.xml files.
+toolchainsFileProvider = org.jenkinsci.lib.configprovider.ConfigProvider
+    .getByIdOrNull(org.jenkinsci.plugins.configfiles.maven.MavenToolchainsConfig.class.getName())
+
+
+//
+// Define Helper Functions
+//
+
 def createOrUpdateUsernamePasswordCredentials = { id, description, username, password ->
   domain = com.cloudbees.plugins.credentials.domains.Domain.global()
   credsStore = Jenkins.instance.getExtensionList("com.cloudbees.plugins.credentials.SystemCredentialsProvider")[0].getStore()
@@ -49,52 +62,6 @@ def createOrUpdateUsernamePasswordCredentials = { id, description, username, pas
   }
 }
 
-// Verify that Jenkins' credentials store has the required logins.
-credentialsId = "nexus-madrivercode-jenkins"
-createOrUpdateUsernamePasswordCredentials(
-  credentialsId,
-  "Login for the justdavis Nexus server, which is needed to interact with the madrivercode repos there.",
-  'jenkins',
-  '{{ vault_service_account_passwords.jenkins }}'
-)
-
-// Grab the provider for Maven settings.xml files.
-settingsFileProvider = org.jenkinsci.lib.configprovider.ConfigProvider
-    .getByIdOrNull(org.jenkinsci.plugins.configfiles.maven.MavenSettingsConfig.class.getName())
-
-// Create a new, correct config file object, for use below.
-settingsConfigId = settingsFileProvider.getProviderId() + ":justdavis-settings-xml"
-settingsConfigName = "The settings.xml for justdavis.com projects"
-settingsConfigComment = ""
-// Get the settings.xml file's contents into a Java variable with causing any
-// compile errors. (Note: If all you need is a "standard" settings.xml, you can
-// use the value of `settingsFileProvider.newConfig().content`, instead.
-settingsConfigContent = new String(Base64.getDecoder().decode("{{ lookup('template', 'templates/mavenSettings.xml.j2') | b64encode }}"), java.nio.charset.StandardCharsets.UTF_8)
-settingsConfigReplaceAll = true
-settingsConfigCredentials = [
-  new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus-madrivercode-releases", credentialsId),
-  new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus-madrivercode-snapshots", credentialsId)
-]
-settingsConfigNew = new org.jenkinsci.plugins.configfiles.maven.MavenSettingsConfig(
-  settingsConfigId,
-  settingsConfigName,
-  settingsConfigComment,
-  settingsConfigContent,
-  settingsConfigReplaceAll,
-  settingsConfigCredentials
-)
-
-// Check for an existing config file.
-settingsConfig = settingsFileProvider.getConfigById(settingsConfigId)
-
-// Create the config file if it's missing.
-if (settingsConfig == null) {
-  println("Did not find config file ${settingsConfigId}. Creating...")
-  settingsFileProvider.save(settingsConfigNew)
-  settingsConfig = settingsConfigNew
-  println("Changed by creating config file: ${settingsConfigId}")
-}
-
 def areCredentialsEqual = { credentials1, credentials2 ->
   if (credentials1 == null && credentials2 != null)
     return false
@@ -119,16 +86,110 @@ def areCredentialsEqual = { credentials1, credentials2 ->
   return true
 }
 
-// Update the config file if it's out of date.
-if (settingsConfig.id != settingsConfigNew.id
-    || settingsConfig.name != settingsConfigNew.name
-    || settingsConfig.name != settingsConfigNew.name
-    || settingsConfig.comment != settingsConfigNew.comment
-    || settingsConfig.content != settingsConfigNew.content
-    || settingsConfig.isReplaceAll != settingsConfigNew.isReplaceAll
-    || !areCredentialsEqual(settingsConfig.serverCredentialMappings, settingsConfigNew.serverCredentialMappings)) {
-  println("Found config file '${settingsConfigId}'. Replacing...")
-  settingsFileProvider.remove(settingsConfigId)
-  settingsFileProvider.save(settingsConfigNew)
-  println("Changed: replaced config file '${settingsConfigId}'.")
+def createOrUpdateMavenSettings = { desiredSettings ->
+  // Check for an existing settings file.
+  existingSettings = settingsFileProvider.getConfigById(desiredSettings.id)
+
+  // Create the settings file if it's missing.
+  if (existingSettings == null) {
+    println("Did not find settings file ${desiredSettings.id}. Creating...")
+    settingsFileProvider.save(desiredSettings)
+    existingSettings = desiredSettings
+    println("Changed: created settings file: ${existingSettings.id}")
+  }
+
+  // Update the settings file if it's out of date.
+  if (
+      existingSettings.id != desiredSettings.id
+      || existingSettings.name != desiredSettings.name
+      || existingSettings.name != desiredSettings.name
+      || existingSettings.comment != desiredSettings.comment
+      || existingSettings.content != desiredSettings.content
+      || existingSettings.isReplaceAll != desiredSettings.isReplaceAll
+      || !areCredentialsEqual(existingSettings.serverCredentialMappings, desiredSettings.serverCredentialMappings)
+   ) {
+    println("Existing settings '${existingSettings.id}' are out of date. Replacing...")
+    settingsFileProvider.remove(existingSettings.id)
+    settingsFileProvider.save(desiredSettings)
+    println("Changed: replaced settings file '${existingSettings.id}'.")
+  }
 }
+
+def createOrUpdateMavenToolchains = { desiredToolchains ->
+  // Check for an existing settings file.
+  existingToolchains = toolchainsFileProvider.getConfigById(desiredToolchains.id)
+
+  // Create the settings file if it's missing.
+  if (existingToolchains == null) {
+    println("Did not find toolchains file ${desiredToolchains.id}. Creating...")
+    toolchainsFileProvider.save(desiredToolchains)
+    existingToolchains = desiredToolchains
+    println("Changed: created toolchains file: ${existingToolchains.id}")
+  }
+
+  // Update the toolchains file if it's out of date.
+  if (
+      existingToolchains.id != desiredToolchains.id
+      || existingToolchains.name != desiredToolchains.name
+      || existingToolchains.name != desiredToolchains.name
+      || existingToolchains.comment != desiredToolchains.comment
+      || existingToolchains.content != desiredToolchains.content
+   ) {
+    println("Existing settings '${existingToolchains.id}' are out of date. Replacing...")
+    settingsFileProvider.remove(existingToolchains.id)
+    settingsFileProvider.save(desiredToolchains)
+    println("Changed: replaced settings file '${existingToolchains.id}'.")
+  }
+}
+
+
+//
+// Create/Update File Configurations
+//
+
+justdavisNexusCredentialsId = "nexus-justdavis-jenkins"
+createOrUpdateUsernamePasswordCredentials(
+  justdavisNexusCredentialsId,
+  "Login for the justdavis.com Nexus server, which is needed to interact with the repos there.",
+  'jenkins',
+  '{{ vault_service_account_passwords.jenkins }}'
+)
+
+ossrhCredentialsId = "ossrh"
+createOrUpdateUsernamePasswordCredentials(
+  ossrhCredentialsId,
+  "Login for OSSRH, which is used to land artifacts in Maven Central.",
+  '{{ vault_jenkins_ossrh_username }}',
+  '{{ vault_jenkins_ossrh_password }}'
+)
+
+createOrUpdateMavenSettings(
+  new org.jenkinsci.plugins.configfiles.maven.MavenSettingsConfig(
+    'justdavis:settings.xml',
+    'The settings.xml for justdavis.com projects.',
+    '',
+    // Get the settings.xml file's contents into a Java variable with causing any
+    // compile errors. (Note: If all you need is a "standard" settings.xml, you can
+    // use the value of `settingsFileProvider.newConfig().content`, instead.
+    new String(Base64.getDecoder().decode("{{ lookup('template', 'templates/mavenSettings.xml.j2') | b64encode }}"), java.nio.charset.StandardCharsets.UTF_8),
+    true,
+    [
+      new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus", justdavisNexusCredentialsId),
+      new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus-madrivercode-releases", justdavisNexusCredentialsId),
+      new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("justdavis.com-nexus-madrivercode-snapshots", justdavisNexusCredentialsId),
+      new org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping("ossrh", ossrhCredentialsId)
+    ]
+  )
+)
+
+createOrUpdateMavenToolchains(
+  new org.jenkinsci.plugins.configfiles.maven.MavenToolchainsConfig(
+    'justdavis:toolchains.xml',
+    'The toolchains.xml for justdavis.com projects.',
+    '',
+    // Get the toolchains.xml file's contents into a Java variable with causing any
+    // compile errors. (Note: If all you need is a "standard" settings.xml, you can
+    // use the value of `toolchainsFileProvider.newConfig().content`, instead.
+    new String(Base64.getDecoder().decode("{{ lookup('file', 'files/maven_toolchains.xml') | b64encode }}"), java.nio.charset.StandardCharsets.UTF_8)
+  )
+)

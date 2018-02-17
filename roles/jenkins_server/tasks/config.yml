@@ -87,7 +87,7 @@
     content: "{{ item.content }}"
     owner: jenkins
     group: jenkins
-    mode: u=r,g=,o=
+    mode: u=r,g=r,o=
   register: copy_gpg_build_key
   become: true
   no_log: true

@@ -44,5 +44,6 @@
     - import_role: name=auth_client
     - import_role: name=file_client
     - import_role: name=vpn_client
+    - import_role: name=devenv
     - import_role: name=user_karl
 

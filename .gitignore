@@ -15,3 +15,6 @@ test/hosts-test
 
 # Ignore the saved Ansible logs. (No way to reasonably version control them; hopefully backups catch them, if needed.)
 logs/
+
+# Ignore vim swp files.
+*.swp

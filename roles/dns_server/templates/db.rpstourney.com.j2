@@ -1,0 +1,47 @@
+$TTL 1h ; sets the default time-to-live for this zone
+
+; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
+@          IN    SOA   ns1.rpstourney.com.         hostmaster.rpstourney.com. (
+                              2018021200 ; sn = serial number (yyyymmdd##)
+                              1h         ; ref = refresh
+                              15M        ; ret = update retry
+                              4W         ; ex = expiry
+                              1h         ; min = minimum
+                              )
+
+; Nameserver Records
+{% if not is_test %}
+; name                   ttl    class   rr                name
+@                               IN      NS                ns1.rpstourney.com.
+                                IN      NS                ns6.gandi.net.
+
+; subdomain              ttl    class   rr                name
+tests.rpstourney.com.           IN      NS                ns-357.awsdns-44.com.
+                                IN      NS                ns-1620.awsdns-10.co.uk.
+                                IN      NS                ns-770.awsdns-32.net.
+                                IN      NS                ns-1080.awsdns-07.org.
+{% else %}
+; name                   ttl    class   rr                name
+@                               IN      NS                ns1.rpstourney.com.
+{% endif %}
+
+; IPv4 Address Records
+; name             ttl    class   rr                name
+@                         IN      A                 {{ eddings_public_ip }}
+ns1                       IN      A                 {{ eddings_public_ip }}
+
+; CNAME Records
+; name             ttl    class   rr                name
+www                       IN      CNAME             @
+
+; Mailserver Records
+; name             ttl    class   rr     priority   name
+
+; TXT Records
+; name             ttl    class   rr                name
+; Other servers should accept mail for this domain that comes from systems
+; matching at least one of our MX records oe eddings' IP. All other mail should
+; be rejected.
+
+; SRV Records
+; name                   ttl    class   rr                name

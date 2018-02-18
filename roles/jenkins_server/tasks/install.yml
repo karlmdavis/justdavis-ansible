@@ -35,3 +35,7 @@
       - sonar
       # Adds support for GH build status and commit hook triggers.
       - github
+      # Adds support for Python's virtualenv in Jenkinsfiles.
+      - pyenv-pipeline
+      # Allows ssh-agent to be used with SSH credentials.
+      - ssh-agent

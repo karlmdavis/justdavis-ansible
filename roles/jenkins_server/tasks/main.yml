@@ -1,6 +1,8 @@
 ---
 
+# Contains secrets only used by this role.
+- include_vars: vars/vault.yml
+
 - import_tasks: install.yml
 - import_tasks: config.yml
 - import_tasks: jobs.yml
-

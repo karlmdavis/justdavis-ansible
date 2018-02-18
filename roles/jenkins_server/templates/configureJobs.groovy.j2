@@ -83,6 +83,110 @@ def createOrUpdateProject = { projectName ->
   }
 }
 
+//
+// Create/Update File Credentials
+//
+def createOrUpdateFileCredentials = { newSecret ->
+  domain = com.cloudbees.plugins.credentials.domains.Domain.global()
+  credsStore = Jenkins.instance.getExtensionList("com.cloudbees.plugins.credentials.SystemCredentialsProvider")[0].getStore()
+
+  secrets = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
+    org.jenkinsci.plugins.plaincredentials.FileCredentials.class,
+    Jenkins.instance
+  )
+
+  id = newSecret.id
+  matchingSecret = secrets.find { secret -> secret.id == id }
+  if (matchingSecret) {
+    println "Secret found: ${matchingSecret.id}"
+
+    if (newSecret.scope != matchingSecret.scope ||
+        newSecret.description != matchingSecret.description ||
+        newSecret.fileName != matchingSecret.fileName ||
+        newSecret.secretBytes != matchingSecret.secretBytes) {
+      updateResult = credsStore.updateCredentials(domain, matchingSecret, newSecret)
+      if (updateResult) {
+        println "Changed: secret updated: ${id}"
+      } else {
+        println "Secret failed to update: ${id}"
+      }
+    }
+  } else {
+    println "Secret not found: ${id}"
+    credsStore.addCredentials(domain, newSecret)
+    println "Changed: secret created: ${id}"
+  }
+}
+
+//
+// Create/Update SSH Credentials
+//
+def arePrivateKeySourcesEqual = { privateKeySource1, privateKeySource2 ->
+  if (privateKeySource1 == null || privateKeySource2 == null) throw new IllegalArgumentException("Null not allowed.");
+  if (!(privateKeySource1 instanceof com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey.DirectEntryPrivateKeySource)) throw new IllegalArgumentException("Unsupported type: " + privateKeySource1.getClass());
+  if (privateKeySource1.getClass() != privateKeySource2.getClass()) return false;
+  if (privateKeySource1.privateKey != privateKeySource2.privateKey) return false;
+
+  return true;
+}
+
+def createOrUpdateSshPrivateKeyCredentials = { newSecret ->
+  domain = com.cloudbees.plugins.credentials.domains.Domain.global()
+  credsStore = Jenkins.instance.getExtensionList("com.cloudbees.plugins.credentials.SystemCredentialsProvider")[0].getStore()
+
+  secrets = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
+    com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey.class,
+    Jenkins.instance
+  )
+
+  id = newSecret.id
+  matchingSecret = secrets.find { secret -> secret.id == id }
+  if (matchingSecret) {
+    println "Secret found: ${matchingSecret.id}"
+
+    if (newSecret.scope != matchingSecret.scope ||
+        newSecret.description != matchingSecret.description ||
+        newSecret.username != matchingSecret.username ||
+        !arePrivateKeySourcesEqual(newSecret.privateKeySource, matchingSecret.privateKeySource) ||
+        newSecret.passphrase != matchingSecret.passphrase) {
+      updateResult = credsStore.updateCredentials(domain, matchingSecret, newSecret)
+      if (updateResult) {
+        println "Changed: secret updated: ${id}"
+      } else {
+        println "Secret failed to update: ${id}"
+      }
+    }
+  } else {
+    println "Secret not found: ${id}"
+    credsStore.addCredentials(domain, newSecret)
+    println "Changed: secret created: ${id}"
+  }
+}
+
+createOrUpdateFileCredentials(
+  new org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl(
+    com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+    'rps-tourney-ansible-vault-password',
+    'rps-tourney-ansible-vault-password',
+    'vault.password',
+    com.cloudbees.plugins.credentials.SecretBytes.fromString('{{ vault_jenkins_rps_tourney_ansible_vault_password | b64encode }}')
+  )
+)
+
+createOrUpdateSshPrivateKeyCredentials(
+  new com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey(
+    com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+    'eddings-builds-ssh-private-key',
+    'localuser',
+    new com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey.DirectEntryPrivateKeySource(
+      // Base 64 dance used here to get around the line breaks in this String.
+      new String('{{ vault_eddings_builds_ssh_private_key | b64encode }}'.decodeBase64())
+    ),
+    null,
+    'eddings-builds-ssh-private-key'
+  )
+)
+
 
 //
 // Create/Update All of the Projects

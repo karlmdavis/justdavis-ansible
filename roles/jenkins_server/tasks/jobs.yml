@@ -8,6 +8,11 @@
     # Some integration tests run in Jenkins will use a PostgreSQL DB.
     # The psycopg2 lib is needed by Ansible's postgresql_db module.
     - [postgresql, postgresql-client, python-psycopg2]
+    # Some projects (e.g. rps-tourney) need Python 2.7 and virtualenv to run
+    # Ansible.
+    - [python, python-virtualenv]
+    # These dependencies are required to `pip install` Ansible.
+    - [python-dev, libpq-dev]
 
 - name: Create Database User
   postgresql_user:
@@ -16,6 +21,17 @@
     role_attr_flags: 'CREATEDB'
   become: true
   become_user: postgres
+
+# This SSH key will be used by Jenkins jobs that connect over SSH. For
+# instance, the `rps-tourney` job connects from `eddings` to `eddings`, in
+# order to deploy the RPS Tourney application to it.
+- name: Authorize Jenkins SSH Key for Deploys
+  authorized_key:
+    user: localuser
+    state: present
+    key: "{{ lookup('file', 'files/id_eddings_builds.pub') }}"
+    key_options: 'from="127.0.0.1"'
+  become: true
 
 - name: Create/Update Jenkins Jobs
   jenkins_script:

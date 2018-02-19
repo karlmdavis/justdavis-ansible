@@ -2,7 +2,7 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.rpstourney.com.         hostmaster.rpstourney.com. (
-                              2018021200 ; sn = serial number (yyyymmdd##)
+                              20180218022 ; sn = serial number (yyyymmdd##)
                               1h         ; ref = refresh
                               15M        ; ret = update retry
                               4W         ; ex = expiry
@@ -42,6 +42,9 @@ www                       IN      CNAME             @
 ; Other servers should accept mail for this domain that comes from systems
 ; matching at least one of our MX records oe eddings' IP. All other mail should
 ; be rejected.
+; The Google Search Console verification record
+; (https://www.google.com/webmasters/tools/home):
+@                         IN      TXT               ("google-site-verification=L8ry8BOAnrshchn6K6Wv911QubG3mr1HBPIOuDLXL0U")
 
 ; SRV Records
 ; name                   ttl    class   rr                name

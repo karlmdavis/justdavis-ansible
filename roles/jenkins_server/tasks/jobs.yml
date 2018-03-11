@@ -22,13 +22,27 @@
   become: true
   become_user: postgres
 
+- name: Create RPS Deploy User
+  user:
+    user: rps-deploy
+    comment: "Used to deploy RPS Tourney"
+  become: true
+
+- name: Allow RPS Deploy User to sudo Without Password
+  lineinfile:
+    dest: /etc/sudoers.d/rps-deploy
+    create: true
+    regexp: '^rps-deploy'
+    line: 'rps-deploy ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+  become: true
+
 # This SSH key will be used by Jenkins jobs that connect over SSH. For
 # instance, the `rps-tourney` job connects from `eddings` to `eddings`, in
 # order to deploy the RPS Tourney application to it.
 - name: Authorize Jenkins SSH Key for Deploys
   authorized_key:
-    user: localuser
-    state: present
+    user: rps-deploy
     key: "{{ lookup('file', 'files/id_eddings_builds.pub') }}"
     key_options: 'from="127.0.0.1"'
   become: true

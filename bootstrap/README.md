@@ -27,9 +27,10 @@ Some miscellaneous notes on WSL:
     * Cygwin is definitely a smoother experience, but I suspect that won't be true for too much longer. MS seems to be committed to making WSL work well.
 * Microsoft uses this GitHub repo to publicly manage bugs with WSL: <https://github.com/Microsoft/WSL/issues>.
 * [ConEmu](https://conemu.github.io/) seems to be a decent command prompt/terminal application, with support for PowerShell and WSL.
-* You can get an OpenSSH server running:
+* You can get an OpenSSH server running if you jump through some hoops:
     * Note: It will only stay running as long as the WSL session/window is left open.
     * These seem to be a decent set of instructions: <https://gist.github.com/wsargent/072319c2100ac0aea4305d6f6eeacc08#set-up-sshd>.
+    * This seems to be the main thread for whining about this: <https://github.com/Microsoft/WSL/issues/612>.
 * WSL doesn't yet have any good support for running persistent services such as an SSH server.
     * MS has said this isn't a priority for them.
     * This application sounds like it might be a solid attempt at closing that gap: <https://github.com/cerebrate/wabash>.

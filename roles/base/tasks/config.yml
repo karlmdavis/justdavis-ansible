@@ -13,11 +13,13 @@
     rule: allow
     name: OpenSSH
   become: true
+  when: "'Microsoft' not in ansible_kernel"
 
 - name: Firewall - Enable
   ufw:
     state: enabled
   become: true
+  when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure Timezone
   template:
@@ -28,17 +30,19 @@
     mode: u=rw,g=r,o=r
   become: true
   register: timezone_file
+  when: "'Microsoft' not in ansible_kernel"
 
 - name: Apply Timezone Change
   command: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
   become: true
-  when: timezone_file.changed
+  when: "timezone_file.changed and 'Microsoft' not in ansible_kernel"
 
 - name: Install 'ntp' and Other Base Packages
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - ntp
   become: true
+  when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure 'hosts'
   lineinfile:
@@ -53,11 +57,12 @@
     content: "{{ inventory_hostname_short }}"
   register: hostname_file
   become: true
+  when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure 'hostname' (transient)
   command: "/usr/bin/hostnamectl set-hostname {{ inventory_hostname_short }}"
   become: true
-  when: hostname_file.changed
+  when: "hostname_file.changed and 'Microsoft' not in ansible_kernel"
 
 - name: Auto Upgrade - Install
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"

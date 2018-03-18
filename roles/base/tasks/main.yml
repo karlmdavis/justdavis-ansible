@@ -2,7 +2,7 @@
 
 - import_tasks: config.yml
 - import_tasks: sensors.yml
+  when: "'Microsoft' not in ansible_kernel"
 
 - import_tasks: test.yml
   tags: test
-

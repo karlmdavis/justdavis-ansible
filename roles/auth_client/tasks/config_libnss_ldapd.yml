@@ -1,0 +1,31 @@
+---
+##
+# Installs and configures `libnss-ldapd`, to use the justdavis LDAP server
+# as an NSS source for passwd and group data.
+#
+# It's better to use `libnss-ldapd` if possible (as we do here), as it provides
+# better performance. It's also just more reliable.
+##
+
+- name: Install LDAP Name Services
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - libnss-ldapd
+    - libnss-db
+    - nss-updatedb
+    - auth-client-config
+  register: install_ldapnss_result
+  become: true
+
+- name: Populate NSS Cache from LDAP
+  command: /usr/sbin/nss_updatedb ldap
+  become: true
+
+- name: Create cron Job to Refresh NSS Cache from LDAP
+  cron:
+    cron_file: refresh_nss_from_ldap
+    name: refresh_nss_from_ldap
+    special_time: hourly
+    user: root
+    job: /usr/sbin/nss_updatedb ldap
+  become: true

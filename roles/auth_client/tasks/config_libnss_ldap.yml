@@ -1,0 +1,36 @@
+---
+##
+# Installs and configures `libnss-ldap`, to use the justdavis LDAP server
+# as an NSS source for passwd and group data.
+#
+# It would be better to use `libnss-ldapd` if we could, as it provides
+# better performance and reliability. Unfortunately, that's not possible on WSL
+# systems, as they don't correctly support services yet.
+##
+
+- name: Configure LDAP Clients
+  lineinfile:
+    dest: /etc/ldap.conf
+    insertafter: '^#URI'
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^base', line: "base dc=justdavis,dc=com" }
+    - { regexp: '^uri', line: "uri ldaps://{{ domain }}" }
+    - { regexp: '^tls_cacertfile', line: "tls_cacertfile /etc/ssl/certs/ca-certificates.crt" }
+  become: true
+
+- name: Install LDAP Name Services
+  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  with_items:
+    - libnss-ldap
+    - libnss-db
+    - nss-updatedb
+    - auth-client-config
+    - ldap-utils
+  register: install_ldapnss_result
+  become: true
+
+- name: Populate NSS Cache from LDAP
+  command: /usr/sbin/nss_updatedb ldap
+  become: true

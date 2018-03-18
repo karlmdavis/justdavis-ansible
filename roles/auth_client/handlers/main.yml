@@ -5,3 +5,4 @@
     name: nscd
     state: restarted
   become: true
+  when: "'Microsoft' not in ansible_kernel"

@@ -34,7 +34,7 @@
   when: not gh_repo_stat.stat.exists
 
 - name: Set Repo Remote URL
-  command: "git remote set-url origin ssh://git@github.com:{{ repo }}.git"
+  command: "git remote set-url origin git@github.com:{{ repo }}.git"
   args:
     chdir: "{{ path }}"
   become: true

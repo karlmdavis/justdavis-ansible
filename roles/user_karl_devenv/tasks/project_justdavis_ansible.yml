@@ -1,0 +1,68 @@
+---
+
+- set_fact:
+    justdavis_ansible_dir: /home/karl/workspaces/justdavis/justdavis-ansible.git
+
+- import_role:
+    name: github_repo
+  vars:
+    path: "{{ justdavis_ansible_dir }}"
+    repo: karlmdavis/justdavis-ansible
+    owner: karl
+
+#- name: Clone the justdavis-ansible.git Project
+#  git:
+#    repo: 'ssh://git@github.com:karlmdavis/justdavis-ansible.git'
+#    dest: "{{ justdavis_ansible_dir }}"
+#    update: false
+#    key_file: /home/karl/.ssh/id_rsa
+#  become: true
+#  become_user: karl
+#  # Note: The remote system's SSH key won't be unlocked, so we rely on SSH
+#  # agent forwarding.
+#  become_flags: -E
+
+- name: Create the Ansible Vault Password File
+  copy:
+    dest: "{{ justdavis_ansible_dir }}/vault.password"
+    content: "{{ vault_justdavis_ansible_vault_password }}"
+    force: true
+    owner: karl
+    group: karl
+    mode: u=rw,g=,o=
+  become: true
+
+#- name: Create the Ansible virtualenv
+#  command: virtualenv -p /usr/bin/python2.7 venv
+#  args:
+#    chdir: "{{ justdavis_ansible_dir }}"
+#    creates: "{{ justdavis_ansible_dir }}/venv"
+#  become: true
+#  become_user: karl
+
+# Workaround for: https://github.com/ansible/ansible/issues/31741
+- name: Create Ansible virtualenv and Upgrade setuptools
+  pip:
+    name: setuptools
+    version: 38.1.0
+    virtualenv: "{{ justdavis_ansible_dir }}/venv"
+    virtualenv_python: python2.7
+  become: true
+  become_user: karl
+
+- name: Install Requirements Into virtualenv
+  pip:
+    state: present
+    requirements: "{{ justdavis_ansible_dir }}/requirements.txt"
+    virtualenv: "{{ justdavis_ansible_dir }}/venv"
+    virtualenv_python: python2.7
+  become: true
+  become_user: karl
+
+- name: Install Ansible Roles
+  command: "{{ justdavis_ansible_dir }}/venv/bin/ansible-galaxy install --role-file=install_roles.yml --ignore-errors"
+  args:
+    chdir: "{{ justdavis_ansible_dir }}"
+    creates: "{{ justdavis_ansible_dir }}/roles"
+  become: true
+  become_user: karl

@@ -40,13 +40,6 @@
   become: true
   no_log: true
 
-- name: Add GitHub to the Global ssh_known_hosts
-  known_hosts:
-    path: /etc/ssh/ssh_known_hosts
-    name: github.com
-    key: "{{ ssh_known_host_github }}"
-  become: true
-
 - name: Create Downloads Directory
   file:
     state: directory

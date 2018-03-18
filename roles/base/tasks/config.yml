@@ -95,3 +95,16 @@
   when:
     - ansible_distribution == 'Ubuntu'
     - ansible_distribution_version == '14.04'
+
+- name: Install Git
+  package:
+    name: git
+    state: present
+  become: true
+
+- name: Add GitHub to the Global ssh_known_hosts
+  known_hosts:
+    path: /etc/ssh/ssh_known_hosts
+    name: github.com
+    key: "{{ ssh_known_host_github }}"
+  become: true

@@ -1,0 +1,9 @@
+---
+
+# Contains secrets only used by this role.
+- include_vars: vars/vault.yml
+
+- import_tasks: tools_base.yml
+- import_tasks: tools_ansible.yml
+- import_tasks: project_base.yml
+- import_tasks: project_justdavis_ansible.yml

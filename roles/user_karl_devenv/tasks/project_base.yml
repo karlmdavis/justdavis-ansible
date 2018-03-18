@@ -1,0 +1,15 @@
+---
+
+- name: Create the workspaces Directories
+  file:
+    path: "/home/karl/{{ item }}"
+    state: directory
+    owner: karl
+    group: karl
+    mode: u=rwx,g=rx,o=
+  with_items:
+    - workspaces
+    - workspaces/tools
+    - workspaces/tools/installers
+    - workspaces/justdavis
+  become: true

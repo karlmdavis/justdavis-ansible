@@ -1,6 +1,15 @@
+# The primary justdavis.com server.
 eddings.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin/python2.7 public_ip=96.86.32.137 public_ip_interface=br0 vpn_gateway_ip=96.86.32.139 private_ip=10.0.0.2 private_ip_interface=enp2s0f1
-jordan-u.justdavis.com ansible_user=localuser
+
+
+[workstations]
+
+# Karl's primary laptop: specifically, the Linux OS on it.
+jordan-u.karlanderica.justdavis.com ansible_user=localuser
+
+# Karl's Windows desktop: specifically, the WSL Linux environment on it.
+brooks.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222
+
 
 [os_ubuntu_1604]
 eddings.justdavis.com
-

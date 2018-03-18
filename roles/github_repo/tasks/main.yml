@@ -1,0 +1,41 @@
+---
+##
+# This role is designed to clone a GitHub repo via HTTPS, then leave the remote
+# URL set to SSH, and never update.
+#
+# Why? Because this way we don't have to worry about SSH keys and key
+# passphrases, and all that nonsense. And for development repos, I never want
+# them auto-updated, anyways.
+#
+# Usage:
+#
+#     tasks:
+#       - import_role:
+#           name: github_repo
+#         vars:
+#           path: /foo/justdavis-ansible.git
+#           repo: karlmdavis/justdavis-ansible
+#           owner: karl
+##
+
+- name: Check for Repo
+  stat:
+    path: "{{ path }}"
+  register: gh_repo_stat
+  become: true
+
+- name: Clone Repo Over HTTPS
+  git:
+    repo: "https://github.com/{{ repo }}"
+    dest: "{{ path }}"
+    update: false
+  become: true
+  become_user: "{{ owner }}"
+  when: not gh_repo_stat.stat.exists
+
+- name: Set Repo Remote URL
+  command: "git remote set-url origin ssh://git@github.com:{{ repo }}.git"
+  args:
+    chdir: "{{ path }}"
+  become: true
+  when: not gh_repo_stat.stat.exists

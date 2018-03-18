@@ -1,0 +1,16 @@
+---
+
+- name: Install Ansible System Dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - build-essential
+    - python-dev
+    - libpq-dev
+    - libssl-dev
+    - libffi-dev
+    - python-virtualenv
+  become: true
+
+

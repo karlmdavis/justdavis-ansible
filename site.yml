@@ -37,13 +37,18 @@
     - import_role: name=spideroak
 
 - hosts: all
-  name: Apply Common Configuration to Workstations
+  name: Apply Common Configuration
   gather_facts: true
   tasks:
     - import_role: name=base
     - import_role: name=auth_client
     - import_role: name=file_client
-    - import_role: name=vpn_client
-    - import_role: name=devenv
     - import_role: name=user_karl
 
+- hosts: workstations
+  name: Configure Workstations
+  gather_facts: true
+  tasks:
+    - import_role: name=vpn_client
+      when: "'Microsoft' not in ansible_kernel"
+    - import_role: name=user_karl_devenv

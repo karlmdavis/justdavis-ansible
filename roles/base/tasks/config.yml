@@ -4,8 +4,6 @@
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
     - fail2ban
-    - openssh-blacklist
-    - openssh-blacklist-extra
   become: true
 
 - name: Firewall - Allow SSH incoming traffic

@@ -6,7 +6,6 @@
     - krb5-user
     - libpam-krb5
     - libpam-ccreds
-    - libpam-ck-connector
     - libsasl2-modules-gssapi-mit
   become: true
 
@@ -81,7 +80,7 @@
     dest: /etc/security/group.conf
     content: |
       # Ensure that network-authenticated users are added to the standard user groups
-      * ; *; *;Al0000-2400; adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, lxd
+      * ; *; *;Al0000-2400; adm, cdrom, sudo, dip, plugdev, lpadmin, netdev
   become: true
 
 - name: Create pam-auth-update Profile
@@ -125,3 +124,14 @@
           GSSAPIDelegateCredentials no
   become: true
 
+- name: Grant karl NOPASSWD Access to sudo
+  copy:
+    dest: /etc/sudoers.d/karl
+    content: |
+      # Allow the `karl` account sudo access without requiring a password.
+      karl ALL=(ALL) NOPASSWD:ALL
+    owner: root
+    group: root
+    mode: u=r,g=r,o=
+    validate: /usr/sbin/visudo --check --file=%s
+  become: true

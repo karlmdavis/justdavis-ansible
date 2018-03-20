@@ -20,6 +20,10 @@
 # Installs and configures Jenkins 2.
 - src: karlmdavis.jenkins2
 
+# https://galaxy.ansible.com/geerlingguy/java/
+# Installs and configures Java.
+- src: geerlingguy.java
+
 # https://galaxy.ansible.com/savoirfairelinux/nexus3-oss/
 # Installs and configures Sonatype's Nexus OSS.
 - src: savoirfairelinux.nexus3-oss

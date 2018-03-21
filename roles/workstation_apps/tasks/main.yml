@@ -1,0 +1,9 @@
+---
+
+- name: Install Workstation Apps
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - keepass2
+  become: true

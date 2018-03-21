@@ -49,6 +49,7 @@
   name: Configure Workstations
   gather_facts: true
   tasks:
+    - import_role: name=workstation_apps
     - import_role: name=user_karl_devenv
     - import_role: name=vpn_client
       when: "'Microsoft' not in ansible_kernel"

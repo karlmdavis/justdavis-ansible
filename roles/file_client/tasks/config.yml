@@ -5,6 +5,7 @@
   with_items:
     - smbclient
     - cifs-utils
+    - keyutils
   become: true
 
 - name: Add Fileshare Mounts for Users

@@ -99,10 +99,13 @@
     - ansible_distribution == 'Ubuntu'
     - ansible_distribution_version == '14.04'
 
-- name: Install Git
+- name: Install Standard Tools
   package:
-    name: git
+    name: "{{ item }}"
     state: present
+  with_items:
+    - git
+    - vim
   become: true
 
 - name: Add GitHub to the Global ssh_known_hosts

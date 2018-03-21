@@ -6,6 +6,7 @@
     state: present
   with_items:
     - openjdk-8-jdk
+    - sqlite3
   become: true
 
 - name: Create Git Config

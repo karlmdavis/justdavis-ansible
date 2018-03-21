@@ -8,6 +8,15 @@
     - openjdk-8-jdk
   become: true
 
+- name: Create Git Config
+  template:
+    src: gitconfig.j2
+    dest: /home/karl/.gitconfig
+    owner: karl
+    group: karl
+    mode: u=rw,g=r,o=r
+  become: true
+
 - name: Create AWS Config Directory
   file:
     path: /home/karl/.aws

@@ -6,4 +6,5 @@
     state: present
   with_items:
     - keepass2
+    - [thunderbird, thunderbird-gnome-support]
   become: true

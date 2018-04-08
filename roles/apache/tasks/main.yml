@@ -9,7 +9,7 @@
     name: L-P.acmetool
   vars:
     acmetool_email: "{{ domain_webmaster }}"
-    acmetool_domains: "{{ [domain] | union(domain_site_aliases) | join(' ') }}"
+    acmetool_domains: "{{ domain_websites | join(' ') }}"
     acmetool_server: "{{ 'https://acme-v01.api.letsencrypt.org/directory' if not is_test else 'https://acme-staging.api.letsencrypt.org/directory' }}"
   become: true
 

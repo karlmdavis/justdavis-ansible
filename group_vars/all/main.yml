@@ -20,12 +20,26 @@ ami_id_ubuntu_16: ami-cf68e0d8
 # services being tested. The top-level test domains (e.g. 
 # `tests.justdavis.com`) are managed via Route 53, so that the tests can 
 # *actually manage* them. It's all kinda' complicated, but works.
-domain: "{{ 'justdavis.com' if not is_test else 'tests.justdavis.com' }}"
-domain_alias: "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
-domain_site_aliases:
-  - "{{ 'www.justdavis.com' if not is_test else 'www.tests.justdavis.com' }}"
-  - "{{ 'davisonlinehome.name' if not is_test else 'tests.davisonlinehome.name' }}"
-  - "{{ 'www.davisonlinehome.name' if not is_test else 'www.tests.davisonlinehome.name' }}"
+domain: "{{ 'tests.' if is_test else '' }}justdavis.com"
+domain_doh: "{{ 'tests.' if is_test else '' }}davisonlinehome.name"
+domain_mrc: "{{ 'tests.' if is_test else '' }}madrivercode.com"
+domain_mrd: "{{ 'tests.' if is_test else '' }}madriverdevelopment.com"
+domains:
+  - "{{ domain }}"
+  - "{{ domain_doh }}"
+  - "{{ domain_mrc }}"
+  - "{{ domain_mrd }}"
+domain_websites:
+  - "{{ domain }}"
+  - "www.{{ domain }}"
+  # FIXME: Enable this once we switch from piers --> eddings as mail server
+  #- "mail.{{ domain }}"
+  - "{{ domain_doh }}"
+  - "www.{{ domain_doh }}"
+  - "{{ domain_mrc }}"
+  - "www.{{ domain_mrc }}"
+  - "{{ domain_mrd }}"
+  - "www.{{ domain_mrd }}"
 domain_webmaster: "karl@{{ domain }}"
 
 # The WAN IP addresses of the "home" network. Connections from these IPs will 

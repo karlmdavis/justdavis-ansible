@@ -183,8 +183,8 @@
     'virtual_mailbox_base': '/var/vmail'
     'virtual_uid_maps': "static:{{ uid_vmail.stdout }}"
     'virtual_gid_maps': "static:{{ gid_vmail.stdout }}"
-    'virtual_mailbox_domains': "{{ domain }} {{ domain_alias }}"
-    'virtual_alias_maps': 'hash:/etc/postfix/virtual_alias_maps'
+    'virtual_mailbox_domains': "{{ domains | join(' ') }}"
+    'virtual_alias_maps': 'regexp:/etc/postfix/virtual_alias_maps'
     # Use Dovecot's LMTP service for delivery of virtual mail. This allows the
     # use of Dovecot's sieve to ensure that incoming mail flagged as spam is
     # dropped into Junk folders, rather than user's INBOXes.
@@ -210,13 +210,17 @@
     # our Dovecot config only supports a 1:1 relationship between logins and
     # Maildirs.
     content: |
-      postmaster@{{ domain }}                    karl@{{ domain }}
-      acme@eddings.{{ domain }}                  karl@{{ domain }}
-      root@eddings.{{ domain }}                  karl@{{ domain }}
-      jenkins@{{ domain }}                       karl@{{ domain }}
-      webmaster@{{ domain }}                     karl@{{ domain }}
-      {{ test_username }}@{{ domain }}           {{ test_username }}@{{ domain }}
-      {{ test_username }}_alias@{{ domain }}     {{ test_username }}@{{ domain }}
+      /^postmaster@/                              karl@{{ domain }}
+      /^acme@eddings.{{ domain }}$/               karl@{{ domain }}
+      /^root@eddings.{{ domain }}$/               karl@{{ domain }}
+      /^jenkins@{{ domain }}$/                    karl@{{ domain }}
+      /^webmaster@/                               karl@{{ domain }}
+      /^karl/                                     karl@{{ domain }}
+      /^stephen@{{ domain }}$/                    stephen@{{ domain }}
+      /^stephena@{{ domain }}$/                   stephen@{{ domain }}
+      /^heystephen@{{ domain }}$/                 stephen@{{ domain }}
+      /^{{ test_username }}@{{ domain }}$/        {{ test_username }}@{{ domain }}
+      /^{{ test_username }}_alias@{{ domain }}$/  {{ test_username }}@{{ domain }}
   become: true
   notify:
     - "Run 'postmap' on 'virtual_alias_maps'"
@@ -242,7 +246,7 @@
     line: "{{ item.key }} = {{ item.value }};"
   with_dict:
     # Ensure that all valid email domains are filtered.
-    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_alias }}\" )"
+    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_doh }}\", \".{{ domain_mrc }}\", \".{{ domain_mrd }}\" )"
     # Always tag mail with spam score headers.
     '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which 
@@ -371,8 +375,8 @@
     mode: u=rw,g=r,o=r
   become: true
 
-- name: Create OpenDKIM Key
-  command: /usr/bin/opendkim-genkey --domain={{ domain }} --selector=a --directory=/etc/dkimkeys
+- name: Create OpenDKIM Keys
+  command: /usr/bin/opendkim-genkey --domain={{ item }} --selector=a --directory=/etc/dkimkeys
   args:
     creates: /etc/dkimkeys/a.private
   become: true
@@ -380,4 +384,8 @@
   notify:
     - 'Update opendkim DNS Include'
     - "Restart 'opendkim'"
-
+  with_items:
+    - "{{ domain }}"
+    - "{{ domain_doh }}"
+    - "{{ domain_mrc }}"
+    - "{{ domain_mrd }}"

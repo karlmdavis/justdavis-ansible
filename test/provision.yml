@@ -124,8 +124,7 @@
       with_items:
         - { zone: 'tests.justdavis.com', record: 'tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.justdavis.com', record: 'www.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: 'tests.davisonlinehome.name', record: 'tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: 'tests.davisonlinehome.name', record: 'www.tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.justdavis.com', record: 'mail.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.justdavis.com', record: 'eddings.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
         - { zone: 'tests.justdavis.com', record: 'eddings.karlanderica.tests.justdavis.com', type: 'A', value: "{{ ec2_eddings.instances[0].private_ip }}" }
         - { zone: 'tests.justdavis.com', record: '_kerberos.tests.justdavis.com', type: 'TXT', value: '"TESTS.JUSTDAVIS.COM"' }
@@ -133,6 +132,12 @@
         - { zone: 'tests.justdavis.com', record: '_kerberos-master._udp.tests.justdavis.com', type: 'SRV', value: '0 0 88 eddings.tests.justdavis.com.' }
         - { zone: 'tests.justdavis.com', record: '_kerberos-adm._tcp.tests.justdavis.com', type: 'SRV', value: '0 0 749 eddings.tests.justdavis.com.' }
         - { zone: 'tests.justdavis.com', record: '_kpasswd._udp.tests.justdavis.com', type: 'SRV', value: '0 0 464 eddings.tests.justdavis.com.' }
+        - { zone: 'tests.davisonlinehome.name', record: 'tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.davisonlinehome.name', record: 'www.tests.davisonlinehome.name', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.madrivercode.com', record: 'tests.madrivercode.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.madrivercode.com', record: 'www.tests.madrivercode.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.madriverdevelopment.com', record: 'tests.madriverdevelopment.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: 'tests.madriverdevelopment.com', record: 'www.tests.madriverdevelopment.com', type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
       register: route53_records
 
     - name: Wait for Route53 Records

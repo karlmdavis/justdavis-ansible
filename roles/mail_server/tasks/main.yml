@@ -2,6 +2,7 @@
 
 - import_tasks: base.yml
 - import_tasks: sasl-chroot-fix.yml
+- import_tasks: opendkim-chroot-fix.yml
 # FIXME Can't run tests unless/until DNS records are switched to point to eddings as mail server.
 #- import_tasks: test.yml
 #  tags: test

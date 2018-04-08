@@ -18,29 +18,37 @@
     append: true
   become: true
 
-- name: Create Mount Point for SASL in Postfix chroot
+- name: Create `/var/run` Directory in Postfix chroot
   file:
     state: directory
     path: "{{ item }}"
     owner: root
-    group: sasl
-    mode: u=rwx,g=rwx,o=
+    group: root
+    mode: u=rwx,g=rx,o=rx
   with_items:
     - /var/spool/postfix/var
     - /var/spool/postfix/var/run
-    - /var/spool/postfix/var/run/saslauthd
+  become: true
+
+- name: Create Mount Point for SASL in Postfix chroot
+  file:
+    state: directory
+    path: /var/spool/postfix/var/run/saslauthd
+    owner: root
+    group: sasl
+    mode: u=rwx,g=rwx,o=
   become: true
 
 - name: Verify dpkg Override for SASL Mount Point
   command: dpkg-statoverride --list /var/spool/postfix/var
-  register: dpkg_override_postfix_sasl
+  register: dpkg_override_postfix_var
   changed_when: false
   failed_when: false
 
 - name: Configure dpkg to Handle SASL Mount Point Correctly
-  command: dpkg-statoverride --add root sasl 710 /var/spool/postfix/var
+  command: dpkg-statoverride --add root root 755 /var/spool/postfix/var
   become: true
-  when: dpkg_override_postfix_sasl.rc != 0
+  when: dpkg_override_postfix_var.rc != 0
 
 - name: Mount SASL in Postfix chroot
   mount:
@@ -50,4 +58,3 @@
     opts: defaults,nodev,bind
     state: mounted
   become: true
-

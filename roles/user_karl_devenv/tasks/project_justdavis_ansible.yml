@@ -1,5 +1,13 @@
 ---
 
+- name: Install System Dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - swaks
+  become: true
+
 - set_fact:
     justdavis_ansible_dir: /home/karl/workspaces/justdavis/justdavis-ansible.git
 

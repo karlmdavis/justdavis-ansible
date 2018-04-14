@@ -58,6 +58,7 @@
   with_items:
     - Postfix
     - Postfix SMTPS
+    - Postfix Submission
     - Dovecot Secure IMAP
   become: true
 

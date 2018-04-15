@@ -29,9 +29,7 @@ tests.justdavis.com.            IN      NS                ns-357.awsdns-44.com.
 ; name             ttl    class   rr                name
 @                         IN      A                 {{ eddings_public_ip }}
 ns1                       IN      A                 {{ eddings_public_ip }}
-; FIXME Switch mail server records, after switch.
-mail                      IN      A                 96.86.32.138
-;mail                      IN      A                 {{ eddings_public_ip }}
+mail                      IN      A                 {{ eddings_public_ip }}
 eddings                   IN      A                 {{ eddings_public_ip }}
 piers                     IN      A                 96.86.32.138
 karlanderica              IN      A                 96.86.32.141

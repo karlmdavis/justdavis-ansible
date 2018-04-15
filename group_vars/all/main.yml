@@ -32,8 +32,7 @@ domains:
 domain_websites:
   - "{{ domain }}"
   - "www.{{ domain }}"
-  # FIXME: Enable this once we switch from piers --> eddings as mail server
-  #- "mail.{{ domain }}"
+  - "mail.{{ domain }}"
   - "{{ domain_doh }}"
   - "www.{{ domain_doh }}"
   - "{{ domain_mrc }}"

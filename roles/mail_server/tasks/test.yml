@@ -31,7 +31,7 @@
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Authenticated and Out-of-Network)
-  local_action: "command /usr/bin/swaks --server {{ ansible_host | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
+  local_action: "command /usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
   changed_when: false
 - name: Verify that Mail was Received
   command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
@@ -43,7 +43,7 @@
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (To Alias, Authenticated, and Out-of-Network)
-  local_action: "command /usr/bin/swaks --server {{ ansible_host | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
+  local_action: "command /usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
   changed_when: false
 - name: Verify that Mail was Received
   command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
@@ -87,4 +87,3 @@
   until: curl_mail_junk.rc == 0 and '0 EXISTS' not in curl_mail_junk.stdout
   retries: 10
   delay: 1
-

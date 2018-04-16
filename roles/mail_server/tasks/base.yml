@@ -160,7 +160,7 @@
     # optional STARTTLS variant, still on port 25.)
     'smtpd_tls_security_level': 'may'
     'smtpd_tls_key_file': "/var/lib/acme/live/{{ domain }}/privkey"
-    'smtpd_tls_cert_file': "/var/lib/acme/live/{{ domain }}/cert"
+    'smtpd_tls_cert_file': "/var/lib/acme/live/{{ domain }}/fullchain"
     # The CAfile must contain the chain for both the cert_file and the certs offerred by all remote clients.
     'smtpd_tls_CAfile': '/etc/ssl/certs/ca-certificates.crt'
     # Only allow authenticated clients to send mail.

@@ -1,0 +1,305 @@
+# name karl@justdavis.com
+zimbraMailSieveScript: require ["fileinto", "tag", "flag"];
+
+# government best-practices
+if allof (header :contains ["List-ID"] "best-practices.government.github.com") {
+    fileinto "INBOX/Lists/government best-practices";
+    stop;
+}
+
+# HHSIDEAlab
+if anyof (header :contains ["List-ID"] "HHSIDEAlab/",
+  header :contains ["List-ID"] "CMSgov/") {
+    fileinto "INBOX/Lists/CMSgov";
+    stop;
+}
+
+# Kai Davis
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "kai@kaidavis.com") {
+    fileinto "INBOX/Lists/Kai Davis";
+    stop;
+}
+
+# Money Stuff
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "noreply@mail.bloombergview.com",
+  header :contains ["subject"] "Money Stuff:") {
+    fileinto "INBOX/Lists/Money Stuff";
+    stop;
+}
+
+# Amazon Order (Smile)
+if anyof (header :contains ["subject"] "Your AmazonSmile order") {
+    fileinto "INBOX/Lists/Amazon";
+    stop;
+}
+
+# Amazon Order (digital)
+if allof (header :contains ["subject"] "Amazon.com order of") {
+    fileinto "INBOX/Lists/Amazon";
+    stop;
+}
+
+# Business of Software
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "markl@businessofsoftware.org") {
+    fileinto "INBOX/Lists/Business of Software";
+    stop;
+}
+
+# TransparentHealth
+if allof (header :contains ["List-ID"] "TransparentHealth/") {
+    fileinto "INBOX/Lists/TransparentHealth";
+    stop;
+}
+
+# Amazon Marketplace Spam
+if allof (address :all :matches :comparator "i;ascii-casemap" ["from"] "*@marketplace.amazon.com") {
+    fileinto "INBOX/Processed";
+    flag "read";
+    stop;
+}
+
+# hapi-fhir
+if allof (header :contains ["Mailing-list"] "hapi-fhir@googlegroups.com") {
+    fileinto "INBOX/Lists/Open Source/hapi-fhir";
+    stop;
+}
+
+# tmp
+disabled_if anyof (address :all :is :comparator "i;ascii-casemap" ["from"] "karl@justdavis.com") {
+    fileinto "Sent";
+    stop;
+}
+
+# Mad River
+if anyof (address :all :contains :comparator "i;ascii-casemap" ["to"] "madrivercode.com") {
+    tag "mad-river";
+    stop;
+}
+
+# Amazon Shipping
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "ship-confirm@amazon.com",
+  header :matches ["subject"] "Your Amazon.com order of * has shipped!") {
+    flag "read";
+    fileinto "INBOX/Processed";
+    stop;
+}
+
+# Shroud of the Avatar
+if allof (header :contains ["subject"] "Shroud of the Avatar") {
+    fileinto "INBOX/Lists/Kickstarter Updates";
+    stop;
+}
+
+# Meetup
+if allof (address :all :matches :comparator "i;ascii-casemap" ["from"] "*@meetup.com") {
+    fileinto "INBOX/Lists/Meetups";
+    stop;
+}
+
+# sorting
+disabled_if allof (not header :is ["subject"] "BDJSBDNKSDN") {
+    fileinto "INBOX/Processed";
+    stop;
+}
+
+# Glassdoor Updates
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "reply@glassdoor.com",
+  header :contains ["subject"] "Glassdoor Updates") {
+    fileinto "INBOX/Merchants/Glassdoor";
+    stop;
+}
+
+# Ford Focus monthly statement
+if allof (header :contains ["subject"] "monthly statement",
+  header :contains ["subject"] "2012 Ford Focus") {
+    fileinto "INBOX/Merchants/Banks, etc";
+    stop;
+}
+
+# Access Securepak Thanks
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "customerservice@accesscatalog.com",
+  header :contains ["subject"] "Thank you from Access Securepak Store") {
+    fileinto "INBOX/Merchants/Purchases";
+    stop;
+}
+
+# Access Securepak Shipped
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "customerservice@accesscatalog.com",
+  header :contains ["subject"] "Your Access Securepak Order has been Shipped") {
+    fileinto "INBOX/Merchants/Purchases";
+    stop;
+}
+
+# Access Securepak Shipping
+if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "customerservice@accesscatalog.com",
+  header :contains ["subject"] "Access Securepak Shipping Confirmation") {
+    fileinto "INBOX/Merchants/Purchases";
+    stop;
+}
+
+# [kerberos-user]
+if anyof (header :contains ["to","cc"] "kerberos@mit.edu",
+  header :contains ["to","cc"] "kerberos-announce@mit.edu") {
+    fileinto "INBOX/Lists/Open Source/kerberos-user";
+    stop;
+}
+
+# [sonar-user]
+if anyof (header :contains ["to","cc"] "user@sonar.codehaus.org") {
+    fileinto "INBOX/Lists/Open Source/sonar-user";
+    stop;
+}
+
+# [ATrpms-users]
+if anyof (header :contains ["to","cc"] "atrpms-users@atrpms.net") {
+    fileinto "INBOX/Lists/Open Source/atrpms-users";
+    stop;
+}
+
+# [mylyn-dev]
+if anyof (header :contains ["to"] "mylyn-dev@eclipse.org",
+  header :contains ["cc"] "mylyn-dev@eclipse.org") {
+    fileinto "INBOX/Lists/Open Source/mylyn-dev";
+    stop;
+}
+
+# Movies
+if anyof (header :contains ["from"] "info@netflix.com",
+  header :contains ["from"] "discship@netflix.com") {
+    fileinto "INBOX/Merchants/Movies";
+    stop;
+}
+
+# openafs-info
+if anyof (header :contains ["to"] "openafs-info@openafs.org",
+  header :contains ["cc"] "openafs-info@openafs.org",
+  address :all :contains :comparator "i;ascii-casemap" ["from"] "openafs-info-admin@openafs.org") {
+    fileinto "INBOX/Lists/Open Source/openafs-info";
+    stop;
+}
+
+# cygwin-help
+if anyof (header :contains ["to","cc"] "cygwin@cygwin.com",
+  header :contains ["to","cc"] "cygwin@sourceware.org",
+  header :is ["from"] "cygwin-owner@cygwin.com") {
+    fileinto "INBOX/Lists/Open Source/cygwin";
+    stop;
+}
+
+# tucson-jug
+if anyof (header :contains ["subject"] "[jug-discussion]") {
+    fileinto "INBOX/Lists/tucson-jug";
+    stop;
+}
+
+# [jna-users]
+if anyof (header :contains ["to"] "users@jna.java.net",
+  header :contains ["cc"] "users@jna.java.net") {
+    fileinto "INBOX/Lists/Open Source/jna-users";
+    stop;
+}
+
+# [modauthkerb]
+if anyof (header :contains ["subject"] "[modauthkerb]",
+  header :contains ["to"] "modauthkerb-help@lists.sourceforge.net") {
+    fileinto "INBOX/Lists/Open Source/modauthkerb-help";
+    stop;
+}
+
+# svn-users
+if anyof (header :contains ["to"] "users@subversion.tigris.org",
+  header :contains ["cc"] "users@subversion.tigris.org") {
+    fileinto "INBOX/Lists/Open Source/svn-users";
+    stop;
+}
+
+# wicket-users
+if anyof (header :contains ["to"] "users@wicket.apache.org",
+  header :contains ["cc"] "users@wicket.apache.org") {
+    fileinto "INBOX/Lists/Open Source/wicket-user";
+    stop;
+}
+
+# [m2eclipse-user]
+if anyof (header :contains ["subject"] "[m2eclipse-user]",
+  header :contains ["subject"] "[m2eclipse-user]") {
+    fileinto "INBOX/Lists/Open Source/m2eclipse-user";
+    stop;
+}
+
+# [tuesday]
+if anyof (header :contains ["subject"] "[tuesday]") {
+    fileinto "INBOX/Lists/tuesday";
+    stop;
+}
+
+# [twosday]
+if anyof (header :contains ["subject"] "[twosday]") {
+    fileinto "INBOX/Lists/twosday";
+    stop;
+}
+
+# com4j-users
+if anyof (header :contains ["to"] "users@com4j.dev.java.net",
+  header :contains ["cc"] "users@com4j.dev.java.net",
+  header :contains ["to"] "users@com4j.java.net",
+  header :contains ["cc"] "users@com4j.java.net") {
+    fileinto "INBOX/Lists/Open Source/com4j-user";
+    stop;
+}
+
+# Facebook
+if allof (header :contains ["from"] "@facebookmail.com") {
+    fileinto "INBOX/Lists/Facebook";
+    stop;
+}
+
+# Bank Statement: AmEx
+if allof (header :contains ["from"] "AmericanExpress@welcome.aexp.com",
+  header :matches ["subject"] "Important Notice*Statement") {
+    fileinto "INBOX/Merchants/Banks, etc";
+    stop;
+}
+
+# Bank Statement: Vanguard
+if allof (header :contains ["from"] "vanguardinvestments@vanguard.com",
+  header :is ["subject"] "Your Vanguard statement is ready") {
+    fileinto "INBOX/Merchants/Banks, etc";
+    stop;
+}
+
+# Bank Statement: ING
+if allof (header :contains ["from"] "saver@ingdirect.com",
+  header :matches ["subject"] "Your*eStatement is now available") {
+    fileinto "INBOX/Merchants/Banks, etc";
+    stop;
+}
+
+# Utility Statement: TEP
+if allof (header :contains ["from"] "billing@paperless.t-mobile.com",
+  header :is ["subject"] "Your T-Mobile bill is now available") {
+    fileinto "INBOX/Merchants/Utilities";
+    stop;
+}
+
+# Spam: Sheila's AIM
+if allof (header :contains ["from"] "pinkditziechic02@aol.com") {
+    fileinto "Junk";
+    stop;
+}
+
+# Kickstarter Project Updates
+if allof (address :all :is :comparator "i;ascii-casemap" ["from"] "no-reply@kickstarter.com",
+  header :contains ["subject"] "Project Update") {
+    fileinto "INBOX/Lists/Kickstarter Updates";
+    stop;
+}
+
+# karl.software
+disabled_if anyof (address :all :contains :comparator "i;ascii-casemap" ["to","cc"] "karl.software@justdavis.com") {
+    fileinto "INBOX/Job Search";
+    tag "work-search";
+    stop;
+}
+
+

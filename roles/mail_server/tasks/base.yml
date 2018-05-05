@@ -367,6 +367,7 @@
   become: true
   with_items:
     - '10-spam.sieve'
+    - '20-karl.sieve'
   notify:
     - 'Compile Dovecot Global Sieve Rules'
 

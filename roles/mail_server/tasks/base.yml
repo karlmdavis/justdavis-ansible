@@ -265,6 +265,10 @@
     '$sa_quarantine_cutoff_level': '9999'
     '$final_banned_destiny': 'D_PASS'
     '$final_spam_destiny': 'D_PASS'
+    # When debugging Spam Assassin, set this to `"'1,all'"`. Otherwise, leave as `'undef'`.
+    '$sa_debug': 'undef'
+    # When debugging Spam Assassin, set this to `'5'`. Otherwise, leave as `'undef'`.
+    '$log_level': 'undef'
   become: true
   notify:
     - "Restart 'amavis'"

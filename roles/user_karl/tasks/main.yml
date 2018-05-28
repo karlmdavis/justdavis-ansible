@@ -15,6 +15,26 @@
     group: karl
   become: true
 
+- name: Authorize karl for NOPASSWD sudo Use
+  copy:
+    dest: '/etc/sudoers.d/karl'
+    content: |
+      # Allow the `karl` account sudo access without requiring a password.
+      karl ALL=(ALL) NOPASSWD:ALL
+    user: root
+    group: root
+    mode: u=w,g=r,o=
+    validate: '/usr/sbin/visudo --check --file=%s'
+  become: true
+
+- name: Add karl to sudo Group
+  # This seems redundant with the above sudoers.d entry, but is needed by polkit.
+  user:
+    name: karl
+    groups: sudo
+    append: true
+  become: true
+
 - name: Authorize SSH Key
   authorized_key:
     user: karl

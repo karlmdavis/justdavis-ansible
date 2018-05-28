@@ -299,6 +299,13 @@
   notify:
     - "Restart 'amavis'"
 
+- name: Enable SpamAssassin Updates
+  lineinfile:
+    path: /etc/default/spamassassin
+    regexp: '^CRON='
+    line: 'CRON=1'
+  become: true
+
 - name: Configure Cron to Remove Old Quarantined Viruses
   cron:
     name: Remove Old Quarantined Viruses

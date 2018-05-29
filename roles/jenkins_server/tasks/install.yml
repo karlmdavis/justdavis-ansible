@@ -26,6 +26,9 @@
     jenkins_admin_username: jenkins
     jenkins_admin_password: "{{ vault_service_account_passwords.jenkins }}"
 
+    # Disable login timeouts (i.e. UI logins never expire).
+    jenkins_session_timeout: 0
+
     jenkins_plugins_extra:
       # Used by the jobs copied over from the old eddings.
       - maven-plugin

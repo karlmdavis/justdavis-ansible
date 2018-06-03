@@ -30,7 +30,7 @@
       ec2_group:
         name: ssh-all
         description: Allows incoming traffic on port 22 (from all IPs).
-        region: "{{ region }}"
+        region: "{{ aws_region }}"
         rules:
           - proto: tcp
             from_port: 22
@@ -46,7 +46,7 @@
       ec2_group:
         name: all
         description: Allows all incoming traffic (from all IPs).
-        region: "{{ region }}"
+        region: "{{ aws_region }}"
         rules:
           - proto: all
             cidr_ip: 0.0.0.0/0
@@ -56,7 +56,7 @@
     
     - name: EC2 - Provision 'eddings'
       ec2:
-        key_name: "{{ ec2_key_name }}"
+        key_name: "{{ aws_ec2_key_name }}"
         group:
           - default
           - all
@@ -69,7 +69,9 @@
                    # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
                    # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged
-        region: "{{ region }}"
+        region: "{{ aws_region }}"
+        vpc_subnet_id: "{{ aws_vpc_subnet }}"
+        assign_public_ip: true
         wait: true
         exact_count: 1
         count_tag:
@@ -81,7 +83,7 @@
     
     - name: EC2 - Provision 'jordan-u'
       ec2:
-        key_name: "{{ ec2_key_name }}"
+        key_name: "{{ aws_ec2_key_name }}"
         group:
           - default
           - ssh-all
@@ -93,7 +95,9 @@
                    # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
                    # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged
-        region: "{{ region }}"
+        region: "{{ aws_region }}"
+        vpc_subnet_id: "{{ aws_vpc_subnet }}"
+        assign_public_ip: true
         wait: true
         exact_count: 1
         count_tag:

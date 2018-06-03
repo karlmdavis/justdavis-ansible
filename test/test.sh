@@ -53,11 +53,8 @@ if [[ "${verbosity}" -eq 4 ]]; then verboseArg="-vvvv"; fi
 if [[ -z "$AWS_PROFILE" ]]; then
   export AWS_PROFILE=justdavis
 fi
-if [[ -z "$AWS_REGION" ]]; then
-  export AWS_REGION=us-east-1
-fi
-if [[ -z "$EC2_KEY_NAME" ]]; then
-  export EC2_KEY_NAME=karlmdavis-personal
+if [[ -z "$AWS_PROVISIONING_VARS_FILE" ]]; then
+  AWS_PROVISIONING_VARS_FILE="${scriptDirectory}/vars_aws_provisioning_karlmdavis.yml"
 fi
 
 # Doesn't work well with throwaway EC2 instances.
@@ -97,8 +94,8 @@ cd "${scriptDirectory}/.."
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ansible-playbook test/provision.yml --extra-vars \"region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}\" ${verboseArg}" | tee --append "${originalLog}"
-  ansible-playbook test/provision.yml --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}" ${verboseArg}
+  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}" | tee --append "${originalLog}"
+  ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
 fi
@@ -113,8 +110,8 @@ fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars \"region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}\" ${verboseArg}" | tee --append "${originalLog}"
-  ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "region=${AWS_REGION} ec2_key_name=${EC2_KEY_NAME}" ${verboseArg}
+  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}" | tee --append "${originalLog}"
+  ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
 fi

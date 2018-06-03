@@ -40,7 +40,7 @@
       local_action: ec2
         state=absent
         instance_ids="{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
-        region="{{ region }}"
+        region="{{ aws_region }}"
         wait=true
  
     - name: Remove Test Inventory

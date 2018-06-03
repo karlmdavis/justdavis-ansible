@@ -22,7 +22,7 @@ function error() {
 # Trap any errors, calling error() when they're caught.
 trap 'error ${LINENO}' ERR
 
-backupTargets=( "/var/fileshares" "/var/vmail" "/var/nexus/backup" "/var/lib/jenkins" "/var/lib/postgresql/backups" )
+backupTargets=( "/var/fileshares" "/var/vmail" "/var/nexus-backup" "/var/lib/jenkins" "/var/lib/postgresql/backups" )
 for backupTarget in "${backupTargets[@]}"; do
 	echo "SpiderOak Backup: starting ${backupTarget}..."
 	/usr/bin/SpiderOakONE --backup=${backupTarget}

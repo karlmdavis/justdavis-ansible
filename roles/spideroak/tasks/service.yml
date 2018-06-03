@@ -32,7 +32,7 @@
     backup_items:
       - /var/fileshares
       - /var/vmail
-      - /var/nexus/backup
+      - /var/nexus-backup
       - /var/lib/jenkins
       - /var/lib/postgresql/backups
 

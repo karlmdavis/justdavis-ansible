@@ -7,9 +7,9 @@
   become: true
 
 - import_role:
-    name: savoirfairelinux.nexus3-oss
+    name: ansible-ThoTeam.nexus3-oss
   vars:
-    nexus_version: '3.7.0-04'
+    nexus_version: '3.12.0-01'
     nexus_timezone: 'America/New_York'
     nexus_admin_password: "{{ vault_nexus_admin_password }}"
     httpd_setup_enable: false
@@ -88,6 +88,9 @@
       - name: apache-snapshots
         remote_url: 'https://repository.apache.org/snapshots/'
         layout_policy: permissive
+      - name: jboss
+        remote_url: 'https://repository.jboss.org/nexus/content/groups/public-jboss/'
+        layout_policy: strict
     nexus_repos_maven_hosted:
       - name: madrivercode-releases
         version_policy: release
@@ -122,4 +125,5 @@
           - maven-public
           - madrivercode-releases
           - madrivercode-snapshots
+    nexus_backup_configure: true
   become: true

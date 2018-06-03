@@ -21,7 +21,7 @@
     content: |
       # Allow the `karl` account sudo access without requiring a password.
       karl ALL=(ALL) NOPASSWD:ALL
-    user: root
+    owner: root
     group: root
     mode: u=w,g=r,o=
     validate: '/usr/sbin/visudo --check --file=%s'

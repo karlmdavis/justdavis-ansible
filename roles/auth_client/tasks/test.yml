@@ -7,29 +7,6 @@
     command: "/usr/bin/kinit {{ test_username }}"
     responses:
       "^Password for .*: ": "{{ test_password }}"
-  when: ansible_distribution != 'Ubuntu' or ansible_distribution_release != 'trusty'
-  changed_when: false
-  no_log: true
-- name: Test Kerberos Auth
-  shell: |
-    set timeout 30
-    
-    # Run the kinit command and send it the password.
-    spawn /usr/bin/kinit {{ test_username }}
-    expect -re "Password for .*: "
-    send "{{ test_password }}\n"
-    
-    # Wait for the kinit command to exit.
-    expect eof
-    
-    # Catch the kinit command's exit status and save it to the `result` variable.
-    catch wait result
-    
-    # Exit this script with the kinit command's return code.
-    exit [lindex $result 3]
-  args:
-    executable: /usr/bin/expect
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'trusty'
   changed_when: false
   no_log: true
 

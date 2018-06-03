@@ -6,11 +6,11 @@
 # By default, assume we're not running a test.
 is_test: false
 
-# Ubuntu 14.04 (Trusty), per https://cloud-images.ubuntu.com/locator/ec2/
-ami_id_ubuntu_14: ami-3bdd502c
-
 # Ubuntu 16.04 (Xenial), per https://cloud-images.ubuntu.com/locator/ec2/
-ami_id_ubuntu_16: ami-cf68e0d8
+ami_id_ubuntu_16_04: ami-cf68e0d8
+
+# Ubuntu 18.04 (Bionic), per https://cloud-images.ubuntu.com/locator/ec2/
+ami_id_ubuntu_18_04: ami-432eb53c
 
 # The domains being managed.
 # 

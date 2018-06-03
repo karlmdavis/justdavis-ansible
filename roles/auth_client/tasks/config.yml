@@ -50,8 +50,7 @@
     line: "{{ item.line }}"
   with_items:
     - { regexp: '^BASE', line: "BASE\tdc=justdavis,dc=com" }
-    # FIXME: Remove usage of `ldap://` once Ubuntu 14.04 doesn't need to be supported.
-    - { regexp: '^URI', line: "URI\t{{ 'ldap://' if ansible_distribution_release == 'trusty' else 'ldaps://' }}{{ domain }}" }
+    - { regexp: '^URI', line: "URI\tldaps://{{ domain }}" }
     - { regexp: '^TLS_CACERT', line: "TLS_CACERT\t/etc/ssl/certs/ca-certificates.crt" }
   become: true
 
@@ -62,9 +61,8 @@
     value: "{{ item.value }}"
     vtype: "{{ item.vtype }}"
   with_items:
-    # FIXME: Remove usage of `ldap://` once Ubuntu 14.04 doesn't need to be supported.
     # TODO: This won't change values after the package is installed. Need to also edit /etc/nslcd.conf.
-    - { question: 'nslcd/ldap-uris', value: "{{ 'ldap://' if ansible_distribution_release == 'trusty' else 'ldaps://' }}{{ domain }}", vtype: 'string' }
+    - { question: 'nslcd/ldap-uris', value: "ldaps://{{ domain }}", vtype: 'string' }
     - { question: 'nslcd/ldap-base', value: 'dc=justdavis,dc=com', vtype: 'string' }
     - { question: 'nslcd/ldap-reqcert', value: 'demand', vtype: 'select' }
     - { question: 'nslcd/nsswitch', value: '', vtype: 'multiselect' }

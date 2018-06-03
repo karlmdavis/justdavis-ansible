@@ -63,7 +63,7 @@
         # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
         # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However, Sonatype Nexus needs at least 3GB RAM, then Jenkins and Nexus need a decent chunk more.
         instance_type: t2.large
-        image: "{{ ami_id_ubuntu_16 }}"
+        image: "{{ ami_id_ubuntu_16_04 }}"
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
@@ -89,7 +89,7 @@
           - ssh-all
         # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
         instance_type: t2.micro
-        image: "{{ ami_id_ubuntu_14 }}"
+        image: "{{ ami_id_ubuntu_18_04 }}"
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.

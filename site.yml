@@ -5,7 +5,7 @@
 #
 #     $ ansible-playbook site.yml
 
-- hosts: os_ubuntu_1604
+- hosts: all
   name: Bootstrap Ubuntu Hosts with Python 2.7
   gather_facts: false
   # Required with Ansible 2.3, in which most modules require Python 2.x.

@@ -8,8 +8,4 @@
 eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python2.7 public_ip={{ ec2_eddings.instances[0].public_ip }} public_ip_interface=eth0 vpn_gateway_ip={{ ec2_eddings.instances[0].public_ip }} private_ip={{ ec2_eddings.instances[0].private_ip }} private_ip_interface=eth0
 
 [workstations]
-jordan-u.karlanderica.justdavis.com    ansible_host={{ ec2_jordan_u.instances[0].public_dns_name }} ansible_user=ubuntu
-
-[os_ubuntu_1604]
-eddings.justdavis.com
-
+jordan-u.karlanderica.justdavis.com    ansible_host={{ ec2_jordan_u.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python2.7

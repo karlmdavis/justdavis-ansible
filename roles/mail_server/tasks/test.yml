@@ -13,6 +13,11 @@
 # site for details:
 # <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
 
+- set_fact:
+    curl_imap:
+      retries: 60
+      delay: 1
+
 - name: Check Mail via IMAP (SSL)
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
@@ -26,8 +31,8 @@
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
-  retries: 10
-  delay: 1
+  retries: "{{ curl_imap.retries }}"
+  delay: "{{ curl_imap.delay }}"
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Authenticated and Out-of-Network)
@@ -38,8 +43,8 @@
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
-  retries: 10
-  delay: 1
+  retries: "{{ curl_imap.retries }}"
+  delay: "{{ curl_imap.delay }}"
 
 - set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (To Alias, Authenticated, and Out-of-Network)
@@ -50,8 +55,8 @@
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
-  retries: 10
-  delay: 1
+  retries: "{{ curl_imap.retries }}"
+  delay: "{{ curl_imap.delay }}"
 
 # Try to send a message with the EICAR virus filter test pattern, verify it's quarantined.
 # Reference: http://www.eicar.org/86-0-Intended-use.html
@@ -71,8 +76,8 @@
   changed_when: false
   register: shell_find_virus_count
   until: (shell_find_virus_count.stdout | int) > 0
-  retries: 20
-  delay: 3
+  retries: "{{ curl_imap.retries }}"
+  delay: "{{ curl_imap.delay }}"
 
 # Per <https://easyengine.io/tutorials/mail/server/testing/spam/>, the GTUBE
 # pattern should always be flagged as spam.
@@ -84,6 +89,6 @@
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /var/lib/acme/live/{{ domain }}/fullchain --user {{ test_username }}:{{ test_password }} --verbose --request 'EXAMINE Junk'"
   changed_when: false
   register: curl_mail_junk
-  until: curl_mail_junk.rc == 0 and '0 EXISTS' not in curl_mail_junk.stdout
-  retries: 10
-  delay: 1
+  until: curl_mail_junk.rc == 0 and '* 0 EXISTS' not in curl_mail_junk.stdout
+  retries: "{{ curl_imap.retries }}"
+  delay: "{{ curl_imap.delay }}"

@@ -106,6 +106,7 @@
   with_items:
     - git
     - vim
+    - build-essential
   become: true
 
 - name: Add GitHub to the Global ssh_known_hosts

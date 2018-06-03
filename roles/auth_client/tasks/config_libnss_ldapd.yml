@@ -17,10 +17,20 @@
   register: install_ldapnss_result
   become: true
 
+# TODO Horrible hacky partial workaround for https://github.com/karlmdavis/justdavis-ansible/issues/6
+- name: Get Kerberos Ticket for nss_updatedb (Hacky)
+  expect:
+    command: "/usr/bin/kinit {{ test_username }}"
+    responses:
+      "^Password for .*: ": "{{ test_password }}"
+  changed_when: false
+  become: true
+  no_log: true
 - name: Populate NSS Cache from LDAP
   command: /usr/sbin/nss_updatedb ldap
   become: true
 
+# FIXME See https://github.com/karlmdavis/justdavis-ansible/issues/6
 - name: Create cron Job to Refresh NSS Cache from LDAP
   cron:
     cron_file: refresh_nss_from_ldap

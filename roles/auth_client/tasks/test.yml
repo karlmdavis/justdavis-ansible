@@ -2,23 +2,6 @@
 
 - meta: flush_handlers
 
-# This MUST NOT be done in production, but is required for the tests to work.
-- name: Trust Let's Encrypt Staging CA
-  get_url:
-    url: 'https://letsencrypt.org/certs/fakelerootx1.pem'
-    dest: '/usr/local/share/ca-certificates/fakelerootx1.crt'
-    owner: root
-    group: staff
-    mode: u=rw,g=r,o=r
-  register: download_staging_ca_result
-  become: true
-  when: is_test == true
-
-- name: Update CA Certificates Index
-  command: /usr/sbin/update-ca-certificates
-  when: download_staging_ca_result.changed
-  become: true
-
 - name: Test Kerberos Auth
   expect:
     command: "/usr/bin/kinit {{ test_username }}"

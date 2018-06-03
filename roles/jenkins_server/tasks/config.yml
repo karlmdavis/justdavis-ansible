@@ -87,9 +87,9 @@
     content: "{{ item.content }}"
     owner: jenkins
     group: jenkins
-    mode: u=r,g=r,o=
   register: copy_gpg_build_key
   become: true
+  become_user: jenkins
   no_log: true
   with_items:
     - dest_name: gpg-justdavis-build-key-public.asc

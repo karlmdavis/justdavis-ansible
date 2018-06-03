@@ -20,27 +20,24 @@ println("Configuring SonarQube Plugin...")
 // Create the desired SonarInstallation model (which we may or may not need).
 name = "justdavis-sonarqube"
 serverUrl = "http://localhost:{{ sonar_port }}{{ sonar_context_path }}"
-serverVersion = hudson.plugins.sonar.utils.SQServerVersions.SQ_5_3_OR_HIGHER
 serverAuthenticationToken = "{{ vault_sonar_builds_auth_token }}"
-databaseUrl = null
-databaseLogin = null
-databasePassword = null
 mojoVersion = null
 additionalProperties = null
 triggers = new hudson.plugins.sonar.model.TriggersConfig()
-sonarLogin = null
-sonarPassword = null
 additionalAnalysisProperties = null
 sonarInstallationDesired = new hudson.plugins.sonar.SonarInstallation(
-  name, serverUrl, serverVersion, serverAuthenticationToken,
-  databaseUrl, databaseLogin, databasePassword,
-  mojoVersion, additionalProperties, triggers,
-  sonarLogin, sonarPassword, additionalAnalysisProperties)
+  name,
+  serverUrl,
+  serverAuthenticationToken,
+  mojoVersion,
+  additionalProperties,
+  triggers,
+  additionalAnalysisProperties
+)
 
 sonarInstallationExisting = hudson.plugins.sonar.SonarInstallation.get(name)
 if (sonarInstallationExisting == null
     || serverUrl != sonarInstallationExisting.serverUrl
-    || serverVersion != sonarInstallationExisting.serverVersion
     || serverAuthenticationToken != sonarInstallationExisting.serverAuthenticationToken) {
   sonarGlobalConfig = Jenkins.instance.getDescriptorByType(hudson.plugins.sonar.SonarGlobalConfiguration.class)
   sonarGlobalConfig.installations = [sonarInstallationDesired]

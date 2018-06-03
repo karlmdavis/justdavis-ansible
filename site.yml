@@ -15,6 +15,7 @@
 
 - hosts: eddings.justdavis.com
   name: Configure Eddings
+  become: true
   gather_facts: true
   tasks:
     # Configure networking, except during tests in AWS (because networking there is
@@ -38,6 +39,7 @@
 
 - hosts: all
   name: Apply Common Configuration
+  become: true
   gather_facts: true
   tasks:
     - import_role: name=base
@@ -47,6 +49,7 @@
 
 - hosts: workstations
   name: Configure Workstations
+  become: true
   gather_facts: true
   tasks:
     - import_role: name=workstation_apps

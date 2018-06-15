@@ -1,7 +1,10 @@
 Davis Ansible Repo
 ----------------------------------
 
-This repository contains the Ansible playbooks, roles, etc. used by the Davis family (`justdavis.com`) systems.
+This repository contains the Ansible playbooks, roles, etc. used by the Davis family (`justdavis.com`) systems. These do two super cool things:
+
+1. Automatically set up my home network, including the servers and workstations I have there.
+2. Allow me to test changes to all of that in temporary cloud VMs.
 
 ## Development Environment
 
@@ -9,21 +12,21 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 ### Python
 
-This project requires Python 2.7. It can be installed as follows:
+This project requires Python 2.7. On Ubuntu/Debian systems, it can be installed as follows:
 
-    $ sudo apt-get install python
+    $ sudo apt install python
 
-The following packages are also required in order to install some of the Python modules that will be used:
+The following packages will also be required by `pip` (see below) to build/install some of the required Python modules:
 
-    $ sudo apt-get install build-essential python-dev libpq-dev
+    $ sudo apt install build-essential python-dev libpq-dev
 
 ### virtualenv
 
-This project has some dependencies that have to be installed via `pip` (as opposed to `apt-get`). Accordingly, it's strongly recommended that you make use of a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/) to manage those dependencies.
+This project has some dependencies that have to be installed via `pip` (as opposed to `apt`). Accordingly, it's strongly recommended that you make use of a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/) to manage those dependencies.
 
-If it isn't already installed, install the `virtualenv` package. On Ubuntu, this is best done via:
+If it isn't already installed, install the `virtualenv` package. On Ubuntu/Debian, this is best done via:
 
-    $ sudo apt-get install python-virtualenv
+    $ sudo apt install python-virtualenv
 
 Next, create a virtual environment for this project and install the project's dependencies into it:
 
@@ -32,15 +35,15 @@ Next, create a virtual environment for this project and install the project's de
     $ source venv/bin/activate
     $ pip install -r requirements.txt
 
-The `source` command above will need to be run every time you open a new terminal to work on this project.
+The `source` command above will need to be run every time you open a new terminal to work on this project (after `cd`ing to the directory).
 
-Be sure to update the `requirements.frozen.txt` file after `pip install`ing a new dependency for this project:
+Be sure to update the `requirements.frozen.txt` file after `pip install`ing a new dependency for this project, just to help keep track of specific working dependency versions:
 
     $ pip freeze > requirements.frozen.txt
 
 ### Ansible Roles
 
-Run the following command to download and install the roles required by this project into `~/.ansible/roles/`:
+This project also makes use of a number of Ansible roles, which are reusable pieces of Ansible logic. Run the following command to download and install the roles required by this project into the project-specific `roles_external` directory:
 
     $ ansible-galaxy install -r install_roles.yml
 
@@ -57,25 +60,22 @@ Ensure that the EC2 key to be used is loaded into SSH Agent:
 
     $ ssh-add foo.pem
 
-## Configuring Hosts
-
-### Production
-
-Running the following command will run the `site.yml` Ansible playbook against the hosts specified in the `hosts` file:
-
-    $ ansible-playbook site.yml |& tee "logs/ansible-$(date --iso-8601=seconds).log"
+## Running the Ansible Plays
 
 ### Test
 
-When testing this playbook, running it against the actual production hosts is clearly not a great idea. Instead, the `test-provision.yml` and `test-teardown.yml` playbooks can be used to create tests host in AWS before the tests and then terminate them afterwards, respectively. Overall, the Ansible configs can be tested, as follows:
+When testing this playbook, running it against the actual production systems is clearly not a great idea. Instead, the `./test/test.sh` script can be used to 1) provision some temporary AWS EC2 VMs to test against, 2) run the plays against those EC2 instances, and finally 3) tear down the EC2 instances afterwards. See here:
 
-    $ AWS_PROFILE=justdavis ansible-playbook test-provision.yml
-    $ ansible-playbook site.yml --inventory-file=hosts-test
-    $ AWS_PROFILE=justdavis ansible-playbook test-teardown.yml
+    $ ./test/test.sh --configure=true --teardown=true
+
+### Production
+
+Running the following command will run the `site.yml` Ansible playbook against the production systems specified in the `hosts` file:
+
+    $ ./ansible-playbook-wrapper site.yml
 
 ## Running Ad-Hoc Commands
 
-Ansible can also be used to run ad-hoc commands against all of the systems specified in the `hosts` file, as follows:
+Ansible can also be used to run ad-hoc commands against all of the production systems specified in the `hosts` file, as follows:
 
     $ ansible all -m shell -a 'echo $TERM'
-

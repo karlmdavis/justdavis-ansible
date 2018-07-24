@@ -8,7 +8,7 @@ eddings.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin
 jordan-u.karlanderica.justdavis.com ansible_user=localuser
 
 # Karl's Windows desktop: specifically, the WSL Linux environment on it.
-brooks.karlanderica.justdavis.com ansible_user=localadmin ansible_port=2222
+brooks.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222
 
 
 [os_ubuntu_1604]

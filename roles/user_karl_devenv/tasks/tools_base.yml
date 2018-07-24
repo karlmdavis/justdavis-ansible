@@ -5,7 +5,7 @@
     name: "{{ item }}"
     state: present
   with_items:
-    - openjdk-8-jdk
+    - [openjdk-8-jdk,openjdk-8-source]
     - sqlite3
   become: true
 

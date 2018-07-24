@@ -17,6 +17,11 @@ if grep --quiet "^Port 22$" /etc/ssh/sshd_config; then
   echo "Changed SSH server port to '${sshServerPort}'."
 fi
 
+if [[ ! -d ~/.ssh ]]; then
+  mkdir ~/.ssh
+  chmod u=rwx,g=,o=
+fi
+
 if [[ ! -f ~/.ssh/authorized_keys ]]; then
   touch ~/.ssh/authorized_keys
   chmod u=rw,g=,o= ~/.ssh/authorized_keys

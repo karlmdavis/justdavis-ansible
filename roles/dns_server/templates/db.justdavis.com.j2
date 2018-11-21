@@ -2,7 +2,7 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.{{ domain }}.           hostmaster.{{ domain }}. (
-                              2018040700 ; sn = serial number (yyyymmdd##)
+                              2018100300 ; sn = serial number (yyyymmdd##)
                               1h         ; ref = refresh
                               15M        ; ret = update retry
                               4W         ; ex = expiry
@@ -40,6 +40,7 @@ eddings.karlanderica      IN      A                 {{ eddings_private_ip }}
 jordan-u.karlanderica     IN      A                 10.0.0.50
 brooks.karlanderica       IN      A                 10.0.0.51
 dumas.karlanderica        IN      A                 10.0.0.52
+brust.karlanderica        IN      A                 10.0.0.53
 
 ; CNAME Records
 ; name             ttl    class   rr                name

@@ -9,7 +9,3 @@ brust.karlanderica.justdavis.com ansible_user=localuser ansible_python_interpret
 
 # Karl's Windows desktop: specifically, the WSL Linux environment on it.
 brooks.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222
-
-
-[os_ubuntu_1604]
-eddings.justdavis.com

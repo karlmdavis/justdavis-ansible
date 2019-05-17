@@ -284,10 +284,8 @@ if allof (address :all :is :comparator "i;ascii-casemap" ["from"] "no-reply@kick
 }
 
 # karl.software
-#disabled_if anyof (address :all :contains :comparator "i;ascii-casemap" ["to","cc"] "karl.software@justdavis.com") {
-#    fileinto "INBOX.Job Search";
-#    addflag "work-search";
-#    stop;
-#}
-
-
+if anyof (address :all :contains :comparator "i;ascii-casemap" ["to","cc"] "karl.software@justdavis.com") {
+    fileinto "INBOX.Job Search.Important";
+    addflag "work-search";
+    stop;
+}

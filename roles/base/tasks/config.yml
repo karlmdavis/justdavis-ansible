@@ -115,3 +115,25 @@
     name: github.com
     key: "{{ ssh_known_host_github }}"
   become: true
+
+# Bizarrely, this is required prior to Ubuntu 17.02, per <https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/1618188>.
+- name: Create systemd-journal Storage Directory
+  file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+  become: true
+  when:
+    - ansible_distribution == 'Ubuntu'
+  register: mkdir_var_log_journal
+
+- name: Configure systemd-journal Storage Directory
+  command: /bin/systemd-tmpfiles --create --prefix /var/log/journal
+  become: true
+  when: mkdir_var_log_journal.changed
+
+- name: Apply systemd-journal Storage Configuration
+  command: /usr/bin/killall -USR1 systemd-journald
+  become: true
+  when: mkdir_var_log_journal.changed

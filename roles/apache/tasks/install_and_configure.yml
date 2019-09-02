@@ -12,23 +12,6 @@
     name: Apache Secure
   become: true
 
-# Ensure that the certificate private keys allow for "named owner/group" ACL 
-# entries to give specific non-root services access to them.
-- name: Allow Group-Based Access to Certificate Private Keys
-  copy:
-    src: files/acme_perm
-    dest: /var/lib/acme/conf/perm
-    owner: acme
-    group: acme
-    mode: u=rw,g=r,o=r
-  become: true
-  register: copy_acme_perm
-- name: Run acmetool to Apply Permissions Changes
-  command: /usr/bin/acmetool --batch
-  become: true
-  become_user: acme
-  when: copy_acme_perm.changed
-
 - file:
     path: "{{ item }}"
     state: directory

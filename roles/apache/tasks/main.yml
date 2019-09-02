@@ -1,16 +1,29 @@
 ---
-# The `acmetool` role requires some ports on the firewall to be opened, first.
+# The `certbot` role requires some ports on the firewall to be opened, first.
 - import_tasks: firewall.yml
 
-# Apply and configure the `L-P.acmetool` role. This will start a Let's Encrypt client that listens on port 
-# 80, answering LE challenges, and redirecting all other traffic to port 443.
-# LE certificates will be created as `/var/lib/acme/live/HOSTNAME/{cert,chain,fullchain,privkey}`.
-- import_role:
-    name: L-P.acmetool
+# Certbot will create and renew Let's Encrypt certificates.
+- name: Install and Configure Certbot
+  import_role:
+    name: geerlingguy.certbot
   vars:
-    acmetool_email: "{{ domain_webmaster }}"
-    acmetool_domains: "{{ domain_websites | join(' ') }}"
-    acmetool_server: "{{ 'https://acme-v01.api.letsencrypt.org/directory' if not is_test else 'https://acme-staging.api.letsencrypt.org/directory' }}"
+    certbot_admin_email: "{{ domain_webmaster }}"
+    certbot_certs:
+      - domains: "{{ domain_websites }}"
+    certbot_create_standalone_stop_services:
+      - apache2
+    certbot_create_if_missing: true
+- name: Create Certbot Hook Script
+  template:
+    src: certbot_hook_post.sh
+    dest: /usr/local/bin/certbot_hook_post.sh
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+- name: Create Certbot Config
+  template:
+    src: certbot_cli.ini
+    dest: /etc/letsencrypt/cli.ini
+    mode: 'u=rw,g=r,o=r'
   become: true
 
 - import_tasks: install_and_configure.yml

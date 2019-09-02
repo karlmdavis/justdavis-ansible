@@ -5,10 +5,10 @@ dn: cn=config
 #olcTLSCipherSuite: LEGACY
 #-
 replace: olcTLSCACertificateFile
-olcTLSCACertificateFile: /var/lib/acme/live/{{ domain }}/chain
+olcTLSCACertificateFile: /etc/letsencrypt/live/{{ domain }}/chain.pem
 -
 replace: olcTLSCertificateFile
-olcTLSCertificateFile: /var/lib/acme/live/{{ domain }}/cert
+olcTLSCertificateFile: /etc/letsencrypt/live/{{ domain }}/cert.pem
 -
 replace: olcTLSCertificateKeyFile
-olcTLSCertificateKeyFile: /var/lib/acme/live/{{ domain }}/privkey
+olcTLSCertificateKeyFile: /etc/letsencrypt/live/{{ domain }}/privkey.pem

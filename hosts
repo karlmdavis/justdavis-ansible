@@ -9,3 +9,6 @@ brust.karlanderica.justdavis.com ansible_user=localuser ansible_python_interpret
 
 # Karl's Windows desktop: specifically, the WSL Linux environment on it.
 brooks.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222
+
+# Karl WSL environment on Erica's Surface laptop.
+lawson.karlanderica.justdavis.com ansible_user=localadmin ansible_port=2222

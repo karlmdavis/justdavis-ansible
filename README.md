@@ -12,26 +12,22 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 ### Python
 
-This project requires Python 2.7. On Ubuntu/Debian systems, it can be installed as follows:
+This project requires Python 3. On Ubuntu/Debian 18.04+ systems, it can be installed as follows:
 
-    $ sudo apt install python
+    $ sudo apt install python3 python-virtualenv
 
 The following packages will also be required by `pip` (see below) to build/install some of the required Python modules:
 
-    $ sudo apt install build-essential python-dev libpq-dev
+    $ sudo apt install build-essential python3-dev libpq-dev
 
 ### virtualenv
 
 This project has some dependencies that have to be installed via `pip` (as opposed to `apt`). Accordingly, it's strongly recommended that you make use of a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/) to manage those dependencies.
 
-If it isn't already installed, install the `virtualenv` package. On Ubuntu/Debian, this is best done via:
-
-    $ sudo apt install python-virtualenv
-
-Next, create a virtual environment for this project and install the project's dependencies into it:
+Create a virtual environment for this project and install the project's dependencies into it:
 
     $ cd justdavis-ansible.git
-    $ virtualenv -p /usr/bin/python2.7 venv
+    $ virtualenv -p /usr/bin/python3 venv
     $ source venv/bin/activate
     $ pip install -r requirements.txt
 

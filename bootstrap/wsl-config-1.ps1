@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-Install Ubuntu (WSL) on brooks.
+Install WSL and configure firewall on Windows systems.
 .DESCRIPTION
-Configures brooks with an Ubuntu installation via the Windows Subsystem for
-Linux. Also adds a firewall rule to allow WSL's OpenSSH Server to work.
+Prepares Windows systems to run Ubuntu via WSL by enabling the required Windows features.
+Also adds a firewall rule to allow WSL's OpenSSH Server to work.
 .EXAMPLE
 Run the script from the PowerShell ISE:
 
-PS C:\> powershell.exe -ExecutionPolicy Bypass -File justdavis-ansible.git\bootstrap\brooks-wsl.ps1
+PS C:\> powershell.exe -ExecutionPolicy Bypass -File justdavis-ansible.git\bootstrap\wsl-config-1.ps1
 #>
 
 $wslInstallState = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
@@ -17,7 +17,7 @@ if ($wslInstallState.State -ne 'Enabled') {
   Write-Host "The '$($wslInstallState.FeatureName)' feature has been installed. Restarting computer..."
   Restart-Computer
 } else {
-  Write-Host "The '$($wslInstallState.FeatureName)' feature was already installed."
+  Write-Host "The '$($wslInstallState.FeatureName)' feature was already instaled."
 }
 
 $sshServerPort = 2222

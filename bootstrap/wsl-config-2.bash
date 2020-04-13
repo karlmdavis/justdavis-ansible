@@ -23,6 +23,12 @@ if grep --quiet "^Port 22$" /etc/ssh/sshd_config; then
   echo "Changed SSH server port to '${sshServerPort}'."
 fi
 
+if ! grep --quiet "^Port ${sshServerPort}$" /etc/ssh/sshd_config; then
+  echo "Port ${sshServerPort}" | sudo tee --append /etc/ssh/sshd_config > /dev/null
+  sudo service ssh --full-restart &> /dev/null
+  echo "Set SSH server port to '${sshServerPort}'."
+fi
+
 if [[ ! -d ~/.ssh ]]; then
   mkdir ~/.ssh
   chmod u=rwx,g=,o= ~/.ssh

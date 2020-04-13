@@ -1,12 +1,12 @@
-$TTL 1h ; sets the default time-to-live for this zone
+$TTL 15M ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.{{ domain }}.           hostmaster.{{ domain }}. (
-                              2018100300 ; sn = serial number (yyyymmdd##)
-                              1h         ; ref = refresh
+                              2020041300 ; sn = serial number (yyyymmdd##)
+                              15M        ; ref = refresh
                               15M        ; ret = update retry
                               4W         ; ex = expiry
-                              1h         ; min = minimum
+                              15M        ; min = minimum
                               )
 
 ; Nameserver Records

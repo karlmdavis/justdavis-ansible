@@ -8,6 +8,16 @@
 # systems, as they don't correctly support services yet.
 ##
 
+- name: Ensure /etc/ldap.conf Exists
+  copy:
+    content: ''
+    dest: /etc/ldap.conf
+    force: false
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+
 - name: Configure LDAP Clients
   lineinfile:
     dest: /etc/ldap.conf

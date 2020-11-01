@@ -1,0 +1,34 @@
+[sssd]
+config_file_version = 2
+services = nss, pam, ifp
+domains = JUSTDAVIS
+
+[nss]
+#debug_level = 6
+filter_users = root
+filter_groups = root
+
+[pam]
+#debug_level = 6
+
+[domain/JUSTDAVIS]
+#debug_level = 6
+
+id_provider = ldap
+ldap_uri = ldaps://{{ domain }}
+ldap_search_base = dc=justdavis,dc=com
+
+auth_provider = krb5
+krb5_server = {{ domain }}
+krb5_realm = {{ domain | upper }}
+
+# Optional but very useful for laptops that are sometimes offline.
+cache_credentials = true
+
+# Allows getent passwd to list all domain users. Bad idea for large domains but fine here.
+enumerate = true
+
+access_provider = simple
+chpass_provider = krb5
+
+sudo_provider = none

@@ -54,7 +54,7 @@
     name: setuptools
     version: 38.1.0
     virtualenv: "{{ justdavis_ansible_dir }}/venv"
-    virtualenv_python: python2.7
+    virtualenv_python: python3
   become: true
   become_user: karl
 

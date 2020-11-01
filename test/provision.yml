@@ -89,7 +89,7 @@
           - ssh-all
         # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
         instance_type: t2.micro
-        image: "{{ ami_id_ubuntu_18_04 }}"
+        image: "{{ ami_id_ubuntu_20_04 }}"
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.

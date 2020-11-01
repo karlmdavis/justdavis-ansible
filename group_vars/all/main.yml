@@ -12,6 +12,9 @@ ami_id_ubuntu_16_04: ami-cf68e0d8
 # Ubuntu 18.04 (Bionic), per https://cloud-images.ubuntu.com/locator/ec2/
 ami_id_ubuntu_18_04: ami-432eb53c
 
+# Ubuntu 20.04 (Fossa), per https://cloud-images.ubuntu.com/locator/ec2/
+ami_id_ubuntu_20_04: ami-02ae530dacc099fc9
+
 # The domains being managed.
 # 
 # Note on Test Domains: The test variations below will actually be resolved 

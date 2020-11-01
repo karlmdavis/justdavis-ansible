@@ -5,7 +5,7 @@ dn: cn=config
 #olcTLSCipherSuite: LEGACY
 #-
 replace: olcTLSCACertificateFile
-olcTLSCACertificateFile: /etc/letsencrypt/live/{{ domain }}/chain.pem
+olcTLSCACertificateFile: /etc/letsencrypt/live/{{ domain }}/fullchain.pem
 -
 replace: olcTLSCertificateFile
 olcTLSCertificateFile: /etc/letsencrypt/live/{{ domain }}/cert.pem

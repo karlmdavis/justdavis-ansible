@@ -10,8 +10,7 @@
     certbot_admin_email: "{{ domain_webmaster }}"
     certbot_certs:
       - domains: "{{ domain_websites }}"
-    certbot_create_standalone_stop_services:
-      - apache2
+    certbot_create_standalone_stop_services: []
     certbot_create_if_missing: true
 - name: Create Certbot Hook Script
   template:
@@ -24,6 +23,10 @@
     src: certbot_cli.ini
     dest: /etc/letsencrypt/cli.ini
     mode: 'u=rw,g=r,o=r'
+  become: true
+# Manually run certbot hook script now to fix permissions for the initially-created certs.
+- name: Manually Run Certbot Hook Script One Time
+  command: /usr/local/bin/certbot_hook_post.sh
   become: true
 
 - import_tasks: install_and_configure.yml

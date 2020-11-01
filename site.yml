@@ -11,7 +11,12 @@
   # Required with Ansible 2.3, in which most modules require Python 2.x.
   # Reference: https://groups.google.com/forum/#!topic/ansible-project/DUKzTho3OCI
   pre_tasks:
-    - raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
+    - name: Install Python 2.7
+      raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
+      register: raw_python_install
+      retries: 12
+      delay: 10
+      until: raw_python_install.rc == 0
 
 - hosts: eddings.justdavis.com
   name: Configure Eddings

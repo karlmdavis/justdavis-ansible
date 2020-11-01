@@ -51,6 +51,12 @@
     - mailutils
   become: true
 
+- name: Retrieve ClamAV Definitions
+  service:
+    name: clamav-freshclam
+    state: started
+  become: true
+
 - name: Firewall - Allow Mail Traffic
   ufw:
     rule: allow

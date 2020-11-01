@@ -51,7 +51,7 @@ if [[ "${verbosity}" -eq 4 ]]; then verboseArg="-vvvv"; fi
 
 # Set default environment variables. These can be overridden on the command line.
 if [[ -z "$AWS_PROFILE" ]]; then
-  export AWS_PROFILE=justdavis
+  export AWS_PROFILE=justdavis_karl
 fi
 if [[ -z "$AWS_PROVISIONING_VARS_FILE" ]]; then
   AWS_PROVISIONING_VARS_FILE="${scriptDirectory}/vars_aws_provisioning_karlmdavis.yml"

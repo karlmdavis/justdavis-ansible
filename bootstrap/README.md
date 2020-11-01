@@ -39,6 +39,19 @@ The Windows Subsystem for Linux (v1) environment on `brooks` can be bootstrapped
 
 With the OpenSSH server now properly configured and running, the WSL system's remaining configuration can be handled by a normal run of the `ansible-justdavis.git/site.yml` Ansible playbook.
 
+Note that, for some reason, WSL 1 is unable to use the `JUSTDAVIS.COM` realm's LDAP/Kerberos user accounts as the default user for the WSL environment. This can be worked around, however, by first appending the user manually to `/etc/passwd`, using these commands from within the WSL environment:
+
+```
+$ echo 'karl:x:10000:10000:,,,:/home/karl:/bin/bash' | sudo tee --append /etc/passwd > /dev/null
+```
+
+After that's been done, the default WSL user can be set, using these commands from within a non-privileged PowerShell session:
+
+```
+> ubuntu1804 config --default-user karl
+> sc restart LxssManager
+```
+
 ## Setup lawson on WSL 1
 
 The Windows Subsystem for Linux (v1) environment on `lawson` can be bootstrapped exactly the same as for `brooks` above.

@@ -2,6 +2,55 @@
 
 This directory contains scripts that can be used to bootstrap the Ansible environment on various systems.
 
+## Setup brust on Ubuntu 20.04
+
+A clean Ubuntu 20.04 install on `brust` can be prepared to run the Ansible plays against itself, as follows:
+
+1. Install Ubuntu, as normal, naming the system `brust` and the first user `localadmin`.
+2. Ensure that the `localadmin` user can run `sudo` without having to enter a password:
+    
+    ```
+    $ echo -e "# Allow localadmin to run sudo without requiring a password.\nlocaladmin ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/localadmin
+    ```
+    
+3. Install the pre-requisites that you'll need for the Ansible run:
+    
+    ```
+    $ sudo apt install python3 python3-virtualenv build-essential python3-dev libpq-dev openssh-server
+    ```
+    
+4. Add a couple of entries to `/etc/hosts`, to workaround a bug with the Amplifi router's DNS server/relay:
+    
+    ```
+    $ echo -e "10.0.0.2 eddings.karlanderica.justdavis.com\n10.0.0.53 brust.karlanderica.justdavis.com" | sudo tee -a /etc/hosts
+    ```
+    
+5. Create an SSH key (make sure to give it a secure passphrase, and to store that passphrase somewhere secure),
+   load it into the SSH agent, and then make note of its public key:
+    
+    ```
+    $ ssh-keygen -t ed25519
+    $ ssh-add ~/.ssh/id_ed25519
+    $ cat ~/.ssh/id_ed25519.pub
+    ```
+    
+6. Add that public key to GitHub, via [GitHub: SSH and GPG keys](https://github.com/settings/keys).
+7. Clone the Ansible repo and setup its Python virtual environment:
+    
+    ```
+    $ mkdir -p ~/workspaces/justdavis
+    $ cd ~/workspaces/justdavis
+    $ git clone git clone git@github.com:karlmdavis/justdavis-ansible.git justdavis-ansible.git
+    $ cd justdavis-ansible.git
+    $ virtualenv -p /usr/bin/python3 venv
+    $ source venv/bin/activate
+    $ pip install -r requirements.txt
+    $ ansible-galaxy install -r install_roles.yml
+    ```
+    
+8. Create the `vault.password` file in the `justdavis-ansible.git` project/repo,
+   containing the proper password for it.
+
 ## Setup brooks on WSL 1
 
 The Windows Subsystem for Linux (v1) environment on `brooks` can be bootstrapped as follows:

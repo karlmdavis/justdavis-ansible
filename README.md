@@ -12,9 +12,9 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 ### Python
 
-This project requires Python 3. On Ubuntu/Debian 18.04+ systems, it can be installed as follows:
+This project requires Python 3. On Ubuntu/Debian 20.04+ systems, it can be installed as follows:
 
-    $ sudo apt install python3 python-virtualenv
+    $ sudo apt install python3 python3-virtualenv
 
 The following packages will also be required by `pip` (see below) to build/install some of the required Python modules:
 
@@ -66,11 +66,25 @@ When testing this playbook, running it against the actual production systems is 
 
 ### Production
 
+#### Bootstrapping Hosts
+
+Before the plays can be run against a new/clean host,
+  some initial bootstrapping is required,
+  as documented in [Bootstrap Ansible Environment](./bootstrap/README.md).
+
+#### Running the Plays
+
 Running the following command will run the `site.yml` Ansible playbook against the production systems specified in the `hosts` file:
 
     $ ./ansible-playbook-wrapper site.yml
 
-## Running Ad-Hoc Commands
+Or, if you'd like to run against only a single host, you can use the `--limit` option, e.g.:
+
+    $ ./ansible-playbook-wrapper site.yml --limit=brust.karlanderica.justdavis.com
+
+(Note that some parts of the playbook are known to fail unless `eddings` is included in the run. Specifically, the VPN client will fail to configure.)
+
+#### Running Ad-Hoc Commands
 
 Ansible can also be used to run ad-hoc commands against all of the production systems specified in the `hosts` file, as follows:
 

@@ -361,6 +361,7 @@
     - { name: '10-ssl.conf', path: 'conf.d/' }
     - { name: '15-mailboxes.conf', path: 'conf.d/' }
     - { name: '20-lmtp.conf', path: 'conf.d/' }
+    - { name: '20-imap.conf', path: 'conf.d/' }
     - { name: '90-sieve.conf', path: 'conf.d/' }
   notify:
     - "Restart 'dovecot'"

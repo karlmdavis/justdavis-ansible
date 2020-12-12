@@ -5,7 +5,7 @@ eddings.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin
 [workstations]
 
 # Karl's new-as-of-2018-10 primary (Linux) laptop.
-brust.karlanderica.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin/python3
+brust.karlanderica.justdavis.com ansible_user=localadmin ansible_python_interpreter=/usr/bin/python3
 
 # Karl's Windows desktop: specifically, the WSL Linux environment on it.
 brooks.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222

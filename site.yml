@@ -6,13 +6,14 @@
 #     $ ansible-playbook site.yml
 
 - hosts: all
-  name: Bootstrap Ubuntu Hosts with Python 2.7
+  name: Bootstrap Ubuntu Hosts with Python
   gather_facts: false
   # Required with Ansible 2.3, in which most modules require Python 2.x.
   # Reference: https://groups.google.com/forum/#!topic/ansible-project/DUKzTho3OCI
   pre_tasks:
-    - name: Install Python 2.7
-      raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
+    - name: Install Python
+      # Until eddings moves to Ubuntu 20.04, we still need Python 2.7, also.
+      raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7 python3
       register: raw_python_install
       retries: 12
       delay: 10

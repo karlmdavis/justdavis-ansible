@@ -7,7 +7,7 @@
   with_items:
     # Some integration tests run in Jenkins will use a PostgreSQL DB.
     # The psycopg2 lib is needed by Ansible's postgresql_db module.
-    - [postgresql, postgresql-client, python-psycopg2]
+    - [postgresql, postgresql-client, python3-psycopg2]
     # Some projects (e.g. rps-tourney) need Python 2.7 and virtualenv to run
     # Ansible.
     - [python, python-virtualenv]

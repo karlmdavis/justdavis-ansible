@@ -5,20 +5,6 @@
 #
 #     $ ansible-playbook site.yml
 
-- hosts: all
-  name: Bootstrap Ubuntu Hosts with Python
-  gather_facts: false
-  # Required with Ansible 2.3, in which most modules require Python 2.x.
-  # Reference: https://groups.google.com/forum/#!topic/ansible-project/DUKzTho3OCI
-  pre_tasks:
-    - name: Install Python
-      # Until eddings moves to Ubuntu 20.04, we still need Python 2.7, also.
-      raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7 python3
-      register: raw_python_install
-      retries: 12
-      delay: 10
-      until: raw_python_install.rc == 0
-
 - hosts: eddings.justdavis.com
   name: Configure Eddings
   become: true
@@ -38,10 +24,10 @@
     - import_role: name=vpn_server
     - import_role: name=file_server
     - import_role: name=mail_server
-    - import_role: name=nexus_server
-    - import_role: name=sonarqube_server
-    - import_role: name=jenkins_server
-    - import_role: name=spideroak
+    #- import_role: name=nexus_server
+    #- import_role: name=sonarqube_server
+    #- import_role: name=jenkins_server
+    #- import_role: name=spideroak
 
 - hosts: all
   name: Apply Common Configuration

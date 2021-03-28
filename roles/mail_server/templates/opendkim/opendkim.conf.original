@@ -6,7 +6,7 @@
 Syslog			yes
 # Required to use local socket with MTAs that access the socket as a non-
 # privileged user (e.g. Postfix)
-UMask			002
+UMask			007
 
 # Sign for example.com with key in /etc/dkimkeys/dkim.key using
 # selector '2007' (e.g. 2007._domainkey.example.com)
@@ -18,6 +18,29 @@ UMask			002
 #Canonicalization	simple
 #Mode			sv
 #SubDomains		no
+
+# Socket smtp://localhost
+#
+# ##  Socket socketspec
+# ##
+# ##  Names the socket where this filter should listen for milter connections
+# ##  from the MTA.  Required.  Should be in one of these forms:
+# ##
+# ##  inet:port@address           to listen on a specific interface
+# ##  inet:port                   to listen on all interfaces
+# ##  local:/path/to/socket       to listen on a UNIX domain socket
+#
+#Socket                  inet:8892@localhost
+Socket			local:/run/opendkim/opendkim.sock
+
+##  PidFile filename
+###      default (none)
+###
+###  Name of the file where the filter should write its pid before beginning
+###  normal operations.
+#
+PidFile               /run/opendkim/opendkim.pid
+
 
 # Always oversign From (sign using actual From and a null From to prevent
 # malicious signatures header fields (From and/or others) between the signer
@@ -47,3 +70,11 @@ OversignHeaders		From
 ## at http://unbound.net for the expected format of this file.
 
 TrustAnchorFile       /usr/share/dns/root.key
+
+##  Userid userid
+###      default (none)
+###
+###  Change to user "userid" before starting normal operation?  May include
+###  a group ID as well, separated from the userid by a colon.
+#
+UserID                opendkim

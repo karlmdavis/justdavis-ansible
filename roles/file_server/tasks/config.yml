@@ -65,3 +65,15 @@
   notify:
     - "Restart 'samba'"
 
+# Not sure why this is required, since we're not using guest accounts for anything,
+# but Samba refuses to start without it.
+#
+# Reference: <https://github.com/NixOS/nixpkgs/issues/95796>
+- name: Check Guest Group Mapping
+  command: net groupmap list
+  register: command_groupmap_list
+  changed_when: false
+- name: Map Guest Group
+  command: net groupmap add sid=S-1-5-32-546 unixgroup=nogroup type=builtin
+  become: true
+  when: command_groupmap_list.stdout == ""

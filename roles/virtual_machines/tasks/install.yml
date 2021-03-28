@@ -3,9 +3,7 @@
 - name: Install Virtualization Packages
   apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
   with_items:
-    - qemu-kvm
-    - libvirt-bin
-    - ubuntu-vm-builder
+    - libvirt-daemon-system
     - virtinst
   become: true
 

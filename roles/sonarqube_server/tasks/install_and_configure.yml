@@ -25,7 +25,7 @@
   with_items:
     # SonarQube will use a PostgreSQL DB to store most of its data.
     # The psycopg2 lib is needed by Ansible's postgresql_db module.
-    - [postgresql, postgresql-client, python-psycopg2]
+    - [postgresql, postgresql-client, python3-psycopg2]
 
 - import_role:
     name: geerlingguy.java
@@ -33,10 +33,10 @@
     java_packages: ['openjdk-8-jdk']
   become: true
 
-- name: Add the SonarQube APT Repository
-  apt_repository:
-    repo: 'deb [trusted=yes] http://downloads.sourceforge.net/project/sonar-pkg/deb binary/'
-  become: true
+#- name: Add the SonarQube APT Repository
+#  apt_repository:
+#    repo: 'deb [trusted=yes] http://downloads.sourceforge.net/project/sonar-pkg/deb binary/'
+#  become: true
 
 - name: Install SonarQube
   apt:

@@ -16,7 +16,7 @@
   with_items:
     - slapd
     - db-util
-    - python-ldap
+    - python3-ldap
     - ldap-utils
   become: true
 

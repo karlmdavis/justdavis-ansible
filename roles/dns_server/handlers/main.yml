@@ -1,6 +1,17 @@
 ---
 
-- name: "Restart 'eth0'"
-  shell: /sbin/ifdown eth0 && /sbin/ifup eth0
+- name: Restart bind9
+  service:
+    name: bind9
+    state: restarted
   become: true
-
+- name: Restart systemd-resolved
+  service:
+    name: systemd-resolved
+    state: restarted
+  become: true
+- name: Restart systemd-networkd
+  service:
+    name: systemd-networkd
+    state: restarted
+  become: true

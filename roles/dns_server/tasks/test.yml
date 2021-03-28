@@ -2,12 +2,13 @@
 
 - name: Configure DNS Server (when in test)
   lineinfile:
-    dest: /etc/dhcp/dhclient.conf
-    insertafter: '^#prepend domain-name-servers '
-    regexp: '^supersede domain-name-servers '
-    line: 'supersede domain-name-servers 127.0.0.1;'
+    dest: /etc/systemd/resolved.conf
+    insertafter: '^#DNS=.*'
+    regexp: '^DNS=.*'
+    line: 'DNS=127.0.0.1'
   become: true
   notify:
-    - "Restart 'eth0'"
+    - Restart systemd-resolved
+    - Restart systemd-networkd
   when: is_test
 

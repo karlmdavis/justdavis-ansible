@@ -3,15 +3,14 @@
 - import_tasks: firewall.yml
 
 # Certbot will create and renew Let's Encrypt certificates.
-- name: Install and Configure Certbot
-  import_role:
-    name: geerlingguy.certbot
-  vars:
-    certbot_admin_email: "{{ domain_webmaster }}"
-    certbot_certs:
-      - domains: "{{ domain_websites }}"
-    certbot_create_standalone_stop_services: []
-    certbot_create_if_missing: true
+- name: Create Certbot Directory
+  file:
+    state: directory
+    path: /etc/letsencrypt
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
 - name: Create Certbot Hook Script
   template:
     src: certbot_hook_post.sh
@@ -24,10 +23,15 @@
     dest: /etc/letsencrypt/cli.ini
     mode: 'u=rw,g=r,o=r'
   become: true
-# Manually run certbot hook script now to fix permissions for the initially-created certs.
-- name: Manually Run Certbot Hook Script One Time
-  command: /usr/local/bin/certbot_hook_post.sh
-  become: true
+- name: Install and Configure Certbot
+  import_role:
+    name: geerlingguy.certbot
+  vars:
+    certbot_admin_email: "{{ domain_webmaster }}"
+    certbot_certs:
+      - domains: "{{ domain_websites }}"
+    certbot_create_standalone_stop_services: []
+    certbot_create_if_missing: true
 
 - import_tasks: install_and_configure.yml
 

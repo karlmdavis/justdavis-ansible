@@ -41,6 +41,8 @@
     - "{{ domain_doh }}"
     - "{{ domain_mrc }}"
     - "{{ domain_mrd }}"
+  notify:
+    - Restart bind9
 
 - import_tasks: test.yml
   tags: test

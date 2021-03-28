@@ -10,6 +10,11 @@ set -e
 set -o pipefail
 
 echo 'Certbot post-hook Script: start'
+
+# This is required for the ACL below to take effect.
+# The directory permissions ensure that it's safe to do.
+chmod o+r /etc/letsencrypt/live/{{ domain }}/privkey.pem
+
 if [ $(getent group openldap) ]; then
   echo 'The openldap group exists.'
   setfacl -m g:openldap:rx /etc/letsencrypt/live

@@ -9,23 +9,6 @@
 # * https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos
 ##
 
-# Can't download key directly with `apt_key` until Ansible 2.4.x, due to https://github.com/ansible/ansible/issues/22647
-- name: Download the OpenVPN APT Signing Key
-  get_url:
-    url: 'https://swupdate.openvpn.net/repos/repo-public.gpg'
-    dest: /tmp/openvpn.gpg
-- name: Add/Trust the OpenVPN APT Signing Key
-  apt_key:
-    # This key will expire 2020-07-25.
-    id: E158C569
-    file: /tmp/openvpn.gpg
-  become: true
-
-- name: Add the OpenVPN APT Repository
-  apt_repository:
-    repo: 'deb http://build.openvpn.net/debian/openvpn/stable xenial main'
-  become: true
-
 - name: Install OpenVPN
   apt:
     name: openvpn

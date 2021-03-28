@@ -92,26 +92,35 @@ errorCode=0
 
 cd "${scriptDirectory}/.."
 
+# Generate a random domain prefix for use in tests, to play nice with Let's
+# Encrypt's rate limits.
+if [[ -f "${scriptDirectory}/test.env" ]]; then
+  source "${scriptDirectory}/test.env"
+else
+  DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
+  echo "DOMAIN_TEST_PREFIX=\"${DOMAIN_TEST_PREFIX}\"" > "${scriptDirectory}/test.env"
+fi
+
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}" | tee --append "${originalLog}"
-  ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}
+  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
 fi
 
 # Run our Ansible plays against the test systems.
 if [ $errorCode -eq 0 ] && [ "${configure}" = true ]; then
-  echo "$ ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true}"\" ${verboseArg}" | tee --append "${originalLog}"
-  ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "{is_test: true}" ${verboseArg}
+  echo "$ ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
 fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}" | tee --append "${originalLog}"
-  ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" ${verboseArg}
+  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
 fi

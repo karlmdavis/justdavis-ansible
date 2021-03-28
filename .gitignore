@@ -11,8 +11,9 @@ vault.password
 # Ignore Ansible's `.retry` files.
 *.retry
 
-# Ignore the test host inventory.
+# Ignore the test data and host inventory.
 test/hosts-test
+test/test.env
 
 # Ignore the saved Ansible logs. (No way to reasonably version control them; hopefully backups catch them, if needed.)
 logs/

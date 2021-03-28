@@ -37,14 +37,56 @@
     #  debug: msg="EC2 Public DNS Name - {{ hostvars[inventory_hostname]['ansible_host'] }}"
     
     - name: Instances to Terminate - Die Die Die
-      local_action: ec2
-        state=absent
-        instance_ids="{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
-        region="{{ aws_region }}"
-        wait=true
+      ec2:
+        state: absent
+        instance_ids: "{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
+        region: "{{ aws_region }}"
+        wait: true
+      delegate_to: localhost
  
     - name: Remove Test Inventory
-      local_action: file
-        path=hosts-test
-        state=absent
+      file:
+        path: hosts-test
+        state: absent
       run_once: true
+      delegate_to: localhost
+
+    - name: Calculate Test Zones and Domains
+      set_fact:
+        zone: tests.justdavis.com
+        domain: "{{ domain_test_prefix }}justdavis.com"
+        zone_doh: tests.davisonlinehome.name
+        domain_doh: "{{ domain_test_prefix }}davisonlinehome.name"
+        zone_mrc: tests.madrivercode.com
+        domain_mrc: "{{ domain_test_prefix }}madrivercode.com"
+        zone_mrd: tests.madriverdevelopment.com
+        domain_mrd: "{{ domain_test_prefix }}madriverdevelopment.com"
+
+    - name: 'Route 53: Delete Externally-Used Test Records'
+      route53:
+        command: absent
+        wait: true
+        zone: "{{ item.zone }}"
+        record: "{{ item.record }}"
+        type: "{{ item.type }}"
+      async: 600
+      poll: 0
+      with_items:
+        - { zone: "{{ zone }}", record: "{{ domain }}", type: 'A' }
+        - { zone: "{{ zone }}", record: "www.{{ domain }}", type: 'A' }
+        - { zone: "{{ zone }}", record: "mail.{{ domain }}", type: 'A' }
+        - { zone: "{{ zone }}", record: "eddings.{{ domain }}", type: 'A' }
+        - { zone: "{{ zone }}", record: "eddings.karlanderica.{{ domain }}", type: 'A' }
+        - { zone: "{{ zone }}", record: "_kerberos.{{ domain }}", type: 'TXT' }
+        - { zone: "{{ zone }}", record: "_kerberos._udp.{{ domain }}", type: 'SRV' }
+        - { zone: "{{ zone }}", record: "_kerberos-master._udp.{{ domain }}", type: 'SRV' }
+        - { zone: "{{ zone }}", record: "_kerberos-adm._tcp.{{ domain }}", type: 'SRV' }
+        - { zone: "{{ zone }}", record: "_kpasswd._udp.{{ domain }}", type: 'SRV' }
+        - { zone: "{{ zone_doh }}", record: "{{ domain_doh }}", type: 'A' }
+        - { zone: "{{ zone_doh }}", record: "www.{{ domain_doh }}", type: 'A' }
+        - { zone: "{{ zone_mrc }}", record: "{{ domain_mrc }}", type: 'A' }
+        - { zone: "{{ zone_mrc }}", record: "www.{{ domain_mrc }}", type: 'A' }
+        - { zone: "{{ zone_mrd }}", record: "{{ domain_mrd }}", type: 'A' }
+        - { zone: "{{ zone_mrd }}", record: "www.{{ domain_mrd }}", type: 'A' }
+      run_once: true
+      delegate_to: localhost

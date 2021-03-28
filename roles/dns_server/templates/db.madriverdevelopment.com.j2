@@ -34,7 +34,7 @@ www                       IN      CNAME             @
 ; be rejected.
 @                         IN      TXT               "v=spf1 mx ip4:{{ eddings_public_ip }} -all"
 ; The DKIM public key used by eddings:
-$INCLUDE /etc/bind/dkim-{{ domain_doh }}.record
+$INCLUDE /etc/bind/dkim-{{ domain_mrd }}.record
 
 ; SRV Records
 ; name                   ttl    class   rr                name

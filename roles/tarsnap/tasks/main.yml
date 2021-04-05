@@ -1,0 +1,8 @@
+---
+
+- name: Run tarsnap Installation Tasks
+  ansible.builtin.import_tasks: install_and_config.yml
+
+- name: Run tarsnap Test Tasks
+  ansible.builtin.import_tasks: test.yml
+  tags: test

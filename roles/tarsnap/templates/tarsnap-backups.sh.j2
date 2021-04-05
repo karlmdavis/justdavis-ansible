@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+# References:
+# - http://stackoverflow.com/questions/637827/redirect-stderr-and-stdout-in-a-b$
+# - http://linuxcommando.blogspot.com/2008/03/how-to-check-exit-status-code.html
+# - http://stackoverflow.com/questions/64786/error-handling-in-bash
+# - http://stackoverflow.com/questions/2275593/email-from-bash-script
+
+# Call this function when an error occurs to log it and exit the script.
+function error() {
+  local CALLER_LINENO="$1"
+  local MESSAGE="$2"
+  local CODE="${3:-1}"
+
+  local FULL_MESSAGE="Error on or near line ${CALLER_LINENO}: \"${MESSAGE}\". Exiting with status: ${CODE}."
+  echo -e "${FULL_MESSAGE}"
+  exit "${CODE}"
+}
+
+# Trap any errors, calling error() when they're caught.
+trap 'error ${LINENO}' ERR
+
+backupIncludesArray=()
+# Verify that each directory is present before adding it to the list.
+# (Not all directories are present in our Ansible tests.)
+{% for backup_include in backup_includes -%}
+if [[ -d "{{ backup_include }}" ]]; then backupIncludesArray+=("{{ backup_include }}"); fi
+{% endfor -%}
+backupIncludes=$(printf " %s" "${backupIncludesArray[@]}")
+backupIncludes=${backupIncludes:1}
+backupExcludes="{{ backup_excludes | map('regex_replace', '^', '--exclude ') | join(' ') }}"
+backupName="{{ inventory_hostname_short }}{{ '-test' if is_test else '' }}-$(date +%Y-%m-%dT%H:%M:%S)"
+
+echo "Tarsnap Backup: starting backup to '${backupName}' of '${backupIncludes}'..."
+/usr/bin/tarsnap \
+  -c \
+  -f ${backupName} \
+  --one-file-system \
+  ${backupExcludes} \
+  ${backupIncludes}
+echo "Tarsnap Backup: completed '${backupName}'."

@@ -1,0 +1,6 @@
+---
+backup_includes:
+  - /home
+
+backup_excludes:
+  - /home/*/workspaces/**/target

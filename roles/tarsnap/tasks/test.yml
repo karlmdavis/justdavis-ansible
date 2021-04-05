@@ -1,0 +1,44 @@
+---
+
+# To make these tests reliable we need to ensure that another backup doesn't try
+# to run during them.
+- name: Disable the tarsnap Timer
+  ansible.builtin.systemd:
+    name: tarsnap-backups.timer
+    state: stopped
+    enabled: false
+    daemon_reload: true
+  become: true
+
+- name: Stop the tarsnap Backup Unit
+  ansible.builtin.systemd:
+    name: tarsnap-backups.service
+    state: stopped
+  become: true
+
+# This is required the first time tarsnap runs on a clean box with a name
+# that's been used before (e.g. in our tests).
+- name: Run tarsnap fsck
+  ansible.builtin.command: /usr/bin/tarsnap --fsck
+  changed_when: false
+  become: true
+  when: is_test
+
+# Run a backup once. If this doesn't fail, we should be good to go.
+# Note: we only run this on test systems, because it takes about an hour on
+# non-test systems.
+- name: Run the tarsnap Backup Unit Once
+  ansible.builtin.systemd:
+    name: tarsnap-backups.service
+    state: started
+  become: true
+  when: is_test
+
+# Turn the timer back on now that we're done.
+- name: Enable and Start Backup Timer
+  ansible.builtin.systemd:
+    name: tarsnap-backups.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

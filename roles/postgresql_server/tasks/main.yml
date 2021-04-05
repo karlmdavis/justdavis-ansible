@@ -1,0 +1,8 @@
+---
+
+- name: Run PostgreSQL Installation Tasks
+  ansible.builtin.import_tasks: install_and_config.yml
+
+- name: Run PostgreSQL Test Tasks
+  ansible.builtin.import_tasks: test.yml
+  tags: test

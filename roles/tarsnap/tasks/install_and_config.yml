@@ -1,0 +1,80 @@
+---
+- name: Add tarsnap APT Signing Key
+  ansible.builtin.apt_key:
+    url: 'https://pkg.tarsnap.com/tarsnap-deb-packaging-key.asc'
+    state: present
+  become: true
+
+- name: Add tarsnap APT Repo
+  ansible.builtin.apt_repository:
+    repo: "deb http://pkg.tarsnap.com/deb/{{ ansible_facts['distribution_release'] }} ./"
+    state: present
+  become: true
+
+- name: Add tarsnap APT Package
+  ansible.builtin.package:
+    name: tarsnap
+    state: present
+  become: true
+
+- name: Create tarsnap Config File
+  ansible.builtin.template:
+    src: tarsnap.conf.j2
+    dest: /etc/tarsnap.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create tarsnap Key File
+  ansible.builtin.copy:
+    src: "tarsnap-{{ inventory_hostname_short }}{{ '-test' if is_test else '' }}.key.vault"
+    dest: /root/tarsnap.key
+    owner: root
+    group: root
+    mode: u=rw,g=,o=
+  become: true
+
+- name: Create Service Status Mailer Unit
+  ansible.builtin.copy:
+    src: status-email-root@.service
+    dest: /etc/systemd/system/status-email-root@.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create Backup Script
+  ansible.builtin.template:
+    src: tarsnap-backups.sh.j2
+    dest: /usr/local/bin/tarsnap-backups.sh
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Create Backup Unit
+  ansible.builtin.copy:
+    src: tarsnap-backups.service
+    dest: /etc/systemd/system/tarsnap-backups.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create Backup Timer
+  ansible.builtin.copy:
+    src: tarsnap-backups.timer
+    dest: /etc/systemd/system/tarsnap-backups.timer
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Enable and Start Backup Timer
+  ansible.builtin.systemd:
+    name: tarsnap-backups.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

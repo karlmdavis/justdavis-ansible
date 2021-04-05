@@ -1,0 +1,9 @@
+[Unit]
+Description=PostgreSQL Dump All Databases
+OnFailure=status-email-root@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/lib/postgresql/backups
+ExecStart=/usr/bin/pg_dumpall --file=/var/lib/postgresql/backups/dump-of-all-databases.pg_dumpall
+User=postgres

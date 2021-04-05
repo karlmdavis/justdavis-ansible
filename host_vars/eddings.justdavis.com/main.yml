@@ -1,0 +1,15 @@
+---
+backup_includes:
+  - /home
+  - /var/fileshares
+  - /var/vmail
+  - /var/lib/amavis
+  - /etc/letsencrypt
+  - /var/apache2
+  - /var/lib/tomcat8
+  - /var/log/tomcat8
+  - /var/nexus-backup
+  - /var/lib/postgresql/backups
+  - /var/lib/jenkins
+
+backup_excludes: []

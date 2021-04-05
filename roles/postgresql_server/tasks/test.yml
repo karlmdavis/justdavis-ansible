@@ -1,0 +1,39 @@
+---
+
+# To make these tests reliable we need to ensure that another dump doesn't try
+# to run during them.
+- name: Disable the Database Dump Timer
+  ansible.builtin.systemd:
+    name: postgresql-dumpall.timer
+    state: stopped
+    enabled: false
+    daemon_reload: true
+  become: true
+
+- name: Stop the PostgreSQL Dump Unit
+  ansible.builtin.systemd:
+    name: postgresql-dumpall.service
+    state: stopped
+  become: true
+
+# Run a dump once.
+- name: Run the PostgreSQL Dump Unit Once
+  ansible.builtin.systemd:
+    name: postgresql-dumpall.service
+    state: started
+  become: true
+
+- name: Verify that Dumps Were Created
+  ansible.builtin.stat:
+    path: /var/lib/postgresql/backups/dump-of-all-databases.pg_dumpall
+  register: psql_dump_stat
+  failed_when: psql_dump_stat.stat.exists == false
+
+# Turn the timer back on now that we're done.
+- name: Enable and Start Database Dump Timer
+  ansible.builtin.systemd:
+    name: postgresql-dumpall.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

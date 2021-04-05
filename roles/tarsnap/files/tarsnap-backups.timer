@@ -1,0 +1,7 @@
+[Unit]
+Description=Run tarsnap-backups.service daily.
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+

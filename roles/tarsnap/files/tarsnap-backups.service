@@ -1,0 +1,9 @@
+[Unit]
+Description=Tarsnap Backups
+OnFailure=status-email-root@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/tarsnap-backups.sh
+User=root

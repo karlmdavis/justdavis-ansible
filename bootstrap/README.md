@@ -40,7 +40,7 @@ A clean Ubuntu 20.04 install on `brust` can be prepared to run the Ansible plays
     ```
     $ mkdir -p ~/workspaces/justdavis
     $ cd ~/workspaces/justdavis
-    $ git clone git clone git@github.com:karlmdavis/justdavis-ansible.git justdavis-ansible.git
+    $ git clone git@github.com:karlmdavis/justdavis-ansible.git justdavis-ansible.git
     $ cd justdavis-ansible.git
     $ virtualenv -p /usr/bin/python3 venv
     $ source venv/bin/activate

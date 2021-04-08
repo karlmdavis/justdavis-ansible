@@ -12,7 +12,7 @@
   tasks:
     # Configure networking, except during tests in AWS (because networking there is
     # completely different and incompatible).
-    - import_tasks: tasks/eddings_networking.yml
+    - import_role: name=eddings_networking
       when: is_test == false
     - import_role: name=base
     - import_role: name=virtual_machines

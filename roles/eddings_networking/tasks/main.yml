@@ -8,19 +8,18 @@
 ##
 
 - name: Install Network Bridging Utilities
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
-  with_items:
-    - bridge-utils
+  ansible.builtin.package:
+    name: bridge-utils
+    state: present
   become: true
 
 - name: Configure Network Interfaces
-  copy:
-    src: eddings_network_interfaces
-    dest: /etc/network/interfaces
+  ansible.builtin.copy:
+    src: 00-installer-config.yaml
+    dest: /etc/netplan/00-installer-config.yaml
     owner: root
     group: root
     mode: u=rw,g=r,o=r
   become: true
   notify:
-    - Restart Networking
-
+    - Run netplan apply

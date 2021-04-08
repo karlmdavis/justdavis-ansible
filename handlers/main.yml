@@ -1,8 +1,0 @@
----
-
-- name: Restart Networking
-  systemd:
-    name: networking
-    state: restarted
-  become: true
-

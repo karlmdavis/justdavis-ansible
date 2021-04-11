@@ -123,6 +123,11 @@ if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
   ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee --append "${originalLog}"
+
+  # If everything tore down okay, remove the test env file.
+  if [ $errorCode -eq 0 ]; then
+    rm "${scriptDirectory}/test.env"
+  fi
 fi
 
 timestampLog

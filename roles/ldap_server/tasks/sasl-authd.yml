@@ -40,7 +40,9 @@
 
 - name: Add 'openldap' User to 'sasl' Group
   user:
-    name: sasl
-    groups: openldap
+    name: openldap
+    groups: sasl
     append: true
   become: true
+  notify:
+    - "Restart 'slapd'"

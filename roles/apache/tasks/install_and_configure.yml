@@ -1,18 +1,21 @@
 ---
 
-- name: Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+- name: Install Apache
+  ansible.builtin.package:
+    name: apache2
+    state: present
   become: yes
   with_items:
     - apache2
 
-- name: Firewall - Allow HTTPS
-  ufw:
+- name: Firewall - Allow Apache HTTP
+  ansible.builtin.ufw:
     rule: allow
-    name: Apache Secure
+    name: Apache
   become: true
 
-- file:
+- name: "Create Apache Directories"
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: www-data
@@ -25,7 +28,7 @@
     - "/var/apache2/{{ domain }}/www"
 
 - name: Configure the Ports and IPs for Apache
-  template:
+  ansible.builtin.template:
     src: ports.conf.j2
     dest: /etc/apache2/ports.conf
     owner: root
@@ -35,7 +38,8 @@
   notify:
     - apache-restart
 
-- apache2_module:
+- name: Enable Apache Modules
+  community.general.apache2_module:
     state: present
     name: "{{ item }}"
   become: yes
@@ -47,33 +51,27 @@
   notify:
     - apache-restart
 
-- template:
-    src: shared-ssl.conf
-    dest: "/etc/apache2/conf-available/ssl.conf"
+- name: Create Apache HTTP Virtual Host Configuration
+  ansible.builtin.template:
+    src: domain.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}.conf"
     mode: u=rw,g=rw,o=r
   become: yes
   notify:
     - apache-reload
 
-- command: "/usr/sbin/a2enconf ssl.conf"
+- name: Enable Apache HTTP Virtual Host Configuration
+  ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}.conf"
   args:
-    creates: "/etc/apache2/conf-enabled/ssl.conf"
+    creates: "/etc/apache2/sites-enabled/{{ domain }}.conf"
   become: yes
   notify:
     - apache-reload
 
-- template:
-    src: domain-ssl.conf
-    dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
-    mode: u=rw,g=rw,o=r
-  become: yes
-  notify:
-    - apache-reload
-
-- command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
+- name: Disable Default Apache HTTP Virtual Host Configuration
+  ansible.builtin.command: "/usr/sbin/a2dissite 000-default.conf"
   args:
-    creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"
+    removes: "/etc/apache2/sites-enabled/000-default.conf"
   become: yes
   notify:
     - apache-reload
-

@@ -1,0 +1,92 @@
+---
+
+# Certbot will create and renew Let's Encrypt certificates.
+- name: Create Certbot Directory
+  ansible.builtin.file:
+    state: directory
+    path: /etc/letsencrypt
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Create Certbot Hook Script
+  ansible.builtin.template:
+    src: certbot_hook_post.sh
+    dest: /usr/local/bin/certbot_hook_post.sh
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Create Certbot Config
+  ansible.builtin.template:
+    src: certbot_cli.ini
+    dest: /etc/letsencrypt/cli.ini
+    mode: 'u=rw,g=r,o=r'
+  become: true
+
+- name: Flush Handlers Before Certbot Run
+  ansible.builtin.meta: flush_handlers
+
+- name: Install and Configure Certbot
+  ansible.builtin.import_role:
+    name: geerlingguy.certbot
+  vars:
+    certbot_admin_email: "{{ domain_webmaster }}"
+    certbot_certs:
+      - domains: "{{ domain_websites }}"
+    certbot_create_standalone_stop_services: []
+    certbot_create_if_missing: true
+    certbot_create_method: webroot
+    certbot_webroot: "/var/apache2/{{ domain }}/www"
+    # Tweak the command to only bind to IPv4:
+    certbot_create_command: >-
+      {{ certbot_script }} certonly --{{ certbot_create_method  }}
+      {{ '--hsts' if certbot_hsts else '' }}
+      {{ '--test-cert' if certbot_testmode else '' }}
+      --noninteractive --agree-tos
+      --email {{ cert_item.email | default(certbot_admin_email) }}
+      {{ '--webroot-path ' if certbot_create_method == 'webroot'  else '' }}
+      {{ cert_item.webroot | default(certbot_webroot) if certbot_create_method == 'webroot'  else '' }}
+      -d {{ cert_item.domains | join(',') }}
+      {{ '--deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ansible.sh' if certbot_deployhook is defined else '' }}
+      --http-01-address {{ public_ip }}
+
+- name: Firewall - Allow Apache HTTPS
+  ansible.builtin.ufw:
+    rule: allow
+    name: Apache Secure
+  become: true
+
+- name: Create Apache SSL Configuration
+  ansible.builtin.template:
+    src: shared-ssl.conf
+    dest: "/etc/apache2/conf-available/ssl.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+
+- name: Enable Apache SSL Configuration
+  ansible.builtin.command: "/usr/sbin/a2enconf ssl.conf"
+  args:
+    creates: "/etc/apache2/conf-enabled/ssl.conf"
+  become: yes
+  notify:
+    - apache-reload
+
+- name: Create Apache HTTPS Virtual Host Configuration
+  ansible.builtin.template:
+    src: domain-ssl.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
+    mode: u=rw,g=rw,o=r
+  become: yes
+  notify:
+    - apache-reload
+
+- name: Enable Apache HTTPS Virtual Host Configuration
+  ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
+  args:
+    creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"
+  become: yes
+  notify:
+    - apache-reload

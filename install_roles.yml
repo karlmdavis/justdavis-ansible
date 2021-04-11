@@ -6,7 +6,12 @@
 # https://github.com/geerlingguy/ansible-role-certbot
 # Manages the 'Certbot' client for Let's Encrypt, which can be used to register
 # and renew free SSL certificates.
-- src: geerlingguy.certbot
+#- src: geerlingguy.certbot
+# TODO: switch back to main releases once <https://github.com/simonspa/ansible-role-certbot.git>
+# is merged.
+- src: 'https://github.com/simonspa/ansible-role-certbot.git'
+  version: 'webroot'
+  name: geerlingguy.certbot
 
 # https://galaxy.ansible.com/karlmdavis/tested-bind/
 # Installs and configures the BIND DNS server.

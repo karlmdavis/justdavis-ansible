@@ -1,45 +1,8 @@
 ---
-# The `certbot` role requires some ports on the firewall to be opened, first.
-- import_tasks: firewall.yml
 
-# Certbot will create and renew Let's Encrypt certificates.
-- name: Create Certbot Directory
-  file:
-    state: directory
-    path: /etc/letsencrypt
-    owner: root
-    group: root
-    mode: u=rwx,g=rx,o=rx
-  become: true
-- name: Create Certbot Hook Script
-  template:
-    src: certbot_hook_post.sh
-    dest: /usr/local/bin/certbot_hook_post.sh
-    mode: 'u=rwx,g=rx,o=rx'
-  become: true
-- name: Create Certbot Config
-  template:
-    src: certbot_cli.ini
-    dest: /etc/letsencrypt/cli.ini
-    mode: 'u=rw,g=r,o=r'
-  become: true
-- name: Install and Configure Certbot
-  import_role:
-    name: geerlingguy.certbot
-  vars:
-    certbot_admin_email: "{{ domain_webmaster }}"
-    certbot_certs:
-      - domains: "{{ domain_websites }}"
-    certbot_create_standalone_stop_services: []
-    certbot_create_if_missing: true
-    # Tweak the command to only bind to IPv4:
-    certbot_create_command: >-
-      {{ certbot_script }} certonly --standalone --noninteractive --agree-tos
-      --http-01-address {{ public_ip }}
-      --email {{ cert_item.email | default(certbot_admin_email) }}
-      -d {{ cert_item.domains | join(',') }}
+- ansible.builtin.import_tasks: install_and_configure.yml
 
-- import_tasks: install_and_configure.yml
+- ansible.builtin.import_tasks: https.yml
 
-- import_tasks: test.yml
+- ansible.builtin.import_tasks: test.yml
   tags: test

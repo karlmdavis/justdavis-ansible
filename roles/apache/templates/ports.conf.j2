@@ -2,8 +2,7 @@
 # have to change the VirtualHost statement in
 # /etc/apache2/sites-enabled/000-default.conf
 
-# Don't listen on port 80; the Let's Encrypt ACME redirector handles that.
-#Listen 80
+Listen 80
 
 <IfModule ssl_module>
 	# Apache can't bind port 443 on all IPs, as OpenVPN needs 443 for the VPN gateway IP.

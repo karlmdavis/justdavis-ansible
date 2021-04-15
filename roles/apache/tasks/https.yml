@@ -49,7 +49,6 @@
       {{ cert_item.webroot | default(certbot_webroot) if certbot_create_method == 'webroot'  else '' }}
       -d {{ cert_item.domains | join(',') }}
       {{ '--deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ansible.sh' if certbot_deployhook is defined else '' }}
-      --http-01-address {{ public_ip }}
 
 - name: Firewall - Allow Apache HTTPS
   ansible.builtin.ufw:
@@ -76,17 +75,17 @@
 
 - name: Create Apache HTTPS Virtual Host Configuration
   ansible.builtin.template:
-    src: domain-ssl.conf
-    dest: "/etc/apache2/sites-available/{{ domain }}-ssl.conf"
+    src: domain-https.conf
+    dest: "/etc/apache2/sites-available/{{ domain }}-https.conf"
     mode: u=rw,g=rw,o=r
   become: yes
   notify:
     - apache-reload
 
 - name: Enable Apache HTTPS Virtual Host Configuration
-  ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}-ssl.conf"
+  ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}-https.conf"
   args:
-    creates: "/etc/apache2/sites-enabled/{{ domain }}-ssl.conf"
+    creates: "/etc/apache2/sites-enabled/{{ domain }}-https.conf"
   become: yes
   notify:
     - apache-reload

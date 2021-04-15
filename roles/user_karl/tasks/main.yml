@@ -60,48 +60,11 @@
   become: true
   no_log: true
 
-- name: Create Downloads Directory
-  file:
-    state: directory
-    path: /home/karl/Downloads
+- name: Install tmux
+  ansible.builtin.package:
+    name: tmux
+    state: present
   become: true
-  become_user: karl
-
-- name: Download tmux Release Bundle
-  get_url:
-    url: 'https://github.com/tmux/tmux/releases/download/2.6/tmux-2.6.tar.gz'
-    dest: '/home/karl/Downloads/tmux-2.6.tar.gz'
-  become: true
-  become_user: karl
-
-- name: Extract tmux Release Bundle
-  unarchive:
-    src: /home/karl/Downloads/tmux-2.6.tar.gz
-    remote_src: true
-    dest: /home/karl/Downloads
-    creates: /home/karl/Downloads/tmux-2.6
-  become: true
-  become_user: karl
-
-- name: Install tmux Prerequisites
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
-  with_items:
-    - libevent-dev
-    - libncurses-dev
-  register: apt_sensors
-  become: true
-
-- name: Compile and Install tmux
-  command: "{{ item }}"
-  args:
-    chdir: /home/karl/Downloads/tmux-2.6
-    creates: /home/karl/bin/tmux
-  become: true
-  become_user: karl
-  with_items:
-    - /home/karl/Downloads/tmux-2.6/configure --prefix=/home/karl
-    - make
-    - make install
 
 - name: Create tmux Plugins Dir
   file:

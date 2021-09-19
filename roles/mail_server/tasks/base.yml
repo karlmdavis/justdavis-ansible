@@ -196,6 +196,8 @@
     # use of Dovecot's sieve to ensure that incoming mail flagged as spam is
     # dropped into Junk folders, rather than user's INBOXes.
     'virtual_transport': 'lmtp:unix:private/dovecot-lmtp'
+    # Don't enable IPv6 support.
+    'inet_protocols': 'ipv4'
   become: true
   notify:
     - "Restart 'postfix'"

@@ -12,7 +12,7 @@ ssl = required
 # certificate, just make sure to update the domains in dovecot-openssl.cnf
 #ssl_cert = </etc/dovecot/dovecot.pem
 #ssl_key = </etc/dovecot/private/dovecot.pem
-ssl_cert = </etc/letsencrypt/live/{{ domain }}/cert.pem
+ssl_cert = </etc/letsencrypt/live/{{ domain }}/fullchain.pem
 ssl_key = </etc/letsencrypt/live/{{ domain }}/privkey.pem
 
 # If key file is password protected, give the password here. Alternatively

@@ -34,7 +34,11 @@
     certbot_admin_email: "{{ domain_webmaster }}"
     certbot_certs:
       - domains: "{{ domain_websites }}"
-    certbot_create_standalone_stop_services: []
+    certbot_create_standalone_stop_services:
+      - apache2
+      - slapd
+      - postfix
+      - dovecot
     certbot_create_if_missing: true
     certbot_create_method: webroot
     certbot_webroot: "/var/apache2/{{ domain }}/www"
@@ -49,6 +53,12 @@
       {{ cert_item.webroot | default(certbot_webroot) if certbot_create_method == 'webroot'  else '' }}
       -d {{ cert_item.domains | join(',') }}
       {{ '--deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ansible.sh' if certbot_deployhook is defined else '' }}
+    certbot_deployhook: |
+      {% for service in certbot_create_standalone_stop_services %}
+      if systemctl list-unit-files | grep -q "^{{ service }}.service"; then
+        systemctl restart {{ service }}
+      fi
+      {% endfor %}
 
 - name: Firewall - Allow Apache HTTPS
   ansible.builtin.ufw:

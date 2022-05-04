@@ -6,16 +6,6 @@
 # Usage:
 #  
 #     $ ansible-playbook --inventory-file=hosts-test site-teardown.yml
- 
-# Repeating this here, just in case the normal site.yml playbook wasn't run.
-- hosts: eddings.justdavis.com
-  name: Bootstrap Ubuntu Hosts with Python 2.7
-  gather_facts: false
-  
-  # Required with Ansible 2.1, in which most modules require Python 2.x.
-  # Reference: https://groups.google.com/forum/#!topic/ansible-project/DUKzTho3OCI
-  pre_tasks:
-    - raw: sudo apt-get update -qq && sudo apt-get install -y -qq python2.7
 
 - hosts: all
   name: AWS - Terminate EC2 Instances

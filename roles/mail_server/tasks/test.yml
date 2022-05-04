@@ -18,6 +18,9 @@
       retries: 60
       delay: 1
 
+# Note: Not sure why, but both dovecot and postfix seem to need an extra restart to pick up correct certs.
+# Many of the tests below fail until they've been restarted, and also possibly `postfix@-.service`.
+
 - name: Check Mail via IMAP (SSL)
   command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false

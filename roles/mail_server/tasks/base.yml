@@ -281,15 +281,6 @@
   notify:
     - "Restart 'amavis'"
 
-- name: Configure ClamAV Permissions for Amavis
-  lineinfile:
-    name: /etc/clamav/clamd.conf
-    regexp: '^AllowSupplementaryGroups.*'
-    line: "AllowSupplementaryGroups true"
-  become: true
-  notify:
-    - "Restart 'clamav-daemon'"
-
 - name: Enable Spam and Virus Filtering in Amavis
   blockinfile:
     name: /etc/amavis/conf.d/15-content_filter_mode
@@ -401,7 +392,7 @@
   become: true
 
 - name: Create OpenDKIM Keys
-  command: /usr/bin/opendkim-genkey --domain={{ item }} --selector=a --directory=/etc/dkimkeys
+  command: /usr/sbin/opendkim-genkey --domain={{ item }} --selector=a --directory=/etc/dkimkeys
   args:
     creates: /etc/dkimkeys/a.private
   become: true

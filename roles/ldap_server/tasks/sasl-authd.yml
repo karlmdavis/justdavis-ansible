@@ -25,6 +25,14 @@
   notify:
     - "Restart 'saslauthd'"
 
+- name: Enable and Start saslauthd
+  ansible.builtin.systemd:
+    name: saslauthd.service
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+
 - name: Configure OpenLDAP for saslauthd
   lineinfile:
     dest: /etc/ldap/sasl2/slapd.conf

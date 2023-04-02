@@ -3,8 +3,9 @@
 ##
 # Configures the system's networking correctly:
 #
-# * Use a public static IP on enp2s0f0.
-# * Create a network bridge on enp2s0f0, for use by VMs.
+# * Create a network bridge on the WAN connection, eno1, for use by VMs.
+# * Configure static public IPs on bridge.
+# * Configure the LAN connection, enp4s0, for DHCP.
 ##
 
 - name: Install Network Bridging Utilities
@@ -13,9 +14,20 @@
     state: present
   become: true
 
+- name: Ignore Routes With Down Links
+  ansible.builtin.copy:
+    src: sysctl.d/local.conf
+    dest: /etc/sysctl.d/local.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Load Local sysctl Configuration
+
 - name: Configure Network Interfaces
   ansible.builtin.copy:
-    src: 00-installer-config.yaml
+    src: netplan/00-installer-config.yaml
     dest: /etc/netplan/00-installer-config.yaml
     owner: root
     group: root

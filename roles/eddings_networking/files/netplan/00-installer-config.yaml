@@ -1,32 +1,34 @@
 ##
 # This server has the following network interfaces:
 #
-# * (unnamed): The top port builtin to the motherboard is for the board's Management Engine.
-# * enp2s0f0: The middle port builtin to the motherboard.
-# * enp2s0f1: The lowest port builtin to the motherboard.
+# * eno1: The 1.0 GB port.
+# * enp4s0: The 2.5 GB port.
+# * wlp3s0: The wifi interface.
+#
+# Run `sudo netplan apply` to apply any changes made in this file.
 ##
 network:
   version: 2
   ethernets:
     # The ethernet connection for WAN connectivity.
-    enp2s0f0:
+    eno1:
       # Nothing set here, as it's only directly used to host the br0 bridge.
       dhcp4: false # This is the default, just including it so we have valid YAML.
     # The ethernet connection for LAN connectivity.
     # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.
-    enp2s0f1:
+    enp4s0:
       dhcp4: true
   bridges:
     br0:
-      interfaces: [enp2s0f0]
+      interfaces: [eno1]
       addresses:
         # The primary public IP address for the server.
         # FYI: /29 is equivalent to 255.255.255.248
         - 96.86.32.137/29
         # A secondary public IP address used for the VPN server.
         - 96.86.32.139/29
-      # TODO: does this need to be disabled or can Ubuntu handle it intelligently?
-      # If I uncomment this, when the link is down/disconnected, it seems to insist on trying to use this gateway -- which fails.
-      gateway4: 96.86.32.142
       nameservers:
         addresses: [8.8.8.8, 8.8.4.4]
+      routes:
+        - to: default
+          via: 96.86.32.142

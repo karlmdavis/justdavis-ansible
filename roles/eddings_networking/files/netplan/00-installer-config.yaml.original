@@ -1,8 +1,8 @@
 # This is the network config written by 'subiquity'
 network:
   ethernets:
-    enp2s0f0:
+    eno1:
       dhcp4: true
-    enp2s0f1:
+    enp4s0:
       dhcp4: true
   version: 2

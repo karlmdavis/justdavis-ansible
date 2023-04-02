@@ -1,5 +1,9 @@
 ---
 
+- name: Load Local sysctl Configuration
+  ansible.builtin.command: /usr/sbin/sysctl -p /etc/sysctl.d/local.conf
+  become: true
+
 - name: Run netplan apply
   ansible.builtin.command: /usr/sbin/netplan apply
   become: true

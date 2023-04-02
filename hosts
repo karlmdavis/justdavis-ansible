@@ -1,5 +1,5 @@
 # The primary justdavis.com server.
-eddings.justdavis.com ansible_user=localadmin ansible_python_interpreter=/usr/bin/python3 public_ip_address=96.86.32.137 public_ip_interface=br0 vpn_gateway_ip=96.86.32.139 private_ip_address=10.0.0.2 private_ip_interface=enp2s0f1
+eddings.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin/python3 public_ip_address=96.86.32.137 public_ip_interface=br0 vpn_gateway_ip=96.86.32.139 private_ip_address=10.0.0.2 private_ip_interface=enp2s0f1
 
 
 [workstations]

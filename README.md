@@ -16,9 +16,9 @@ This project requires Python 3. On Ubuntu/Debian 20.04+ systems, it can be insta
 
     $ sudo apt install python3 python3-virtualenv
 
-The following packages will also be required by `pip` (see below) to build/install some of the required Python modules:
+The following packages will also be required by `pip` (see below) to build/install some of the required Python modules and by some of the Ansible tasks:
 
-    $ sudo apt install build-essential python3-dev libpq-dev
+    $ sudo apt install build-essential python3-dev libpq-dev swaks
 
 ### virtualenv
 

@@ -3,8 +3,8 @@
 - import_role:
     name: karlmdavis.bind-dns
   vars:
-    eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip'] }}"
-    eddings_private_ip: "{{ hostvars['eddings.justdavis.com']['private_ip'] }}"
+    eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip_address'] }}"
+    eddings_private_ip: "{{ hostvars['eddings.justdavis.com']['private_ip_address'] }}"
     reverse_zone_name: "{{ eddings_public_ip.split('.')[2] + '.' + eddings_public_ip.split('.')[1] + '.' + eddings_public_ip.split('.')[0] + '.in-addr.arpa' }}"
     zones:
       - {name: "{{ domain }}", template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}

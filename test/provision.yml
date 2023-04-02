@@ -55,55 +55,67 @@
             cidr_ip: 0.0.0.0/0
     
     - name: EC2 - Provision 'eddings'
-      ec2:
+      ec2_instance:
         key_name: "{{ aws_ec2_key_name }}"
-        group:
-          - default
-          - all
         # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
-        # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However, Sonatype Nexus needs at least 3GB RAM, then Jenkins and Nexus need a decent chunk more.
+        # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However,
+        # Sonatype Nexus needs at least 3GB RAM, then Jenkins and Nexus need a decent chunk more.
         instance_type: t2.large
-        image: "{{ ami_id_ubuntu_22_04 }}"
+        image_id: "{{ ami_id_ubuntu_22_04 }}"
         user_data: |
                    #!/bin/sh
-                   # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
-                   # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
+                   # Seed the new VM with entropy. It's probably not great quality entropy, but
+                   # still better than nothing.
+                   # (Seems to be particularly needed on the smaller EC2 instance types. Without
+                   # this, Kerberos domain creation takes FOREVER.)
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged
         region: "{{ aws_region }}"
-        vpc_subnet_id: "{{ aws_vpc_subnet }}"
-        assign_public_ip: true
+        network:
+          vpc_subnet_id: "{{ aws_vpc_subnet }}"
+          assign_public_ip: true
+        security_groups:
+          - default
+          - all
+        state: started
         wait: true
         exact_count: 1
-        count_tag:
-          Name: eddings
-        instance_tags:
+        filters:
+          instance-state-name: running
+          'tag:Name': eddings
+        tags:
           Name: eddings
           CreatedBy: "{{ whoami.stdout }}"
       register: ec2_eddings
     
     - name: EC2 - Provision 'jordan-u'
-      ec2:
+      ec2_instance:
         key_name: "{{ aws_ec2_key_name }}"
-        group:
-          - default
-          - ssh-all
         # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
         instance_type: t2.micro
-        image: "{{ ami_id_ubuntu_20_04 }}"
+        image_id: "{{ ami_id_ubuntu_20_04 }}"
         user_data: |
                    #!/bin/sh
-                   # Seed the new VM with entropy. It's probably not great quality entropy, but still better than nothing.
-                   # (Seems to be particularly needed on the smaller EC2 instance types. Without this, Kerberos domain creation takes FOREVER.)
-                   # Also: run `apt-get upgrade`, to grab the latest SSL root certs, which are needed.
+                   # Seed the new VM with entropy. It's probably not great quality entropy, but
+                   # still better than nothing.
+                   # (Seems to be particularly needed on the smaller EC2 instance types. Without
+                   # this, Kerberos domain creation takes FOREVER.)
+                   # Also: run `apt-get upgrade`, to grab the latest SSL root certs, which are
+                   # needed.
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged && sudo apt-get upgrade
         region: "{{ aws_region }}"
-        vpc_subnet_id: "{{ aws_vpc_subnet }}"
-        assign_public_ip: true
+        network:
+          vpc_subnet_id: "{{ aws_vpc_subnet }}"
+          assign_public_ip: true
+        security_groups:
+          - default
+          - ssh-all
+        state: started
         wait: true
         exact_count: 1
-        count_tag:
-          Name: jordan-u
-        instance_tags:
+        filters:
+          instance-state-name: running
+          'tag:Name': jordan-u
+        tags:
           Name: jordan-u
           CreatedBy: "{{ whoami.stdout }}"
       register: ec2_jordan_u
@@ -138,22 +150,22 @@
       async: 600
       poll: 0
       with_items:
-        - { zone: "{{ zone }}", record: "{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone }}", record: "www.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone }}", record: "mail.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone }}", record: "eddings.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone }}", record: "eddings.karlanderica.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].private_ip }}" }
+        - { zone: "{{ zone }}", record: "{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone }}", record: "www.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone }}", record: "mail.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone }}", record: "eddings.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone }}", record: "eddings.karlanderica.{{ domain }}", type: 'A', value: "{{ ec2_eddings.instances[0].private_ip_address }}" }
         - { zone: "{{ zone }}", record: "_kerberos.{{ domain }}", type: 'TXT', value: '"{{ domain | upper }}"' }
         - { zone: "{{ zone }}", record: "_kerberos._udp.{{ domain }}", type: 'SRV', value: "0 0 88 eddings.{{ domain }}." }
         - { zone: "{{ zone }}", record: "_kerberos-master._udp.{{ domain }}", type: 'SRV', value: "0 0 88 eddings.{{ domain }}." }
         - { zone: "{{ zone }}", record: "_kerberos-adm._tcp.{{ domain }}", type: 'SRV', value: "0 0 749 eddings.{{ domain }}." }
         - { zone: "{{ zone }}", record: "_kpasswd._udp.{{ domain }}", type: 'SRV', value: "0 0 464 eddings.{{ domain }}." }
-        - { zone: "{{ zone_doh }}", record: "{{ domain_doh }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone_doh }}", record: "www.{{ domain_doh }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone_mrc }}", record: "{{ domain_mrc }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone_mrc }}", record: "www.{{ domain_mrc }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone_mrd }}", record: "{{ domain_mrd }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
-        - { zone: "{{ zone_mrd }}", record: "www.{{ domain_mrd }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip }}" }
+        - { zone: "{{ zone_doh }}", record: "{{ domain_doh }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone_doh }}", record: "www.{{ domain_doh }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone_mrc }}", record: "{{ domain_mrc }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone_mrc }}", record: "www.{{ domain_mrc }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone_mrd }}", record: "{{ domain_mrd }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
+        - { zone: "{{ zone_mrd }}", record: "www.{{ domain_mrd }}", type: 'A', value: "{{ ec2_eddings.instances[0].public_ip_address }}" }
       register: route53_records
 
     - name: Wait for Route53 Records

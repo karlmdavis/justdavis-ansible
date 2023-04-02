@@ -27,7 +27,7 @@
     #  debug: msg="EC2 Public DNS Name - {{ hostvars[inventory_hostname]['ansible_host'] }}"
     
     - name: Instances to Terminate - Die Die Die
-      ec2:
+      ec2_instance:
         state: absent
         instance_ids: "{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
         region: "{{ aws_region }}"

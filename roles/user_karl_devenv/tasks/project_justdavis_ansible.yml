@@ -5,6 +5,10 @@
     name: "{{ item }}"
     state: present
   with_items:
+    - build-essential
+    - python3-dev
+    - python3-virtualenv
+    - libpq-dev
     - swaks
   become: true
 
@@ -49,21 +53,20 @@
 #  become_user: karl
 
 # Workaround for: https://github.com/ansible/ansible/issues/31741
-- name: Create Ansible virtualenv and Upgrade setuptools
-  pip:
-    name: setuptools
-    version: 38.1.0
-    virtualenv: "{{ justdavis_ansible_dir }}/venv"
-    virtualenv_python: python3
-  become: true
-  become_user: karl
+#- name: Create Ansible virtualenv and Upgrade setuptools
+#  pip:
+#    name: setuptools
+#    version: 38.1.0
+#    virtualenv: "{{ justdavis_ansible_dir }}/venv"
+#    virtualenv_python: python3
+#  become: true
+#  become_user: karl
 
 - name: Install Requirements Into virtualenv
   pip:
     state: present
     requirements: "{{ justdavis_ansible_dir }}/requirements.txt"
     virtualenv: "{{ justdavis_ansible_dir }}/venv"
-    virtualenv_python: python2.7
   become: true
   become_user: karl
 

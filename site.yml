@@ -39,9 +39,7 @@
     - import_role: name=auth_client
     - import_role: name=file_client
     - import_role: name=user_karl
-    # As of 2022-05-01, no 22.04 repo is available and the Debian "stretch" repo
-    # doesn't have the older version of libssl1.1 that's required.
-    #- import_role: name=tarsnap
+    - import_role: name=tarsnap
 
 - hosts: workstations
   name: Configure Workstations

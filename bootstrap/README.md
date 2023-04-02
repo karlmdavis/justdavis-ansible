@@ -10,7 +10,7 @@ A clean Ubuntu 20.04 install on `brust` can be prepared to run the Ansible plays
 2. Ensure that the `localadmin` user can run `sudo` without having to enter a password:
     
     ```
-    $ echo -e "# Allow localadmin to run sudo without requiring a password.\nlocaladmin ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/localadmin
+    $ echo -e "# Allow localuser to run sudo without requiring a password.\nlocaluser ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/localuser
     ```
     
 3. Install the pre-requisites that you'll need for the Ansible run:

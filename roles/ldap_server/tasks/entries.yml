@@ -58,13 +58,13 @@
 
 # Update email addresses, as needed.
 - name: Update LDAP Email Addresses
-  ldap_attr:
+  ldap_attrs:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
     state: exact
-    name: mail
-    values: "{{ item.value.mail }}"
+    attributes:
+      mail: "{{ item.value.mail }}"
   with_dict: "{{ people }}"
   no_log: true
 

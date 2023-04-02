@@ -92,7 +92,7 @@
         key_name: "{{ aws_ec2_key_name }}"
         # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
         instance_type: t2.micro
-        image_id: "{{ ami_id_ubuntu_20_04 }}"
+        image_id: "{{ ami_id_ubuntu_22_04 }}"
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but

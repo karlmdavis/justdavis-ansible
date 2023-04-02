@@ -84,6 +84,7 @@ ssh_key_karlmdavis:
 ssh_keys_karl_public:
   - "{{ ssh_key_karlmdavis.public }}"
   - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHnAvrHuHiiQqz3WxHn3Ysm1BuF4xlT59lYpyoJIrs+d karl@ipad-pro'
+  - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAO1WZUIFe4AXuVsO4zK+PgkENjd+xYyOPFEOuWrlz4v localuser@brust'
 
 # The account to create and use for test purposes.
 test_username: 'test'

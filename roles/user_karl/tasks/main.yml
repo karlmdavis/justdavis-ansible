@@ -35,11 +35,12 @@
     append: true
   become: true
 
-- name: Authorize SSH Key
+- name: Authorize SSH Keys
   authorized_key:
     user: karl
-    key: "{{ ssh_key_karlmdavis.public }}"
+    key: "{{ item }}"
   become: true
+  loop: "{{ ssh_keys_karl_public }}"
 
 - name: Copy SSH Public Key
   copy: 

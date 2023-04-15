@@ -1,0 +1,9 @@
+[Unit]
+Description=Spam Training
+OnFailure=status-email-root@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/spam-training.sh
+User=root

@@ -263,7 +263,7 @@
     '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which 
     # will cause Dovecot's sieve rules to file it as junk/spam.
-    '$sa_tag2_level_deflt': '5'
+    '$sa_tag2_level_deflt': '1'
     '$sa_spam_subject_tag': "''"
     # Until spam scoring is dialed in, deliver all mail.
     # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
@@ -303,6 +303,41 @@
     path: /etc/default/spamassassin
     regexp: '^CRON='
     line: 'CRON=1'
+  become: true
+
+- name: Create Spam Training Script
+  ansible.builtin.template:
+    src: spam-training.sh.j2
+    dest: /usr/local/bin/spam-training.sh
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Create Spam Training Unit
+  ansible.builtin.copy:
+    src: spam-training.service
+    dest: /etc/systemd/system/spam-training.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create Spam Training Timer
+  ansible.builtin.copy:
+    src: spam-training.timer
+    dest: /etc/systemd/system/spam-training.timer
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Enable and Start Spam Training Timer
+  ansible.builtin.systemd:
+    name: spam-training.timer
+    state: started
+    enabled: true
+    daemon_reload: true
   become: true
 
 - name: Configure Cron to Remove Old Quarantined Viruses

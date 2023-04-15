@@ -1,0 +1,7 @@
+[Unit]
+Description=Run spam-training.service hourly.
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+

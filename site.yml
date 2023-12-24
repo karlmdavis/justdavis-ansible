@@ -25,6 +25,7 @@
     - import_role: name=file_server
     - import_role: name=mail_server
     - import_role: name=postgresql_server
+    - import_role: name=jellyfin
     #- import_role: name=nexus_server
     #- import_role: name=sonarqube_server
     #- import_role: name=jenkins_server

@@ -1,0 +1,75 @@
+---
+##
+# Install Jellyfin per their manual-install-via-APT instructions at
+# <https://jellyfin.org/docs/general/installation/linux/#debuntu-debian-ubuntu-and-derivatives-using-apt>.
+##
+
+- name: Add universe APT Repo
+  ansible.builtin.apt_repository:
+    repo: "deb http://archive.ubuntu.com/ubuntu {{ ansible_facts['distribution_release'] }} universe"
+    state: present
+  become: true
+
+- name: Add Jellyfin APT Key and Repo
+  block:
+    - name: Add Jellyfin APT Signing Key
+      ansible.builtin.get_url:
+        url: 'https://repo.jellyfin.org/jellyfin_team.gpg.key'
+        dest: /etc/apt/keyrings/jellyfin_team.gpg.key
+      become: true
+
+    - name: Add Jellyfin APT Repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ [ansible_architecture] | map('extract', deb_architecture) | first }} signed-by=/etc/apt/keyrings/jellyfin_team.gpg.key] https://repo.jellyfin.org/ubuntu {{ ansible_facts['distribution_release'] }} main"
+        state: present
+      vars:
+        deb_architecture: {
+          "aarch64": "arm64",
+          "x86_64": "amd64"
+        }
+      become: true
+
+- name: Add Jellyfin APT Package
+  ansible.builtin.package:
+    name:
+      - curl
+      - gnupg
+      - jellyfin
+    state: present
+  become: true
+
+- name: "Create Jellyfin Media Directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: jellyfin
+    group: jellyfin
+    mode: u=rwx,g=rwx,o=rx
+  become: yes
+  with_items:
+    - "/var/jellyfin"
+    - "/var/jellyfin/movies"
+    - "/var/jellyfin/music"
+    - "/var/jellyfin/shows"
+    - "/var/jellyfin/books"
+    - "/var/jellyfin/photos"
+    - "/var/jellyfin/music-videos"
+
+- name: Firewall - Create Jellyfin Server Profile
+  copy:
+    src: jellyfin-server.ufw.profile
+    dest: /etc/ufw/applications.d/jellyfin-server.ufw.profile
+    mode: u=rw,g=r,o=r
+  become: true
+  register: ufw_profile_jellyfin_server
+
+- name: Firewall - Load Jellyfin Server Profile
+  command: /usr/sbin/ufw app update jellyfin-server.ufw.profile
+  become: true
+  when: ufw_profile_jellyfin_server
+
+- name: Firewall - Allow Jellyfin Server
+  ufw:
+    rule: allow
+    name: Jellyfin Server
+  become: true

@@ -22,18 +22,13 @@
   failed_when: smbclient_list_result.rc != 0 or domain not in smbclient_list_result.stdout
   changed_when: false
 
-- name: Acquire Kerberos Auth (as test)
-  expect:
-    command: "/usr/bin/kinit {{ test_username }}"
-    responses:
-      "^Password for .*: ": "{{ test_password }}"
-  changed_when: false
-
 # Had to disable this, as it doesn't seem to work any more in either Ubuntu 20.04 or 22.04.
 # Not sure why.
-#- name: Browse Samba User Share
-#  command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --use-kerberos=required --no-pass --directory users/{{ test_username }} --command ls"
-#  register: smbclient_ls_result
-#  failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
-#  changed_when: false
-
+- name: Browse Samba User Share
+  ansible.builtin.expect:
+    command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --user=JUSTDAVIS/{{ test_username }} --directory users/{{ test_username }} --command ls"
+    responses:
+      "Password for .*:": "{{ test_password }}"
+  register: smbclient_ls_result
+  failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
+  changed_when: false

@@ -36,24 +36,6 @@
     # Samba listens on the LAN/VPN-only IP that this resolves to.
     - eddings.karlanderica
 
-- name: Create Service Keytab for Samba Server
-  script: "roles/ldap_server/files/add-keytab.sh --principal cifs/{{ item }}.{{ domain }} --keytab /etc/samba/smbd.keytab"
-  become: true
-  with_items:
-    - eddings
-    - eddings.karlanderica
-
-- name: Secure Samba Server Keytab
-  file:
-    path: /etc/samba/smbd.keytab
-    state: file
-    owner: root
-    group: root
-    mode: 'u=r,g=r,o='
-  become: true
-  notify:
-    - "Restart 'samba'"
-
 - name: Configure smb.conf
   template:
     src: templates/smb.conf.j2
@@ -77,3 +59,45 @@
   command: net groupmap add sid=S-1-5-32-546 unixgroup=nogroup type=builtin
   become: true
   when: command_groupmap_list.stdout == ""
+
+- name: Check for Missing Samba Users
+  ansible.builtin.command: "pdbedit --list {{ item.key }}"
+  no_log: true
+  become: true
+  changed_when: false
+  with_dict: "{{ people }}"
+  register: user_lookups
+  # This utility returns 0 for successful lookups and 255 for failed ones.
+  failed_when: user_lookups.rc not in [0, 255]
+
+- name: Create Missing Samba Users
+  ansible.builtin.expect:
+    command: "smbpasswd -a {{ item.item.key }}"
+    responses:
+      "New SMB password:": "{{ item.item.value.initialPassword }}"
+      "Retype new SMB password:": "{{ item.item.value.initialPassword }}"
+  no_log: true
+  become: true
+  when: item.stdout.find(item.item.key) == -1
+  with_items: "{{ user_lookups.results }}"
+
+- name: Check for Samba Test User
+  ansible.builtin.command: "pdbedit --list {{ test_username }}"
+  no_log: true
+  become: true
+  changed_when: false
+  register: test_user_lookup
+  # This utility seems to always return 255 for some reason.
+  failed_when: test_user_lookup.rc not in [0, 255]
+  tags: test
+
+- name: Create Samba Test User
+  ansible.builtin.expect:
+    command: "smbpasswd -a {{ test_username }}"
+    responses:
+      "New SMB password:": "{{ test_password }}"
+      "Retype new SMB password:": "{{ test_password }}"
+  no_log: true
+  become: true
+  when: test_user_lookup.stdout.find(test_username) == -1
+  tags: test

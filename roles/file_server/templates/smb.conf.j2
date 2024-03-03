@@ -80,19 +80,15 @@
 # 'security' setting.
    server role = auto
 
-# Configure Samba to call out to Kerberos for all authentication. Because we're 
-# not also configuring a passdb, Samba will look to the system accounts for all 
-# authorization info (e.g. UIDs, groups, etc.). This setup was taken from
-# https://help.ubuntu.com/lts/serverguide/samba-ldap.html.
-   security = ads
-   realm = {{ domain | upper }}
-   kerberos method = dedicated keytab
-   dedicated keytab file = /etc/samba/smbd.keytab
-
-   idmap config * : backend = tdb
-   idmap config * : range = 20001-30000
-   idmap config {{ domain | upper }} : backend = rfc2307
-   idmap config {{ domain | upper }} : range = 10000-20000
+# In a perfect world, we'd set `security = ads` here and jigger Samba to use
+# Kerberos for authentication. Unfortunately, though, that no longer seems to
+# work without a full domain server, which we don't need or want. So instead,
+# we configure Samba to use the local user accounts for authorization and
+# `smbpasswd` for authentication. This requires us to store passwords twice:
+# once in Kerberos for everything else and once for Samba, but oh well.
+#
+# Reference: <https://serverfault.com/questions/1150343/sambas-smbd-no-longer-working-with-mit-kerberos-openldap-for-authentication>
+   security = user
 
 
 ########## Domains ###########

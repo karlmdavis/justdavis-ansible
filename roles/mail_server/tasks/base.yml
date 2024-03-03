@@ -263,7 +263,8 @@
     '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which 
     # will cause Dovecot's sieve rules to file it as junk/spam.
-    '$sa_tag2_level_deflt': '1'
+    # (Threshold set higher for tests, where spam filtering isn't yet tuned.)
+    '$sa_tag2_level_deflt': "{{ '5' if is_test else '1' }}"
     '$sa_spam_subject_tag': "''"
     # Until spam scoring is dialed in, deliver all mail.
     # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
@@ -294,6 +295,22 @@
     'spam': |
       @bypass_spam_checks_maps = (
          \%bypass_spam_checks, \@bypass_spam_checks_acl, \$bypass_spam_checks_re);
+  become: true
+  notify:
+    - "Restart 'amavis'"
+
+# This service seems to be trying to acquire customers by returning false
+# negatives unless you're either running your own non-forwarding DNS server or
+# paying them. Bad service, no cookie!
+- name: Disable Bad DNS Filter in SpamAssassin
+  blockinfile:
+    path: /etc/mail/spamassassin/local.cf
+    marker: "# {mark} ANSIBLE-MANAGED BLOCK: Disable DNSWL"
+    block: |
+      score RCVD_IN_DNSWL_NONE 0
+      score RCVD_IN_DNSWL_LOW 0
+      score RCVD_IN_DNSWL_MED 0
+      score RCVD_IN_DNSWL_HI 0
   become: true
   notify:
     - "Restart 'amavis'"

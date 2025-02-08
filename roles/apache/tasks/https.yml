@@ -44,12 +44,12 @@
     certbot_webroot: "/var/apache2/{{ domain }}/www"
     # Tweak the command to only bind to IPv4:
     certbot_create_command: >-
-      {{ certbot_script }} certonly --{{ certbot_create_method  }}
+      {{ certbot_script }} certonly --webroot
       {{ '--hsts' if certbot_hsts else '' }}
       {{ '--test-cert' if certbot_testmode else '' }}
       --noninteractive --agree-tos
       --email {{ cert_item.email | default(certbot_admin_email) }}
-      {{ '--webroot-path ' if certbot_create_method == 'webroot'  else '' }}
+      --webroot-path
       {{ cert_item.webroot | default(certbot_webroot) if certbot_create_method == 'webroot'  else '' }}
       -d {{ cert_item.domains | join(',') }}
       {{ '--deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ansible.sh' if certbot_deployhook is defined else '' }}

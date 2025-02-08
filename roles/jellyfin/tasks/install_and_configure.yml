@@ -38,23 +38,6 @@
     state: present
   become: true
 
-- name: "Create Jellyfin Media Directories"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    owner: jellyfin
-    group: jellyfin
-    mode: u=rwx,g=rwx,o=rx
-  become: yes
-  with_items:
-    - "/var/jellyfin"
-    - "/var/jellyfin/movies"
-    - "/var/jellyfin/music"
-    - "/var/jellyfin/shows"
-    - "/var/jellyfin/books"
-    - "/var/jellyfin/photos"
-    - "/var/jellyfin/music-videos"
-
 - name: Firewall - Create Jellyfin Server Profile
   copy:
     src: jellyfin-server.ufw.profile

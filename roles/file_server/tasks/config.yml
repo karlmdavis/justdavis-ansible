@@ -13,6 +13,13 @@
     - { path: "/var/fileshares/{{ domain }}/groups", owner: 'root', group: 'root', mode: 'u=rwx,g=rwx,o=rxt' }
     - { path: "/var/fileshares/{{ domain }}/groups/karlanderica", owner: 'karl', group: 'karlanderica', mode: 'u=rwxs,g=rwxs,o=t' }
     - { path: "/var/fileshares/{{ domain }}/groups/sysadmin", owner: 'karl', group: 'administrators_posix', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/movies", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/tv-shows", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/music-videos", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/music", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/photos", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/books", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
   become: true
 
 - name: Create User Share Directories

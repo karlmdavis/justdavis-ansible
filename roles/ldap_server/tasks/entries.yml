@@ -81,6 +81,19 @@
         - karl
         - erica
 
+- name: Create 'media_managers' Group in LDAP
+  ldap_entry:
+    bind_dn: 'cn=admin,dc=justdavis,dc=com'
+    bind_pw: "{{ vault_ldap_root_password }}"
+    dn: 'cn=media_managers,ou=groups,dc=justdavis,dc=com'
+    objectClass: 'posixGroup'
+    attributes:
+      cn: 'media_managers'
+      gidNumber: '11001'
+      memberUid:
+        - karl
+        - erica
+
 - name: Create LDAP Service Accounts
   ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'

@@ -4,7 +4,7 @@
 ##
 
 - name: Create 'administrators_ldap' Group in LDAP
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=administrators_ldap,ou=groups,dc=justdavis,dc=com'
@@ -15,7 +15,7 @@
         - 'uid=karl,ou=people,dc=justdavis,dc=com'
 
 - name: Create 'administrators_posix' Group in LDAP
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=administrators_posix,ou=groups,dc=justdavis,dc=com'
@@ -26,11 +26,14 @@
       memberUid:
         - 'karl'
 
-- template:
+- name: Create LDIF - slapd-admins.ldif
+  ansible.builtin.template:
     src: templates/slapd-admins.ldif.j2
     dest: /etc/ldap/slapd-admins.ldif
   become: true
   register: slapd_admins_ldif
-- command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-admins.ldif'
+- name: Apply LDIF - slapd-admins.ldif
+  ansible.builtin.command:
+    cmd: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-admins.ldif'
   become: true
   when: slapd_admins_ldif.changed

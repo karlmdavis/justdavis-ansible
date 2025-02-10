@@ -3,9 +3,10 @@
 # world, this is just sensible.
 #
 # It will use the Let's Encrypt certificate that was generated for the server's
-# primary domain. Accordingly, all LDAP connections will have to use a matching 
+# primary domain. Accordingly, all LDAP connections will have to use a matching
 # URL, e.g. `ldaps://justdavis.com/`.
-- template:
+- name: Configure AppArmor for slapd
+  ansible.builtin.template:
     src: templates/slapd-apparmor.j2
     dest: /etc/apparmor.d/local/usr.sbin.slapd
     owner: root
@@ -14,28 +15,35 @@
   become: true
   register: slapd_apparmor
 # This has to be applied right away, or the SSL config change will fail.
-- service:
+- name: Reload AppArmor
+  ansible.builtin.service:
     name: apparmor
     state: reloaded
   become: true
   when: slapd_apparmor.changed
-# Not sure why, but applying these slapd config attributes via `ldap_attr` 
-# fails. It seems they need to be written in a single transaction?
-- template:
+# Not sure why, but applying these slapd config attributes via `ldap_attr` fails. It seems they need to be
+# written in a single transaction?
+- name: Create LDIF - slapd-ssl.ldif
+  ansible.builtin.template:
     src: templates/slapd-ssl.ldif.j2
     dest: /etc/ldap/slapd-ssl.ldif
   become: true
   register: slapd_ssl_ldif
-# Manually run certbot hook script now that openldap is installed, to fix permissions for the initially-created certs.
+# Manually run certbot hook script now that openldap is installed, to fix permissions for the
+# initially-created certs.
 - name: Manually Run Certbot Hook Script One Time
-  command: /usr/local/bin/certbot_hook_post.sh
+  ansible.builtin.command:
+    cmd: /usr/local/bin/certbot_hook_post.sh
   become: true
-- command: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'
+- name: Apply LDIF - slapd-ssl.ldif
+  ansible.builtin.command:
+    cmd: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'
   become: true
   when: slapd_ssl_ldif.changed
   notify:
     - "Restart 'slapd'"
-- template:
+- name: Configure slapd defaults
+  ansible.builtin.template:
     src: templates/slapd-defaults.j2
     dest: /etc/default/slapd
     owner: root
@@ -44,4 +52,3 @@
   become: true
   notify:
     - "Restart 'slapd'"
-

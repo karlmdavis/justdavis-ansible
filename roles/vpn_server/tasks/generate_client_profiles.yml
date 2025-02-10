@@ -1,7 +1,7 @@
 ---
 
 - name: Create Client Profile Directory
-  file:
+  ansible.builtin.file:
     path: /etc/openvpn/client-profiles
     state: directory
     owner: root
@@ -10,7 +10,7 @@
   become: true
 
 - name: Generate Client Connection Profiles
-  template:
+  ansible.builtin.template:
     src: client.ovpn.j2
     dest: "/etc/openvpn/client-profiles/client-{{ hostvars[item].inventory_hostname }}.ovpn"
     owner: root
@@ -21,7 +21,7 @@
     - all
 
 - name: Read Client Connection Profiles into Variable
-  slurp:
+  ansible.builtin.slurp:
     src: "/etc/openvpn/client-profiles/client-{{ hostvars[item].inventory_hostname }}.ovpn"
   become: true
   with_inventory_hostnames:

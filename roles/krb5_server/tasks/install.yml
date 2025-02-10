@@ -1,20 +1,74 @@
 ---
 
-- block:
-    - debconf: name=krb5-config question='krb5-config/read_conf' value='true' vtype='boolean'
-    - debconf: name=krb5-config question='krb5-config/default_realm' value="{{ domain | upper }}" vtype='string'
-    - debconf: name=krb5-config question='krb5-config/kerberos_servers' value='' vtype='string'
-    - debconf: name=krb5-config question='krb5-config/add_servers_realm' value="{{ domain | upper }}" vtype='string'
-    - debconf: name=krb5-config question='krb5-config/add_servers' value='true' vtype='boolean'
-    - debconf: name=krb5-config question='krb5-config/admin_server' value="{{ domain }}" vtype='string'
-    - debconf: name=krb5-kdc question='krb5-kdc/debconf' value='true' vtype='boolean'
-    - debconf: name=krb5-kdc question='krb5-kdc/purge_data_too' value='false' vtype='boolean'
-    - debconf: name=krb5-admin-server question='krb5-admin-server/kadmind' value='true' vtype='boolean'
-    - debconf: name=krb5-admin-server question='krb5-admin-server/newrealm' value='' vtype='note'
+- name: Configure debconf for Kerberos
   become: true
+  block:
+    - name: Set krb5-config/read_conf
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/read_conf'
+        value: 'true'
+        vtype: 'boolean'
+    - name: Set krb5-config/default_realm
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/default_realm'
+        value: "{{ domain | upper }}"
+        vtype: 'string'
+    - name: Set krb5-config/kerberos_servers
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/kerberos_servers'
+        value: ''
+        vtype: 'string'
+    - name: Set krb5-config/add_servers_realm
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/add_servers_realm'
+        value: "{{ domain | upper }}"
+        vtype: 'string'
+    - name: Set krb5-config/add_servers
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/add_servers'
+        value: 'true'
+        vtype: 'boolean'
+    - name: Set krb5-config/admin_server
+      ansible.builtin.debconf:
+        name: krb5-config
+        question: 'krb5-config/admin_server'
+        value: "{{ domain }}"
+        vtype: 'string'
+    - name: Set krb5-kdc/debconf
+      ansible.builtin.debconf:
+        name: krb5-kdc
+        question: 'krb5-kdc/debconf'
+        value: 'true'
+        vtype: 'boolean'
+    - name: Set krb5-kdc/purge_data_too
+      ansible.builtin.debconf:
+        name: krb5-kdc
+        question: 'krb5-kdc/purge_data_too'
+        value: 'false'
+        vtype: 'boolean'
+    - name: Set krb5-admin-server/kadmind
+      ansible.builtin.debconf:
+        name: krb5-admin-server
+        question: 'krb5-admin-server/kadmind'
+        value: 'true'
+        vtype: 'boolean'
+    - name: Set krb5-admin-server/newrealm
+      ansible.builtin.debconf:
+        name: krb5-admin-server
+        question: 'krb5-admin-server/newrealm'
+        value: ''
+        vtype: 'note'
 
-- name: Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+- name: Install Kerberos Server
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - krb5-kdc
     - krb5-admin-server
@@ -22,21 +76,21 @@
   register: 'install_krb'
 
 - name: Firewall - Kerberos Profile
-  copy:
+  ansible.builtin.copy:
     src: kerberos-server.ufw.profile
     dest: /etc/ufw/applications.d/kerberos-server.ufw.profile
     mode: u=rw,g=r,o=r
-  become: yes
+  become: true
   register: ufw_profile_kerberos_server
 
 - name: Firewall - Kerberos Profile (load)
-  command: /usr/sbin/ufw app update kerber-server.ufw.profile
+  ansible.builtin.command:
+    cmd: /usr/sbin/ufw app update kerber-server.ufw.profile
   become: true
   when: ufw_profile_kerberos_server.changed
 
 - name: Firewall - Allow Kerberos
-  ufw:
+  community.general.ufw:
     rule: allow
     name: Kerberos KDC and Admin
   become: true
-

@@ -8,7 +8,10 @@
 ##
 
 - name: Install LDAP Name Services
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - libnss-ldapd
     - libnss-db
@@ -19,7 +22,7 @@
 
 # TODO Horrible hacky partial workaround for https://github.com/karlmdavis/justdavis-ansible/issues/6
 - name: Get Kerberos Ticket for nss_updatedb (Hacky)
-  expect:
+  ansible.builtin.expect:
     command: "/usr/bin/kinit {{ test_username }}"
     responses:
       "^Password for .*: ": "{{ test_password }}"
@@ -27,12 +30,13 @@
   become: true
   no_log: true
 - name: Populate NSS Cache from LDAP
-  command: /usr/sbin/nss_updatedb ldap
+  ansible.builtin.command:
+    cmd: /usr/sbin/nss_updatedb ldap
   become: true
 
 # FIXME See https://github.com/karlmdavis/justdavis-ansible/issues/6
 - name: Create cron Job to Refresh NSS Cache from LDAP
-  cron:
+  ansible.builtin.cron:
     cron_file: refresh_nss_from_ldap
     name: refresh_nss_from_ldap
     special_time: hourly

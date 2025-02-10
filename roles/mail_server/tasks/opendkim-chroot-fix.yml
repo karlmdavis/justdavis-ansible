@@ -12,14 +12,14 @@
 ##
 
 - name: Add 'postfix' User to 'opendkim' Group
-  user:
+  ansible.builtin.user:
     name: postfix
     groups: opendkim
     append: true
   become: true
 
 - name: Create `/var/run` Directory in Postfix chroot
-  file:
+  ansible.builtin.file:
     state: directory
     path: "{{ item }}"
     owner: root
@@ -31,7 +31,7 @@
   become: true
 
 - name: Create Mount Point for OpenDKIM in Postfix chroot
-  file:
+  ansible.builtin.file:
     state: directory
     path: /var/spool/postfix/var/run/opendkim
     owner: opendkim
@@ -40,18 +40,20 @@
   become: true
 
 - name: Verify dpkg Override for OpenDKIM Mount Point
-  command: dpkg-statoverride --list /var/spool/postfix/var
+  ansible.builtin.command:
+    cmd: dpkg-statoverride --list /var/spool/postfix/var
   register: dpkg_override_postfix_var
   changed_when: false
   failed_when: false
 
 - name: Configure dpkg to Handle OpenDKIM Mount Point Correctly
-  command: dpkg-statoverride --add root root 755 /var/spool/postfix/var
+  ansible.builtin.command:
+    cmd: dpkg-statoverride --add root root 755 /var/spool/postfix/var
   become: true
   when: dpkg_override_postfix_var.rc != 0
 
 - name: Mount OpenDKIM in Postfix chroot
-  mount:
+  ansible.posix.mount:
     name: /var/spool/postfix/var/run/opendkim
     src: /var/run/opendkim
     fstype: bind

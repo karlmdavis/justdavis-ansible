@@ -1,7 +1,7 @@
 ---
 
 - name: Configure DNS Server (when in test)
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/systemd/resolved.conf
     insertafter: '^#DNS=.*'
     regexp: '^DNS=.*'
@@ -11,4 +11,3 @@
     - Restart systemd-resolved
     - Restart systemd-networkd
   when: is_test
-

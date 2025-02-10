@@ -1,14 +1,17 @@
 ---
 
-- import_role:
+- name: Import role - geerlingguy.java
+  ansible.builtin.import_role:
     name: geerlingguy.java
   vars:
     java_packages: ['openjdk-8-jdk']
   become: true
 
-- debug:
+- name: Debug vault service account password
+  ansible.builtin.debug:
     msg: "password={{ vault_service_account_passwords.jenkins }}"
-- import_role:
+- name: Import role - karlmdavis.jenkins2
+  ansible.builtin.import_role:
     name: karlmdavis.jenkins2
   vars:
     jenkins_release_line: 'long_term_support'

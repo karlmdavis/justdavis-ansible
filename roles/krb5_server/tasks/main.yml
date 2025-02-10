@@ -1,8 +1,11 @@
 ---
 
-- import_tasks: install.yml
-- import_tasks: config-realm.yml
-- import_tasks: principals.yml
-- import_tasks: principals-test.yml
+- name: Import tasks - install.yml
+  ansible.builtin.import_tasks: install.yml
+- name: Import tasks - config-realm.yml
+  ansible.builtin.import_tasks: config-realm.yml
+- name: Import tasks - principals.yml
+  ansible.builtin.import_tasks: principals.yml
+- name: Import tasks - principals-test.yml
+  ansible.builtin.import_tasks: principals-test.yml
   tags: test
-

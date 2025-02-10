@@ -5,49 +5,91 @@
 #
 #     $ ansible-playbook site.yml
 
-- hosts: eddings.justdavis.com
-  name: Configure Eddings
+- name: Configure Eddings
+  hosts: eddings.justdavis.com
   become: true
   gather_facts: true
   tasks:
     # Configure networking, except during tests in AWS (because networking there is
     # completely different and incompatible).
-    - import_role: name=eddings_networking
-      when: is_test == false
-    - import_role: name=base
-    - import_role: name=virtual_machines
-    - import_role: name=dns_server
-    - import_role: name=apache
-    - import_role: name=krb5_server
-    - import_role: name=ldap_server
-    - import_role: name=auth_client
-    - import_role: name=vpn_server
-    - import_role: name=file_server
-    - import_role: name=mail_server
-    - import_role: name=postgresql_server
-    - import_role: name=jellyfin
-    #- import_role: name=nexus_server
-    #- import_role: name=sonarqube_server
-    #- import_role: name=jenkins_server
-    #- import_role: name=spideroak
+    - name: Import role - eddings_networking
+      ansible.builtin.import_role:
+        name: eddings_networking
+      when: not is_test
+    - name: Import role - base
+      ansible.builtin.import_role:
+        name: base
+    - name: Import role - virtual_machines
+      ansible.builtin.import_role:
+        name: virtual_machines
+    - name: Import role - dns_server
+      ansible.builtin.import_role:
+        name: dns_server
+    - name: Import role - apache
+      ansible.builtin.import_role:
+        name: apache
+    - name: Import role - krb5_server
+      ansible.builtin.import_role:
+        name: krb5_server
+    - name: Import role - ldap_server
+      ansible.builtin.import_role:
+        name: ldap_server
+    - name: Import role - auth_client
+      ansible.builtin.import_role:
+        name: auth_client
+    - name: Import role - vpn_server
+      ansible.builtin.import_role:
+        name: vpn_server
+    - name: Import role - file_server
+      ansible.builtin.import_role:
+        name: file_server
+    - name: Import role - mail_server
+      ansible.builtin.import_role:
+        name: mail_server
+    - name: Import role - postgresql_server
+      ansible.builtin.import_role:
+        name: postgresql_server
+    - name: Import role - jellyfin
+      ansible.builtin.import_role:
+        name: jellyfin
+    # - import_role: name=nexus_server
+    # - import_role: name=sonarqube_server
+    # - import_role: name=jenkins_server
+    # - import_role: name=spideroak
 
-- hosts: all
-  name: Apply Common Configuration
+- name: Apply Common Configuration
+  hosts: all
   become: true
   gather_facts: true
   tasks:
-    - import_role: name=base
-    - import_role: name=auth_client
-    - import_role: name=file_client
-    - import_role: name=user_karl
-    - import_role: name=tarsnap
+    - name: Import role - base
+      ansible.builtin.import_role:
+        name: base
+    - name: Import role - auth_client
+      ansible.builtin.import_role:
+        name: auth_client
+    - name: Import role - file_client
+      ansible.builtin.import_role:
+        name: file_client
+    - name: Import role - user_karl
+      ansible.builtin.import_role:
+        name: user_karl
+    - name: Import role - tarsnap
+      ansible.builtin.import_role:
+        name: tarsnap
 
-- hosts: workstations
-  name: Configure Workstations
+- name: Configure Workstations
+  hosts: workstations
   become: true
   gather_facts: true
   tasks:
-    - import_role: name=workstation_apps
-    - import_role: name=user_karl_devenv
-    - import_role: name=vpn_client
+    - name: Import role - workstation_apps
+      ansible.builtin.import_role:
+        name: workstation_apps
+    - name: Import role - user_karl_devenv
+      ansible.builtin.import_role:
+        name: user_karl_devenv
+    - name: Import role - vpn_client
+      ansible.builtin.import_role:
+        name: vpn_client
       when: "'Microsoft' not in ansible_kernel"

@@ -10,4 +10,3 @@
     policy: default
   become: true
   no_log: true
-

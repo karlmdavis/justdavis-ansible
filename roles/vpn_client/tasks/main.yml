@@ -1,3 +1,4 @@
 ---
 
-- import_tasks: config.yml
+- name: Import Tasks - config.yml
+  ansible.builtin.import_tasks: config.yml

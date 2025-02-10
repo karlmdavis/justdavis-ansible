@@ -10,7 +10,6 @@
 ##
 
 - name: Install OpenVPN
-  apt:
+  ansible.builtin.apt:
     name: openvpn
   become: true
-

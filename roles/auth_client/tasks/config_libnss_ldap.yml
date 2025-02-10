@@ -9,7 +9,7 @@
 ##
 
 - name: Ensure /etc/ldap.conf Exists
-  copy:
+  ansible.builtin.copy:
     content: ''
     dest: /etc/ldap.conf
     force: false
@@ -19,7 +19,7 @@
   become: true
 
 - name: Configure LDAP Clients
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/ldap.conf
     insertafter: '^#URI'
     regexp: "{{ item.regexp }}"
@@ -31,7 +31,10 @@
   become: true
 
 - name: Install LDAP Name Services
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - libnss-ldap
     - libnss-db
@@ -42,5 +45,6 @@
   become: true
 
 - name: Populate NSS Cache from LDAP
-  command: /usr/sbin/nss_updatedb ldap
+  ansible.builtin.command:
+    cmd: /usr/sbin/nss_updatedb ldap
   become: true

@@ -3,7 +3,7 @@
 # in tests.
 
 - name: Create LDAP Test User Account
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'uid=test,ou=people,dc=justdavis,dc=com'
@@ -22,7 +22,7 @@
       mail: 'test@justdavis.com'
 
 - name: Create LDAP Test User Groups
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=test,ou=groups,dc=justdavis,dc=com'

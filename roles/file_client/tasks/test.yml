@@ -1,9 +1,10 @@
 ---
 
-- meta: flush_handlers
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: Get Kerberos Ticket for Test User
-  expect:
+  ansible.builtin.expect:
     command: "/usr/bin/kinit {{ test_username }}"
     responses:
       "^Password for .*: ": "{{ test_password }}"
@@ -11,20 +12,20 @@
   changed_when: false
   no_log: true
 - name: Get Kerberos Ticket for Test User
-  shell: |
+  ansible.builtin.shell: |
     set timeout 30
-    
+
     # Run the kinit command and send it the password.
     spawn /usr/bin/kinit {{ test_username }}
     expect -re "Password for .*: "
     send "{{ test_password }}\n"
-    
+
     # Wait for the kinit command to exit.
     expect eof
-    
+
     # Catch the kinit command's exit status and save it to the `result` variable.
     catch wait result
-    
+
     # Exit this script with the kinit command's return code.
     exit [lindex $result 3]
   args:
@@ -35,8 +36,8 @@
 
 # Had to disable this, as it doesn't seem to work any more in either Ubuntu 20.04 or 22.04.
 # Not sure why.
-#- name: Browse Samba User Share
-#  command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --use-kerberos=required --no-pass --directory users/{{ test_username }} --command ls"
-#  register: smbclient_ls_result
-#  failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
-#  changed_when: false
+# - name: Browse Samba User Share
+#   command: "/usr/bin/smbclient //eddings.karlanderica.{{ domain }}/{{ domain }} --use-kerberos=required --no-pass --directory users/{{ test_username }} --command ls"
+#   register: smbclient_ls_result
+#   failed_when: smbclient_ls_result.rc != 0 or 'blocks available' not in smbclient_ls_result.stdout
+#   changed_when: false

@@ -1,7 +1,10 @@
 ---
 
 - name: Install Samba Client Packages
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - smbclient
     - cifs-utils
@@ -9,11 +12,11 @@
   become: true
 
 - name: Add Fileshare Mounts for Users
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/fstab
     regexp: "^//eddings.*{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
-    #TODO: need to set options like this: noauto,user,cruid=10000,uid=10000,gid=10000,credentials=/home/karl/.credentials-justdavis.com,x-systemd.automount,x-systemd.idle-timeout=30,x-systemd.mount-timeout=10
+    # TODO: need to set options like this:
+    # noauto,user,cruid=10000,uid=10000,gid=10000,credentials=/home/karl/.credentials-justdavis.com,x-systemd.automount,x-systemd.idle-timeout=30,x-systemd.mount-timeout=10
     line: "//eddings.karlanderica.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
   become: true
   with_dict: "{{ people }}"
-

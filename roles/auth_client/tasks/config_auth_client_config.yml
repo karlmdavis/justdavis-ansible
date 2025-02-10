@@ -1,7 +1,10 @@
 ---
 
 - name: Install Auth Packages
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - krb5-user
     - libpam-krb5
@@ -10,14 +13,14 @@
   become: true
 
 - name: Configure Kerberos Default Realm
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/krb5.conf
     regexp: "^\\s+default_realm = {{ domain | upper }}"
     line: "\tdefault_realm = {{ domain | upper }}"
   become: true
 
 - name: 'Configure LDAP Name Services (pre-install)'
-  debconf:
+  ansible.builtin.debconf:
     name: slapd
     question: "{{ item.question }}"
     value: "{{ item.value }}"
@@ -30,13 +33,15 @@
     - { question: 'nslcd/nsswitch', value: '', vtype: 'multiselect' }
   become: true
 
-- import_tasks: config_libnss_ldapd.yml
+- name: Import tasks - config_libnss_ldapd.yml - when not on WSL
+  ansible.builtin.import_tasks: config_libnss_ldapd.yml
   when: "'Microsoft' not in ansible_kernel"
-- import_tasks: config_libnss_ldap.yml
+- name: Import tasks config_libnss_ldap.yml - when on WSL
+  ansible.builtin.import_tasks: config_libnss_ldap.yml
   when: "'Microsoft' in ansible_kernel"
 
 - name: Create NSS auth-client-config Profile
-  template:
+  ansible.builtin.template:
     src: templates/justdavis_nss.j2
     dest: /etc/auth-client-config/profile.d/justdavis_nss
     owner: root
@@ -46,14 +51,15 @@
   become: true
 
 - name: Apply NSS auth-client-config Profile
-  command: /usr/sbin/auth-client-config -t nss -p justdavis_nss
+  ansible.builtin.command:
+    cmd: /usr/sbin/auth-client-config -t nss -p justdavis_nss
   when: nss_config_result.changed
   notify:
     - "Restart 'nscd'"
   become: true
 
 - name: Configure Local Groups for LDAP Users
-  blockinfile:
+  ansible.builtin.blockinfile:
     dest: /etc/security/group.conf
     content: |
       # Ensure that network-authenticated users are added to the standard user groups
@@ -61,7 +67,7 @@
   become: true
 
 - name: Create pam-auth-update Profile
-  template:
+  ansible.builtin.template:
     src: templates/justdavis_pam_config.j2
     dest: /usr/share/pam-configs/justdavis
     owner: root
@@ -71,6 +77,7 @@
   become: true
 
 - name: Apply pam-auth-update Profile
-  command: /usr/sbin/pam-auth-update --package
+  ansible.builtin.command:
+    cmd: /usr/sbin/pam-auth-update --package
   become: true
   when: pam_config_result.changed

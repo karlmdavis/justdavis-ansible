@@ -1,7 +1,7 @@
 ---
 
 - name: Create the workspaces Directories
-  file:
+  ansible.builtin.file:
     path: "/home/karl/{{ item }}"
     state: directory
     owner: karl

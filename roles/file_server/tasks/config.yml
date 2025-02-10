@@ -1,7 +1,7 @@
 ---
 
 - name: Create File Share Directories
-  file:
+  ansible.builtin.file:
     state: directory
     path: "{{ item.path }}"
     owner: "{{ item.owner }}"
@@ -23,7 +23,7 @@
   become: true
 
 - name: Create User Share Directories
-  file:
+  ansible.builtin.file:
     state: directory
     path: "/var/fileshares/{{ domain }}/users/{{ item.key }}"
     owner: "{{ item.key }}"
@@ -44,7 +44,7 @@
     - eddings.karlanderica
 
 - name: Configure smb.conf
-  template:
+  ansible.builtin.template:
     src: templates/smb.conf.j2
     dest: /etc/samba/smb.conf
     owner: root
@@ -59,16 +59,19 @@
 #
 # Reference: <https://github.com/NixOS/nixpkgs/issues/95796>
 - name: Check Guest Group Mapping
-  command: net groupmap list
+  ansible.builtin.command:
+    cmd: net groupmap list
   register: command_groupmap_list
   changed_when: false
 - name: Map Guest Group
-  command: net groupmap add sid=S-1-5-32-546 unixgroup=nogroup type=builtin
+  ansible.builtin.command:
+    cmd: net groupmap add sid=S-1-5-32-546 unixgroup=nogroup type=builtin
   become: true
   when: command_groupmap_list.stdout == ""
 
 - name: Check for Missing Samba Users
-  ansible.builtin.command: "pdbedit --list {{ item.key }}"
+  ansible.builtin.command:
+    cmd: "pdbedit --list {{ item.key }}"
   no_log: true
   become: true
   changed_when: false
@@ -89,7 +92,8 @@
   with_items: "{{ user_lookups.results }}"
 
 - name: Check for Samba Test User
-  ansible.builtin.command: "pdbedit --list {{ test_username }}"
+  ansible.builtin.command:
+    cmd: "pdbedit --list {{ test_username }}"
   no_log: true
   become: true
   changed_when: false

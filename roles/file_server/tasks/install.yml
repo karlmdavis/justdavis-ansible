@@ -1,7 +1,10 @@
 ---
 
 - name: Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - samba
     # The client is needed in our tests.
@@ -9,8 +12,7 @@
   become: true
 
 - name: Firewall - Allow Samba
-  ufw:
+  community.general.ufw:
     rule: allow
     name: Samba
   become: true
-

@@ -4,12 +4,12 @@
   ansible.builtin.package:
     name: apache2
     state: present
-  become: yes
+  become: true
   with_items:
     - apache2
 
 - name: Firewall - Allow Apache HTTP
-  ansible.builtin.ufw:
+  community.general.ufw:
     rule: allow
     name: Apache
   become: true
@@ -21,7 +21,7 @@
     owner: www-data
     group: www-data
     mode: u=rwx,g=rwx,o=rx
-  become: yes
+  become: true
   with_items:
     - "/var/apache2/{{ domain }}"
     - "/var/apache2/{{ domain }}/logs"
@@ -34,7 +34,7 @@
     owner: root
     group: root
     mode: u=rw,g=r,o=r
-  become: yes
+  become: true
   notify:
     - apache-restart
 
@@ -42,7 +42,7 @@
   community.general.apache2_module:
     state: present
     name: "{{ item }}"
-  become: yes
+  become: true
   with_items:
     - ssl
     - rewrite
@@ -56,7 +56,7 @@
     src: domain.conf
     dest: "/etc/apache2/sites-available/{{ domain }}.conf"
     mode: u=rw,g=rw,o=r
-  become: yes
+  become: true
   notify:
     - apache-reload
 
@@ -64,7 +64,7 @@
   ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}.conf"
   args:
     creates: "/etc/apache2/sites-enabled/{{ domain }}.conf"
-  become: yes
+  become: true
   notify:
     - apache-reload
 
@@ -72,6 +72,6 @@
   ansible.builtin.command: "/usr/sbin/a2dissite 000-default.conf"
   args:
     removes: "/etc/apache2/sites-enabled/000-default.conf"
-  become: yes
+  become: true
   notify:
     - apache-reload

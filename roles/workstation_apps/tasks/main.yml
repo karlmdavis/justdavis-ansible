@@ -1,7 +1,7 @@
 ---
 
 - name: Install Workstation Apps
-  package:
+  ansible.builtin.package:
     name: "{{ item }}"
     state: present
   with_items:

@@ -1,14 +1,18 @@
 ---
 
 - name: Install Sensors Utilities
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - lm-sensors
   register: apt_sensors
   become: true
 
 - name: Detect Sensors
-  command: /usr/sbin/sensors-detect --auto
+  ansible.builtin.command:
+    cmd: /usr/sbin/sensors-detect --auto
   become: true
   when: apt_sensors.changed
 
@@ -17,4 +21,3 @@
 
 # At this point, temperature sensors are available and can be checked by running:
 #     $ sensors
-

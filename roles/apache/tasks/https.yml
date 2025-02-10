@@ -61,7 +61,7 @@
       {% endfor %}
 
 - name: Firewall - Allow Apache HTTPS
-  ansible.builtin.ufw:
+  community.general.ufw:
     rule: allow
     name: Apache Secure
   become: true
@@ -71,7 +71,7 @@
     src: shared-ssl.conf
     dest: "/etc/apache2/conf-available/ssl.conf"
     mode: u=rw,g=rw,o=r
-  become: yes
+  become: true
   notify:
     - apache-reload
 
@@ -79,7 +79,7 @@
   ansible.builtin.command: "/usr/sbin/a2enconf ssl.conf"
   args:
     creates: "/etc/apache2/conf-enabled/ssl.conf"
-  become: yes
+  become: true
   notify:
     - apache-reload
 
@@ -88,7 +88,7 @@
     src: domain-https.conf
     dest: "/etc/apache2/sites-available/{{ domain }}-https.conf"
     mode: u=rw,g=rw,o=r
-  become: yes
+  become: true
   notify:
     - apache-reload
 
@@ -96,6 +96,6 @@
   ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}-https.conf"
   args:
     creates: "/etc/apache2/sites-enabled/{{ domain }}-https.conf"
-  become: yes
+  become: true
   notify:
     - apache-reload

@@ -1,6 +1,7 @@
 ---
 
-- import_role:
+- name: Import role - karlmdavis.bind-dns
+  ansible.builtin.import_role:
     name: karlmdavis.bind-dns
   vars:
     eddings_public_ip: "{{ hostvars['eddings.justdavis.com']['public_ip_address'] }}"
@@ -22,13 +23,13 @@
       - 217.70.177.40
 
 - name: Firewall - Allow DNS Traffic
-  ufw:
+  community.general.ufw:
     rule: allow
     name: Bind9
   become: true
 
 - name: Ensure Stub OpenDKIM Records Exist
-  copy:
+  ansible.builtin.copy:
     content: ''
     dest: "/etc/bind/dkim-{{ item }}.record"
     force: false
@@ -44,5 +45,6 @@
   notify:
     - Restart bind9
 
-- import_tasks: test.yml
+- name: Import tasks - test.yml
+  ansible.builtin.import_tasks: test.yml
   tags: test

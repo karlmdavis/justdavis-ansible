@@ -1,25 +1,28 @@
 ---
 
-- meta: flush_handlers
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: 'Test LDAP Search (sudo)'
-  command: '/usr/bin/ldapsearch -Y EXTERNAL -H ldapi:/// -b dc=justdavis,dc=com'
+  ansible.builtin.command:
+    cmd: '/usr/bin/ldapsearch -Y EXTERNAL -H ldapi:/// -b dc=justdavis,dc=com'
   become: true
   register: ldap_search_sudo_result
   failed_when: ldap_search_sudo_result.rc != 0 or test_user_dn not in ldap_search_sudo_result.stdout
   changed_when: false
 
 - name: 'Test LDAP Search (SSL)'
-  command: "/usr/bin/ldapsearch -H ldaps://{{ domain }} -x -b dc=justdavis,dc=com"
+  ansible.builtin.command:
+    cmd: "/usr/bin/ldapsearch -H ldaps://{{ domain }} -x -b dc=justdavis,dc=com"
   register: ldap_search_ssl_result
   failed_when: ldap_search_ssl_result.rc != 0 or test_user_dn not in ldap_search_ssl_result.stdout
   changed_when: false
 
 - name: 'Test saslauthd'
-  command: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }}"
+  ansible.builtin.command:
+    cmd: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }}"
   become: true
   no_log: true
   register: testsaslauthd_result
   failed_when: testsaslauthd_result.rc != 0 or 'Success' not in testsaslauthd_result.stdout
   changed_when: false
-

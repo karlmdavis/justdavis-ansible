@@ -1,17 +1,17 @@
 ---
 
 - name: Configure Hosts Entry for Eddings
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/hosts
     regexp: "^{{ hostvars['eddings.justdavis.com']['public_ip_address'] }} .*$"
     line: "{{ hostvars['eddings.justdavis.com']['public_ip_address'] }} eddings.{{ domain }}"
   become: true
   # This is only needed in AWS, as it allows us to fake a working reverse DNS entry for eddings.
-  when: is_test == true
+  when: is_test
 
 # This MUST NOT be done in production, but is required for the tests to work.
 - name: Trust Let's Encrypt Staging CA
-  get_url:
+  ansible.builtin.get_url:
     url: 'https://letsencrypt.org/certs/fakelerootx1.pem'
     dest: '/usr/local/share/ca-certificates/fakelerootx1.crt'
     owner: root
@@ -19,15 +19,16 @@
     mode: u=rw,g=r,o=r
   register: download_staging_ca_result
   become: true
-  when: is_test == true
+  when: is_test
 
 - name: Update CA Certificates Index
-  command: /usr/sbin/update-ca-certificates
+  ansible.builtin.command:
+    cmd: /usr/sbin/update-ca-certificates
   when: download_staging_ca_result.changed
   become: true
 
 - name: Configure LDAP Clients
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/ldap/ldap.conf
     insertafter: '^#URI'
     regexp: "{{ item.regexp }}"
@@ -39,15 +40,17 @@
   become: true
 
 # Older Ubuntu releases should use auth-client-config to manage LDAP and Kerberos logins.
-- import_tasks: config_auth_client_config.yml
+- name: Import auth client config for older Ubuntu releases
+  ansible.builtin.import_tasks: config_auth_client_config.yml
   when: ansible_distribution == 'Ubuntu' and ansible_distribution_version in ['16.04', '18.04']
 
 # Newer Ubuntu releases should use SSSD to manage LDAP and Kerberos logins.
-- import_tasks: config_sssd.yml
+- name: Import SSSD config for newer Ubuntu releases
+  ansible.builtin.import_tasks: config_sssd.yml
   when: ansible_distribution == 'Ubuntu' and ansible_distribution_version not in ['16.04', '18.04']
 
 - name: Enable Kerberos/GSSAPI SSH Server Logins
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/ssh/sshd_config
     insertafter: '^#GSSAPIAuthentication '
     regexp: '^GSSAPIAuthentication '
@@ -55,7 +58,7 @@
   become: true
 
 - name: Disable Password-Based SSH Server Logins
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/ssh/sshd_config
     insertafter: '^#PasswordAuthentication '
     regexp: '^PasswordAuthentication '
@@ -63,7 +66,7 @@
   become: true
 
 - name: Enable Kerberos/GSSAPI SSH Client Logins
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/ssh/ssh_config
     block: |
       Host *.{{ domain }}
@@ -73,7 +76,7 @@
   become: true
 
 - name: Grant karl NOPASSWD Access to sudo
-  copy:
+  ansible.builtin.copy:
     dest: /etc/sudoers.d/karl
     content: |
       # Allow the `karl` account sudo access without requiring a password.

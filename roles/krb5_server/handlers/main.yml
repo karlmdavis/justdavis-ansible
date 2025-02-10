@@ -1,7 +1,6 @@
 ---
 - name: "Restart 'krb5-admin-server'"
-  service: 
+  ansible.builtin.service:
     name: krb5-admin-server
     state: restarted
   become: true
-

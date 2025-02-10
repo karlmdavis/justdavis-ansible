@@ -2,14 +2,14 @@
 # Specifies the entries that should be stored in the OpenLDAP directory.
 #
 # Yes, it seems a bit silly to duplicate all of the data in the directory here
-# in YAML. But at our small scale, this actually makes things quite a bit 
+# in YAML. But at our small scale, this actually makes things quite a bit
 # easier to manage.
 #
-# Note: These entries are primarily additive. Any modifications will likely 
+# Note: These entries are primarily additive. Any modifications will likely
 # require additional tasks below to update/delete the existing data.
 
 - name: Create LDAP OUs
-  ldap_entry: 
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "{{ item }}"
@@ -20,10 +20,10 @@
     - 'ou=services,dc=justdavis,dc=com'
 
 # Create `ou=people` entries for each `people` entry (in `../vars/main.yml`).
-# Note that the `ldap_entry` module being used here does not handles updates-- 
+# Note that the `ldap_entry` module being used here does not handles updates,
 # only inserts.
 - name: Create LDAP User Accounts
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
@@ -45,7 +45,7 @@
 
 # Create `ou=groups` entries for each `people` entry (in `../vars/main.yml`).
 - name: Create LDAP User Groups
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "cn={{ item.key }},ou=groups,dc=justdavis,dc=com"
@@ -58,7 +58,7 @@
 
 # Update email addresses, as needed.
 - name: Update LDAP Email Addresses
-  ldap_attrs:
+  community.general.ldap_attrs:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item.key }},ou=people,dc=justdavis,dc=com"
@@ -69,7 +69,7 @@
   no_log: true
 
 - name: Create 'karlanderica' Group in LDAP
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=karlanderica,ou=groups,dc=justdavis,dc=com'
@@ -82,7 +82,7 @@
         - erica
 
 - name: Create 'media_managers' Group in LDAP
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: 'cn=media_managers,ou=groups,dc=justdavis,dc=com'
@@ -95,7 +95,7 @@
         - erica
 
 - name: Create LDAP Service Accounts
-  ldap_entry:
+  community.general.ldap_entry:
     bind_dn: 'cn=admin,dc=justdavis,dc=com'
     bind_pw: "{{ vault_ldap_root_password }}"
     dn: "uid={{ item }},ou=services,dc=justdavis,dc=com"
@@ -103,7 +103,7 @@
     # with (e.g. Sonatype Nexus) require all users accounts to share a common
     # `objectClass`. Would also like to include `organizationalRole`, but it
     # conflicts with `inetOrgPerson`.
-    objectClass: ['simpleSecurityObject','inetOrgPerson']
+    objectClass: ['simpleSecurityObject', 'inetOrgPerson']
     attributes:
       uid: "{{ item }}"
       cn: "{{ item }} Service"
@@ -111,14 +111,14 @@
       userPassword: "{SASL}{{ item }}@{{ domain | upper }}"
   with_items: "{{ service_accounts }}"
 
-#- name: Create 'nexus_devs' Group in LDAP
-#  ldap_entry:
-#    bind_dn: 'cn=admin,dc=justdavis,dc=com'
-#    bind_pw: "{{ vault_ldap_root_password }}"
-#    dn: 'cn=nexus_devs,ou=groups,dc=justdavis,dc=com'
-#    objectClass: 'groupOfNames'
-#    attributes:
-#      cn: 'nexus_devs'
-#      member:
-#        - 'uid=jenkins,ou=services,dc=justdavis,dc=com'
-#        - 'uid=karl,ou=people,dc=justdavis,dc=com'
+# - name: Create 'nexus_devs' Group in LDAP
+#   ldap_entry:
+#     bind_dn: 'cn=admin,dc=justdavis,dc=com'
+#     bind_pw: "{{ vault_ldap_root_password }}"
+#     dn: 'cn=nexus_devs,ou=groups,dc=justdavis,dc=com'
+#     objectClass: 'groupOfNames'
+#     attributes:
+#       cn: 'nexus_devs'
+#       member:
+#         - 'uid=jenkins,ou=services,dc=justdavis,dc=com'
+#         - 'uid=karl,ou=people,dc=justdavis,dc=com'

@@ -1,7 +1,7 @@
 ---
 
 - name: Configure Jenkins Security
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -10,7 +10,7 @@
   changed_when: "(jenkins_script_security | success) and 'Changed' in jenkins_script_security.output"
 
 - name: Configure Jenkins Email
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -19,7 +19,7 @@
   changed_when: "(jenkins_script_email | success) and 'Changed' in jenkins_script_email.output"
 
 - name: Configure Java JDKs as Tools
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -28,7 +28,7 @@
   changed_when: "(jenkins_script_jdks_tool | success) and 'Changed' in jenkins_script_jdks_tool.output"
 
 - name: Configure Maven as Tool
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -37,7 +37,7 @@
   changed_when: "(jenkins_script_maven_tool | success) and 'Changed' in jenkins_script_maven_tool.output"
 
 - name: Configure File Provider Plugin
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -46,25 +46,25 @@
   changed_when: "(jenkins_script_file_provider | success) and 'Changed' in jenkins_script_file_provider.output"
 
 - name: Maven - .m2
-  file:
+  ansible.builtin.file:
     path: /var/lib/jenkins/.m2
     state: directory
     owner: jenkins
     group: jenkins
-    mode: 0755
+    mode: '0755'
   become: true
 
 - name: Maven - Toolchains
-  copy:
+  ansible.builtin.copy:
     src: maven_toolchains.xml
     dest: /var/lib/jenkins/.m2/toolchains.xml
     owner: jenkins
     group: jenkins
-    mode: 0644
+    mode: '0644'
   become: true
 
 - name: Configure GitHub Plugin
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -73,7 +73,7 @@
   changed_when: "(jenkins_script_github | success) and 'Changed' in jenkins_script_github.output"
 
 - name: Configure SonarQube Plugin
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"
@@ -82,7 +82,7 @@
   changed_when: "(jenkins_script_sonar | success) and 'Changed' in jenkins_script_sonar.output"
 
 - name: Jenkins GPG Key - Copy
-  copy:
+  ansible.builtin.copy:
     dest: "/var/lib/jenkins/{{ item.dest_name }}"
     content: "{{ item.content }}"
     owner: jenkins
@@ -98,7 +98,8 @@
       content: "{{ vault_gpg_justdavis_build_key_private }}"
 
 - name: Jenkins GPG Key - Import
-  command: gpg --import "/var/lib/jenkins/{{ item }}"
+  ansible.builtin.command:
+    cmd: gpg --import "/var/lib/jenkins/{{ item }}"
   when: copy_gpg_build_key.changed
   become: true
   become_user: jenkins

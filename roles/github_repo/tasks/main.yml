@@ -19,13 +19,13 @@
 ##
 
 - name: Check for Repo
-  stat:
+  ansible.builtin.stat:
     path: "{{ path }}"
   register: gh_repo_stat
   become: true
 
 - name: Clone Repo Over HTTPS
-  git:
+  ansible.builtin.git:
     repo: "https://github.com/{{ repo }}"
     dest: "{{ path }}"
     update: false
@@ -34,8 +34,8 @@
   when: not gh_repo_stat.stat.exists
 
 - name: Set Repo Remote URL
-  command: "git remote set-url origin git@github.com:{{ repo }}.git"
-  args:
+  ansible.builtin.command:
+    cmd: "git remote set-url origin git@github.com:{{ repo }}.git"
     chdir: "{{ path }}"
   become: true
   when: not gh_repo_stat.stat.exists

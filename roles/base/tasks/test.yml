@@ -1,10 +1,11 @@
 ---
 
-- meta: flush_handlers
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: Verify FQDN
-  command: /bin/hostname --fqdn
+  ansible.builtin.command:
+    cmd: /bin/hostname --fqdn
   register: fqdn_result
   failed_when: (inventory_hostname_short + '.' + domain) != fqdn_result.stdout
   changed_when: false
-

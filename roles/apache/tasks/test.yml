@@ -2,7 +2,7 @@
 
 # This MUST NOT be done in production, but is required for the tests to work.
 - name: Trust Let's Encrypt Staging CA
-  get_url:
+  ansible.builtin.get_url:
     url: 'https://letsencrypt.org/certs/fakelerootx1.pem'
     dest: '/usr/local/share/ca-certificates/fakelerootx1.crt'
     owner: root
@@ -10,10 +10,10 @@
     mode: u=rw,g=r,o=r
   register: download_staging_ca_result
   become: true
-  when: is_test == true
+  when: is_test
 
 - name: Update CA Certificates Index
-  command: /usr/sbin/update-ca-certificates
+  ansible.builtin.command:
+    cmd: /usr/sbin/update-ca-certificates
   when: download_staging_ca_result.changed
   become: true
-

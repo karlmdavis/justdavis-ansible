@@ -2,7 +2,8 @@
 
 # Creates the default realm, if it's not already present.
 
-- expect:
+- name: Create the new realm
+  ansible.builtin.expect:
     command: /usr/sbin/krb5_newrealm
     responses:
       'Enter KDC database master key:': "{{ vault_kerberos_master_key }}"
@@ -11,14 +12,22 @@
   become: true
   no_log: true
 
-- block:
-    - command: kadmin.local -q "add_policy -minlength 12 -minclasses 3 default"
-    - command: kadmin.local -q "add_policy -minlength 32 -minclasses 3 hosts"
-    - command: kadmin.local -q "add_policy -minlength 32 -minclasses 3 services"
+- name: Add Kerberos policies
   when: install_krb.changed
   become: true
+  block:
+    - name: Add default Kerberos policy
+      ansible.builtin.command:
+        cmd: kadmin.local -q "add_policy -minlength 12 -minclasses 3 default"
+    - name: Add hosts Kerberos policy
+      ansible.builtin.command:
+        cmd: kadmin.local -q "add_policy -minlength 32 -minclasses 3 hosts"
+    - name: Add services Kerberos policy
+      ansible.builtin.command:
+        cmd: kadmin.local -q "add_policy -minlength 32 -minclasses 3 services"
 
-- template:
+- name: Deploy kadm5.acl template
+  ansible.builtin.template:
     src: templates/kadm5.acl.j2
     dest: /etc/krb5kdc/kadm5.acl
     owner: root
@@ -27,4 +36,3 @@
   become: true
   notify:
     - "Restart 'krb5-admin-server'"
-

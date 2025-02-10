@@ -1,19 +1,24 @@
 ---
 
-- meta: flush_handlers
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: Install Test Utilities
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - swaks
   become: true
 
-# Apparently, curl can also handle some basic IMAP browsing -- who knew? It's 
-# used a bunch here to verify that mail is being processed correctly. See this 
+# Apparently, curl can also handle some basic IMAP browsing -- who knew? It's
+# used a bunch here to verify that mail is being processed correctly. See this
 # site for details:
 # <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
 
-- set_fact:
+- name: Set curl_imap fact
+  ansible.builtin.set_fact:
     curl_imap:
       retries: 60
       delay: 1
@@ -22,43 +27,56 @@
 # Many of the tests below fail until they've been restarted, and also possibly `postfix@-.service`.
 
 - name: Check Mail via IMAP (SSL)
-  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose"
+  ansible.builtin.command:
+    cmd: "/usr/bin/curl --url imaps://{{ domain }} --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose"
   changed_when: false
 
-- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Set message_key fact
+  ansible.builtin.set_fact:
+    message_key: "{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Unauthenticated and In-Network)
-  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network - {{ message_key }}' --body 'This is a test message to verify that things are working. Have a lovely day!'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network - {{ message_key }}' --body 'This is a test message to verify that things are working. Have a lovely day!'"
   changed_when: false
 - name: Verify that Mail was Received
-  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
   retries: "{{ curl_imap.retries }}"
   delay: "{{ curl_imap.delay }}"
 
-- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Set message_key fact
+  ansible.builtin.set_fact:
+    message_key: "{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Authenticated and Out-of-Network)
-  command: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
   delegate_to: localhost
   become: false
   changed_when: false
 - name: Verify that Mail was Received
-  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
   retries: "{{ curl_imap.retries }}"
   delay: "{{ curl_imap.delay }}"
 
-- set_fact: message_key="{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
+- name: Set message_key fact
+  ansible.builtin.set_fact:
+    message_key: "{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (To Alias, Authenticated, and Out-of-Network)
-  command: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
   delegate_to: localhost
   become: false
   changed_when: false
 - name: Verify that Mail was Received
-  command: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/curl --url imaps://{{ domain }}/Inbox --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'search SUBJECT \"{{ message_key }}\"'"
   changed_when: false
   register: curl_mail_inbox
   until: curl_mail_inbox.rc == 0 and (curl_mail_inbox.stdout | regex_search('.*\* SEARCH \d+.*')) is not none
@@ -68,17 +86,20 @@
 # Try to send a message with the EICAR virus filter test pattern, verify it's quarantined.
 # Reference: http://www.eicar.org/86-0-Intended-use.html
 - name: Write Virus Test Pattern
-  copy:
+  ansible.builtin.copy:
     dest: /tmp/eicar
     content: 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
 
 - name: Send Mail (Unauthenticated, In-Network, and with Virus Pattern)
-  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --attach /tmp/eicar"
+  ansible.builtin.command:
+    cmd: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --attach /tmp/eicar"
   changed_when: false
 
-# Debug Note: This will sometimes fail, when freshclam doesn't complete quickly enough. Once freshclam _has_ run successfully, a `sudo systemctl restart clamav-daemon.service` should fix things. See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=775112 for a similar problem.
+# Debug Note: This will sometimes fail, when freshclam doesn't complete quickly enough. Once freshclam _has_
+# run successfully, a `sudo systemctl restart clamav-daemon.service` should fix things. See
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=775112 for a similar problem.
 - name: Verify that Virus was Quarantined
-  shell: "/usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
+  ansible.builtin.shell: "set -o pipefail && /usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
   become: true
   changed_when: false
   register: shell_find_virus_count
@@ -89,11 +110,13 @@
 # Per <https://easyengine.io/tutorials/mail/server/testing/spam/>, the GTUBE
 # pattern should always be flagged as spam.
 - name: Send Mail (Unauthenticated, In-Network, and with Spam Pattern)
-  command: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --body 'GTUBE: XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/swaks --server localhost:25 --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Unauthenticated and In-Network' --body 'GTUBE: XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'"
   changed_when: false
 
 - name: Verify that Spam was Filtered
-  command: "/usr/bin/curl --url imaps://{{ domain }} --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'EXAMINE Junk'"
+  ansible.builtin.command:
+    cmd: "/usr/bin/curl --url imaps://{{ domain }} --cacert /etc/letsencrypt/live/{{ domain }}/fullchain.pem --user {{ test_username }}:{{ test_password }} --verbose --request 'EXAMINE Junk'"
   changed_when: false
   register: curl_mail_junk
   until: curl_mail_junk.rc == 0 and '* 0 EXISTS' not in curl_mail_junk.stdout

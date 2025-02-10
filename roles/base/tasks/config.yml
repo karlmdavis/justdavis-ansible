@@ -1,26 +1,29 @@
 ---
 
 - name: Install SSH Security Modules
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - fail2ban
   become: true
 
 - name: Firewall - Allow SSH incoming traffic
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenSSH
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Firewall - Enable
-  ufw:
+  community.general.ufw:
     state: enabled
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure Timezone
-  template:
+  ansible.builtin.template:
     src: templates/timezone.j2
     dest: /etc/timezone
     owner: root
@@ -31,26 +34,30 @@
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Apply Timezone Change
-  command: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
+  ansible.builtin.command:
+    cmd: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
   become: true
   when: "timezone_file.changed and 'Microsoft' not in ansible_kernel"
 
 - name: Install 'ntp' and Other Base Packages
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - ntp
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure 'hosts'
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/hosts
     regexp: '^127.0.1.1'
     line: "127.0.1.1 {{ inventory_hostname_short }}.{{ domain }} {{ inventory_hostname_short }}"
   become: true
 
 - name: Configure 'hostname' (permanent)
-  copy:
+  ansible.builtin.copy:
     dest: /etc/hostname
     content: "{{ inventory_hostname_short }}"
   register: hostname_file
@@ -58,18 +65,22 @@
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure 'hostname' (transient)
-  command: "/usr/bin/hostnamectl set-hostname {{ inventory_hostname_short }}"
+  ansible.builtin.command:
+    cmd: "/usr/bin/hostnamectl set-hostname {{ inventory_hostname_short }}"
   become: true
   when: "hostname_file.changed and 'Microsoft' not in ansible_kernel"
 
 - name: Auto Upgrade - Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - unattended-upgrades
   become: true
 
 - name: Auto Upgrade - Configure
-  template:
+  ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "/etc/apt/apt.conf.d/{{ item.dest }}"
     owner: root
@@ -81,7 +92,10 @@
   become: true
 
 - name: Install Expect Utility
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     # These two packages are used by several other server & client roles.
     # Note: The Ansible expect module can't be used on all clients, due to https://github.com/ansible/ansible/issues/23851.
@@ -91,7 +105,7 @@
 
 # Ansible's `become_user` feature requires the `setfacl` command.
 - name: Install ACL Utilities
-  package:
+  ansible.builtin.package:
     name: acl
     state: present
   become: true
@@ -100,7 +114,7 @@
     - ansible_distribution_version == '14.04'
 
 - name: Install Standard Tools
-  package:
+  ansible.builtin.package:
     name: "{{ item }}"
     state: present
   with_items:
@@ -110,7 +124,7 @@
   become: true
 
 - name: Add GitHub to the Global ssh_known_hosts
-  known_hosts:
+  ansible.builtin.known_hosts:
     path: /etc/ssh/ssh_known_hosts
     name: github.com
     key: "{{ ssh_known_host_github }}"
@@ -118,7 +132,7 @@
 
 # Bizarrely, this is required prior to Ubuntu 17.02, per <https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/1618188>.
 - name: Create systemd-journal Storage Directory
-  file:
+  ansible.builtin.file:
     path: /var/log/journal
     state: directory
     owner: root
@@ -129,11 +143,13 @@
   register: mkdir_var_log_journal
 
 - name: Configure systemd-journal Storage Directory
-  command: /bin/systemd-tmpfiles --create --prefix /var/log/journal
+  ansible.builtin.command:
+    cmd: /bin/systemd-tmpfiles --create --prefix /var/log/journal
   become: true
   when: mkdir_var_log_journal.changed
 
 - name: Apply systemd-journal Storage Configuration
-  command: /usr/bin/killall -USR1 systemd-journald
+  ansible.builtin.command:
+    cmd: /usr/bin/killall -USR1 systemd-journald
   become: true
   when: mkdir_var_log_journal.changed

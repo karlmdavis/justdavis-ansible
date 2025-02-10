@@ -1,17 +1,17 @@
 ---
 
 - name: Restart bind9
-  service:
+  ansible.builtin.service:
     name: bind9
     state: restarted
   become: true
 - name: Restart systemd-resolved
-  service:
+  ansible.builtin.service:
     name: systemd-resolved
     state: restarted
   become: true
 - name: Restart systemd-networkd
-  service:
+  ansible.builtin.service:
     name: systemd-networkd
     state: restarted
   become: true

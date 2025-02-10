@@ -1,16 +1,16 @@
 ---
 
 - name: Install Shared Development Tools
-  package:
+  ansible.builtin.package:
     name: "{{ item }}"
     state: present
   with_items:
-    - [openjdk-8-jdk,openjdk-8-source]
+    - [openjdk-8-jdk, openjdk-8-source]
     - sqlite3
   become: true
 
 - name: Create Git Config
-  template:
+  ansible.builtin.template:
     src: gitconfig.j2
     dest: /home/karl/.gitconfig
     owner: karl
@@ -19,7 +19,7 @@
   become: true
 
 - name: Create AWS Config Directory
-  file:
+  ansible.builtin.file:
     path: /home/karl/.aws
     state: directory
     owner: karl
@@ -28,7 +28,7 @@
   become: true
 
 - name: Create AWS Config
-  template:
+  ansible.builtin.template:
     src: aws_config.j2
     dest: /home/karl/.aws/config
     owner: karl
@@ -37,7 +37,7 @@
   become: true
 
 - name: Create AWS Credentials
-  template:
+  ansible.builtin.template:
     src: aws_credentials.j2
     dest: /home/karl/.aws/credentials
     owner: karl

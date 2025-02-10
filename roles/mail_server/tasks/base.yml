@@ -3,12 +3,13 @@
 ##
 # Installs and configures a mail server. Postfix will be used for the MTA.
 #
-# Will enable and configure Postfix spam and virus filtering. Amavis will be 
-# used to coordinate all of that and will be configured to use several tools, 
+# Will enable and configure Postfix spam and virus filtering. Amavis will be
+# used to coordinate all of that and will be configured to use several tools,
 # such as SpamAssassin and ClamAV, to do the heavy lifting.
 ##
 
-- debconf:
+- name: Configure Postfix with debconf
+  ansible.builtin.debconf:
     name: "{{ item.question.split('/')[0] }}"
     question: "{{ item.question }}"
     value: "{{ item.value }}"
@@ -25,8 +26,11 @@
     - { question: 'postfix/mailbox_limit', vtype: 'string', value: 'string' }
     - { question: 'postfix/protocols', vtype: 'select', value: 'all' }
 
-- name: Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+- name: Install Mail Server Packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - postfix
     - dovecot-imapd
@@ -52,13 +56,13 @@
   become: true
 
 - name: Retrieve ClamAV Definitions
-  service:
+  ansible.builtin.service:
     name: clamav-freshclam
     state: started
   become: true
 
 - name: Firewall - Allow Mail Traffic
-  ufw:
+  community.general.ufw:
     rule: allow
     name: "{{ item }}"
   with_items:
@@ -69,7 +73,7 @@
   become: true
 
 - name: Create 'vmail' User and Group
-  user:
+  ansible.builtin.user:
     name: vmail
     createhome: false
     shell: /bin/false
@@ -77,24 +81,26 @@
   become: true
 
 - name: Add 'postfix' User to 'vmail' Group
-  user:
+  ansible.builtin.user:
     name: postfix
     groups: vmail
     append: true
   become: true
 
 - name: Lookup 'vmail' UID
-  command: id --user vmail
+  ansible.builtin.command:
+    cmd: id --user vmail
   register: uid_vmail
   changed_when: false
 
 - name: Lookup 'vmail' GID
-  command: id --group vmail
+  ansible.builtin.command:
+    cmd: id --group vmail
   register: gid_vmail
   changed_when: false
 
 - name: Create Mail Directory
-  file:
+  ansible.builtin.file:
     path: /var/vmail
     state: directory
     owner: vmail
@@ -103,7 +109,7 @@
   become: true
 
 - name: Add 'clamav' User to 'amavis' Group
-  user:
+  ansible.builtin.user:
     name: clamav
     groups: amavis
     append: true
@@ -112,35 +118,35 @@
     - "Restart 'clamav-daemon'"
 
 - name: Add 'amavis' User to 'clamav' Group
-  user:
+  ansible.builtin.user:
     name: amavis
     groups: clamav
     append: true
   become: true
 
 - name: Create Razor Config
-  command: /usr/bin/razor-admin -create
-  args:
+  ansible.builtin.command:
+    cmd: /usr/bin/razor-admin -create
     creates: /var/lib/amavis/.razor/servers.discovery.lst
   become: true
   become_user: amavis
 
 - name: Register Razor Account
-  command: /usr/bin/razor-admin -register
-  args:
+  ansible.builtin.command:
+    cmd: /usr/bin/razor-admin -register
     creates: /var/lib/amavis/.razor/identity
   become: true
   become_user: amavis
 
 - name: Discover Pyzor Servers
-  command: /usr/bin/pyzor discover
-  args:
+  ansible.builtin.command:
+    cmd: /usr/bin/pyzor discover
     creates: /var/lib/amavis/.pyzor/servers
   become: true
   become_user: amavis
 
 - name: Configure Postfix main.cf
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/postfix/main.cf
     regexp: "^{{ item.key }} *=.*"
     line: "{{ item.key }} = {{ item.value }}"
@@ -203,19 +209,19 @@
     - "Restart 'postfix'"
 
 - name: Configure Postfix Virtual Aliases
-  copy:
+  ansible.builtin.copy:
     dest: /etc/postfix/virtual_alias_maps
     owner: root
     group: root
     mode: u=rw,g=r,o=r
-    # Each entry here defines an email address that will be accepted, and then 
-    # the `virtual_mailbox_base` subdirectory that mail for that address will 
-    # be delivered to. Each subdirectory's trailing `/` indicates that the 
-    # Maildir format should be used and MUST be present, else mail will be 
+    # Each entry here defines an email address that will be accepted, and then
+    # the `virtual_mailbox_base` subdirectory that mail for that address will
+    # be delivered to. Each subdirectory's trailing `/` indicates that the
+    # Maildir format should be used and MUST be present, else mail will be
     # delivered to an mbox file (which we don't want).
-    # I've organized it as follows: 1) canonical addresses, 2) system user 
+    # I've organized it as follows: 1) canonical addresses, 2) system user
     # aliases, 3) other aliases.
-    # Each of the targets must correspond to a single account in LDAP, as 
+    # Each of the targets must correspond to a single account in LDAP, as
     # our Dovecot config only supports a 1:1 relationship between logins and
     # Maildirs.
     content: |
@@ -238,7 +244,7 @@
     - "Run 'postmap' on 'virtual_alias_maps'"
 
 - name: Configure SASL for Postfix
-  copy:
+  ansible.builtin.copy:
     dest: /etc/postfix/sasl/smtpd.conf
     owner: root
     group: root
@@ -250,7 +256,7 @@
     - "Restart 'postfix'"
 
 - name: Configure Amavis
-  lineinfile:
+  ansible.builtin.lineinfile:
     name: /etc/amavis/conf.d/50-user
     insertbefore: '^1;.*'
     # Note: Have to hackily handle the regex control chars in the keys here.
@@ -261,14 +267,14 @@
     '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_doh }}\", \".{{ domain_mrc }}\", \".{{ domain_mrd }}\" )"
     # Always tag mail with spam score headers.
     '$sa_tag_level_deflt': '-9999'
-    # Anything above this score will get an `X-Spam-Flag: YES` header, which 
+    # Anything above this score will get an `X-Spam-Flag: YES` header, which
     # will cause Dovecot's sieve rules to file it as junk/spam.
     # (Threshold set higher for tests, where spam filtering isn't yet tuned.)
     '$sa_tag2_level_deflt': "{{ '5' if is_test else '1' }}"
     '$sa_spam_subject_tag': "''"
     # Until spam scoring is dialed in, deliver all mail.
     # Note: The Debian default for `$sa_tag2_level_deflt` and `$sa_kill_level_deflt` is 6.31.
-    # Note: It only makes sense to maintain the relationship: sa_tag_level <= sa_tag2_level <= sa_kill_level < sa_dsn_cutoff <= sa_quarantine_cutoff_level 
+    # Note: It only makes sense to maintain the relationship: sa_tag_level <= sa_tag2_level <= sa_kill_level < sa_dsn_cutoff <= sa_quarantine_cutoff_level
     '$sa_kill_level_deflt': '9999'
     '$sa_dsn_cutoff_level': '9999'
     '$sa_quarantine_cutoff_level': '9999'
@@ -283,7 +289,7 @@
     - "Restart 'amavis'"
 
 - name: Enable Spam and Virus Filtering in Amavis
-  blockinfile:
+  ansible.builtin.blockinfile:
     name: /etc/amavis/conf.d/15-content_filter_mode
     insertbefore: '^1;.*'
     marker: "# {mark} ANSIBLE-MANAGED BLOCK: {{ item.key }}"
@@ -303,7 +309,7 @@
 # negatives unless you're either running your own non-forwarding DNS server or
 # paying them. Bad service, no cookie!
 - name: Disable Bad DNS Filter in SpamAssassin
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/mail/spamassassin/local.cf
     marker: "# {mark} ANSIBLE-MANAGED BLOCK: Disable DNSWL"
     block: |
@@ -316,7 +322,7 @@
     - "Restart 'amavis'"
 
 - name: Enable SpamAssassin Updates
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/default/spamassassin
     regexp: '^CRON='
     line: 'CRON=1'
@@ -358,19 +364,19 @@
   become: true
 
 - name: Configure Cron to Remove Old Quarantined Viruses
-  cron:
+  ansible.builtin.cron:
     name: Remove Old Quarantined Viruses
     special_time: daily
     job: /usr/bin/find /var/lib/amavis/virusmails/ -name "virus-*" -mtime +365 -exec rm {} ; &>> /var/log/quarantine_cleanup.log
   become: true
 
-# At some point, we'll need to examine how to train/retrain the SpamAssassin 
+# At some point, we'll need to examine how to train/retrain the SpamAssassin
 # filter being used by Amavis. When that need arises, this is so far the best
-# reference I've found: 
+# reference I've found:
 # <https://finninday.net/wiki/index.php/Amavis_and_Spamassassin_howto>.
 
 - name: Configure Postfix Services for Amavis
-  template:
+  ansible.builtin.template:
     src: postfix/master.cf.j2
     dest: /etc/postfix/master.cf
     owner: root
@@ -389,7 +395,7 @@
 # * https://gist.github.com/MartinEnders/c3bbbc6ce5145658451d
 # * https://wiki2.dovecot.org/HowTo/PostfixDovecotLMTP#preview
 - name: Configure Dovecot
-  template:
+  ansible.builtin.template:
     src: "dovecot/{{ item.name }}.j2"
     dest: "/etc/dovecot/{{ item.path }}{{ item.name }}"
     owner: root
@@ -412,7 +418,7 @@
     - "Restart 'dovecot'"
 
 - name: Create Dovecot Global Sieve Rules Directory
-  file:
+  ansible.builtin.file:
     path: /var/lib/dovecot/sieve.d
     state: directory
     owner: root
@@ -421,7 +427,7 @@
   become: true
 
 - name: Configure Dovecot Global Sieve Rules
-  template:
+  ansible.builtin.template:
     src: "dovecot/{{ item }}.j2"
     dest: "/var/lib/dovecot/sieve.d/{{ item }}"
     owner: root
@@ -435,7 +441,7 @@
     - 'Compile Dovecot Global Sieve Rules'
 
 - name: Configure OpenDKIM
-  template:
+  ansible.builtin.template:
     src: opendkim/opendkim.conf.j2
     dest: /etc/opendkim.conf
     owner: root
@@ -444,8 +450,8 @@
   become: true
 
 - name: Create OpenDKIM Keys
-  command: /usr/sbin/opendkim-genkey --domain={{ item }} --selector=a --directory=/etc/dkimkeys
-  args:
+  ansible.builtin.command:
+    cmd: /usr/sbin/opendkim-genkey --domain={{ item }} --selector=a --directory=/etc/dkimkeys
     creates: /etc/dkimkeys/a.private
   become: true
   become_user: opendkim

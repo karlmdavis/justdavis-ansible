@@ -1,14 +1,13 @@
 ---
 
 - name: "Restart 'slapd'"
-  service:
+  ansible.builtin.service:
     name: slapd
     state: restarted
   become: true
 
 - name: "Restart 'saslauthd'"
-  service:
+  ansible.builtin.service:
     name: saslauthd
     state: restarted
   become: true
-

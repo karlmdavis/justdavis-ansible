@@ -4,4 +4,5 @@
 # Note: KVM is not supported on AWS, so there are no automated tests for this.
 ##
 
-- import_tasks: install.yml
+- name: Import Tasks - install.yml
+  ansible.builtin.import_tasks: install.yml

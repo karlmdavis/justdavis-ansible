@@ -1,18 +1,46 @@
 ---
 
-- debconf: name=slapd question='slapd/domain' value='justdavis.com' vtype='string'
+- name: Set slapd domain
+  ansible.builtin.debconf:
+    name: slapd
+    question: 'slapd/domain'
+    value: 'justdavis.com'
+    vtype: 'string'
   become: true
-- debconf: name=slapd question='shared/organization' value='Davis Family' vtype='string'
+- name: Set shared organization
+  ansible.builtin.debconf:
+    name: slapd
+    question: 'shared/organization'
+    value: 'Davis Family'
+    vtype: 'string'
   become: true
-- debconf: name=slapd question='slapd/backend' value='HDB' vtype='string'
+- name: Set slapd backend
+  ansible.builtin.debconf:
+    name: slapd
+    question: 'slapd/backend'
+    value: 'HDB'
+    vtype: 'string'
   become: true
-- debconf: name=slapd question='slapd/password1' value="{{ vault_ldap_root_password }}" vtype='password'
+- name: Set slapd password1
+  ansible.builtin.debconf:
+    name: slapd
+    question: 'slapd/password1'
+    value: "{{ vault_ldap_root_password }}"
+    vtype: 'password'
   become: true
-- debconf: name=slapd question='slapd/password2' value="{{ vault_ldap_root_password }}" vtype='password'
+- name: Set slapd password2
+  ansible.builtin.debconf:
+    name: slapd
+    question: 'slapd/password2'
+    value: "{{ vault_ldap_root_password }}"
+    vtype: 'password'
   become: true
 
-- name: Install
-  apt: name={{ item }} update_cache=true cache_valid_time="{{ 60 * 15 }}"
+- name: Install OpenLDAP
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   with_items:
     - slapd
     - db-util
@@ -21,14 +49,13 @@
   become: true
 
 - name: Firewall - Allow LDAP
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenLDAP LDAP
   become: true
 
 - name: Firewall - Allow LDAPS
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenLDAP LDAPS
   become: true
-

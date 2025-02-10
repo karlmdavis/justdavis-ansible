@@ -1,9 +1,10 @@
 ---
 
-- meta: flush_handlers
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: Create Test User Home Share Directory
-  file:
+  ansible.builtin.file:
     state: directory
     path: "/var/fileshares/{{ domain }}/users/{{ test_username }}"
     owner: "{{ test_username }}"
@@ -12,12 +13,13 @@
   become: true
 
 - name: Wait for Samba Server
-  wait_for:
+  ansible.builtin.wait_for:
     port: 139
     delay: 5
 
 - name: List Samba Shares
-  command: "/usr/bin/smbclient --list=eddings.karlanderica.{{ domain }} --no-pass"
+  ansible.builtin.command:
+    cmd: "/usr/bin/smbclient --list=eddings.karlanderica.{{ domain }} --no-pass"
   register: smbclient_list_result
   failed_when: smbclient_list_result.rc != 0 or domain not in smbclient_list_result.stdout
   changed_when: false

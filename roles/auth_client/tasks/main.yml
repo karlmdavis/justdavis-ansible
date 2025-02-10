@@ -1,5 +1,7 @@
 ---
 
-- import_tasks: config.yml
-- import_tasks: test.yml
+- name: Import tasks - config.yml
+  ansible.builtin.import_tasks: config.yml
+- name: Import tasks - test.yml
+  ansible.builtin.import_tasks: test.yml
   tags: test

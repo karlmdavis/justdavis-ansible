@@ -1,13 +1,20 @@
 ---
 
-- import_tasks: install.yml
-- import_tasks: config-ssl.yml
-- import_tasks: entries.yml
-- import_tasks: entries-test.yml
+- name: Import tasks - install.yml
+  ansible.builtin.import_tasks: install.yml
+- name: Import tasks - config-ssl.yml
+  ansible.builtin.import_tasks: config-ssl.yml
+- name: Import tasks - entries.yml
+  ansible.builtin.import_tasks: entries.yml
+- name: Import tasks - entries-test.yml
+  ansible.builtin.import_tasks: entries-test.yml
   tags: test
-- import_tasks: admins.yml
-- import_tasks: sasl-gssapi.yml
-- import_tasks: sasl-authd.yml
-- import_tasks: test.yml
+- name: Import tasks - admins.yml
+  ansible.builtin.import_tasks: admins.yml
+- name: Import tasks - sasl-gssapi.yml
+  ansible.builtin.import_tasks: sasl-gssapi.yml
+- name: Import tasks - sasl-authd.yml
+  ansible.builtin.import_tasks: sasl-authd.yml
+- name: Import tasks - test.yml
+  ansible.builtin.import_tasks: test.yml
   tags: test
-

@@ -1,7 +1,7 @@
 ---
 
 - name: Create OpenVPN iptables Script
-  template:
+  ansible.builtin.template:
     src: openvpn-iptables.sh.j2
     dest: /etc/init.d/openvpn-iptables
     owner: root
@@ -12,7 +12,7 @@
     - Restart OpenVPN iptables Service
 
 - name: Create OpenVPN iptables Service
-  service:
+  ansible.builtin.service:
     name: openvpn-iptables
     enabled: true
   become: true
@@ -20,7 +20,7 @@
     - Restart OpenVPN iptables Service
 
 - name: Firewall - Create OpenVPN Server Profile
-  copy:
+  ansible.builtin.copy:
     src: openvpn-server.ufw.profile
     dest: /etc/ufw/applications.d/openvpn-server.ufw.profile
     mode: u=rw,g=r,o=r
@@ -28,12 +28,13 @@
   register: ufw_profile_openvpn_server
 
 - name: Firewall - Load OpenVPN Server Profile
-  command: /usr/sbin/ufw app update openvpn-server.ufw.profile
+  ansible.builtin.command:
+    cmd: /usr/sbin/ufw app update openvpn-server.ufw.profile
   become: true
   when: ufw_profile_openvpn_server
 
 - name: Firewall - Allow OpenVPN Server
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenVPN Server
     to_ip: "{{ vpn_gateway_ip }}"

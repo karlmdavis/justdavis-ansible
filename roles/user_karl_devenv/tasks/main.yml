@@ -1,10 +1,14 @@
 ---
 
 # Contains secrets only used by this role.
-- include_vars: vars/vault.yml
+- name: Include variables - vars/vault.yml
+  ansible.builtin.include_vars: vars/vault.yml
 
-- import_tasks: tools_base.yml
-- import_tasks: tools_ansible.yml
-- import_tasks: project_base.yml
-  # TODO: Figure out why this isn't working. Started failing during 22.04 upgrade.
-#- import_tasks: project_justdavis_ansible.yml
+- name: Import tasks - tools_base.yml
+  ansible.builtin.import_tasks: tools_base.yml
+- name: Import tasks - tools_ansible.yml
+  ansible.builtin.import_tasks: tools_ansible.yml
+- name: Import tasks - project_base.yml
+  ansible.builtin.import_tasks: project_base.yml
+# TODO: Figure out why this isn't working. Started failing during 22.04 upgrade.
+# - import_tasks: project_justdavis_ansible.yml

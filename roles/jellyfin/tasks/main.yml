@@ -1,7 +1,8 @@
-
 ---
 
-- ansible.builtin.import_tasks: install_and_configure.yml
+- name: Import tasks - install_and_configure.yml
+  ansible.builtin.import_tasks: install_and_configure.yml
 
-- ansible.builtin.import_tasks: test.yml
+- name: Import tasks - test.yml
+  ansible.builtin.import_tasks: test.yml
   tags: test

@@ -1,7 +1,7 @@
 ---
 
 - name: Install Prerequisites
-  apt:
+  ansible.builtin.apt:
     name: "{{ item }}"
   become: true
   with_items:
@@ -15,7 +15,7 @@
     - [python-dev, libpq-dev]
 
 - name: Create Database User
-  postgresql_user:
+  community.postgresql.postgresql_user:
     name: "{{ vault_postgres_builds_username }}"
     password: "{{ vault_postgres_builds_password }}"
     role_attr_flags: 'CREATEDB'
@@ -23,13 +23,13 @@
   become_user: postgres
 
 - name: Create RPS Deploy User
-  user:
+  ansible.builtin.user:
     user: rps-deploy
     comment: "Used to deploy RPS Tourney"
   become: true
 
 - name: Allow RPS Deploy User to sudo Without Password
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sudoers.d/rps-deploy
     create: true
     regexp: '^rps-deploy'
@@ -41,14 +41,14 @@
 # instance, the `rps-tourney` job connects from `eddings` to `eddings`, in
 # order to deploy the RPS Tourney application to it.
 - name: Authorize Jenkins SSH Key for Deploys
-  authorized_key:
+  ansible.posix.authorized_key:
     user: rps-deploy
     key: "{{ lookup('file', 'files/id_eddings_builds.pub') }}"
     key_options: 'from="127.0.0.1"'
   become: true
 
 - name: Create/Update Jenkins Jobs
-  jenkins_script:
+  community.general.jenkins_script:
     url: "{{ jenkins_url_local }}"
     user: "{{ jenkins_dynamic_admin_username | default(omit) }}"
     password: "{{ jenkins_dynamic_admin_password | default(omit) }}"

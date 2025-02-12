@@ -6,4 +6,4 @@
 
 aws_region: 'us-east-1'
 aws_vpc_subnet: 'subnet-9a1dfeb0'
-aws_ec2_key_name: 'karlmdavis-personal'
+aws_ec2_key_name: 'karlmdavis-mantis'

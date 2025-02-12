@@ -61,7 +61,7 @@ fi
 export ANSIBLE_HOST_KEY_CHECKING=False
 
 # Grab a timestamp now, which will be used later for the log.
-timestamp=$(date --iso-8601=seconds)
+timestamp=$(date +"%Y-%m-%dT%H:%M:%S%z")
 
 # The `ansible.cfg` file tells Ansible to log to this file automatically.
 originalLog="${scriptDirectory}/../logs/ansible.log"
@@ -103,26 +103,26 @@ fi
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
   ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
-  echo -e "\n" | tee --append "${originalLog}"
+  echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Run our Ansible plays against the test systems.
 if [ $errorCode -eq 0 ] && [ "${configure}" = true ]; then
-  echo "$ ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  echo "$ ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
   ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
-  echo -e "\n" | tee --append "${originalLog}"
+  echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee --append "${originalLog}"
+  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
   ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
-  echo -e "\n" | tee --append "${originalLog}"
+  echo -e "\n" | tee -a "${originalLog}"
 
   # If everything tore down okay, remove the test env file.
   if [ $errorCode -eq 0 ]; then
@@ -132,4 +132,3 @@ fi
 
 timestampLog
 exit ${errorCode}
-

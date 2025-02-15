@@ -1,5 +1,14 @@
 ---
 
+- name: Install debconf-utils
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
+  with_items:
+    - debconf-utils
+  become: true
+
 - name: Set slapd domain
   ansible.builtin.debconf:
     name: slapd

@@ -1,64 +1,45 @@
 ---
 
-# Certbot will create and renew Let's Encrypt certificates.
-- name: Create Certbot Directory
-  ansible.builtin.file:
-    state: directory
-    path: /etc/letsencrypt
-    owner: root
-    group: root
-    mode: u=rwx,g=rx,o=rx
+# The Certbot installation will automatically add a cron job to renew certificates. Before that will work,
+# though, we need to manually request the initial certificate -- as we do below.
+- name: Install Certbot
+  community.general.snap:
+    name: certbot
+    classic: true
   become: true
 
-- name: Create Certbot Hook Script
+- name: Create Certbot Hook Scripts
   ansible.builtin.template:
-    src: certbot_hook_post.sh
-    dest: /usr/local/bin/certbot_hook_post.sh
+    src: "certbot-hook-{{ item }}.sh"
+    dest: "/usr/local/bin/certbot-hook-{{ item }}.sh"
     mode: 'u=rwx,g=rx,o=rx'
   become: true
+  loop:
+    - 'deploy'
+    - 'dns-auth'
+    - 'dns-cleanup'
 
-- name: Create Certbot Config
-  ansible.builtin.template:
-    src: certbot_cli.ini
-    dest: /etc/letsencrypt/cli.ini
-    mode: 'u=rw,g=r,o=r'
+- name: Request wildcard certificate with manual DNS
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --manual
+      --preferred-challenges=dns
+      --email {{ domain_webmaster }}
+      --agree-tos
+      --no-eff-email
+      --manual-auth-hook /usr/local/bin/certbot-hook-dns-auth.sh
+      --manual-cleanup-hook /usr/local/bin/certbot-hook-dns-cleanup.sh
+      --deploy-hook /usr/local/bin/certbot-hook-deploy.sh
+      --non-interactive
+      {{ domains | map('regex_replace', '^(.*)$', '-d "\1"') | join(' ') }}
+      {{ domains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
+    creates: "/etc/letsencrypt/live/{{ domains[0] }}/fullchain.pem"
   become: true
+  register: certbot_cmd
 
-- name: Flush Handlers Before Certbot Run
-  ansible.builtin.meta: flush_handlers
-
-- name: Install and Configure Certbot
-  ansible.builtin.import_role:
-    name: geerlingguy.certbot
-  vars:
-    certbot_admin_email: "{{ domain_webmaster }}"
-    certbot_certs:
-      - domains: "{{ domain_websites }}"
-    certbot_create_standalone_stop_services:
-      - apache2
-      - slapd
-      - postfix
-      - dovecot
-    certbot_create_if_missing: true
-    certbot_create_method: webroot
-    certbot_webroot: "/var/apache2/{{ domain }}/www"
-    # Tweak the command to only bind to IPv4:
-    certbot_create_command: >-
-      {{ certbot_script }} certonly --webroot
-      {{ '--hsts' if certbot_hsts else '' }}
-      {{ '--test-cert' if certbot_testmode else '' }}
-      --noninteractive --agree-tos
-      --email {{ cert_item.email | default(certbot_admin_email) }}
-      --webroot-path
-      {{ cert_item.webroot | default(certbot_webroot) if certbot_create_method == 'webroot'  else '' }}
-      -d {{ cert_item.domains | join(',') }}
-      {{ '--deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ansible.sh' if certbot_deployhook is defined else '' }}
-    certbot_deployhook: |
-      {% for service in certbot_create_standalone_stop_services %}
-      if systemctl list-unit-files | grep -q "^{{ service }}.service"; then
-        systemctl restart {{ service }}
-      fi
-      {% endfor %}
+- name: Show Certbot Output
+  ansible.builtin.debug:
+    var: certbot_cmd.stdout
 
 - name: Firewall - Allow Apache HTTPS
   community.general.ufw:

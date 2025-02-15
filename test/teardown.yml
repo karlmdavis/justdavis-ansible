@@ -47,10 +47,6 @@
         domain: "{{ domain_test_prefix }}justdavis.com"
         zone_doh: tests.davisonlinehome.name
         domain_doh: "{{ domain_test_prefix }}davisonlinehome.name"
-        zone_mrc: tests.madrivercode.com
-        domain_mrc: "{{ domain_test_prefix }}madrivercode.com"
-        zone_mrd: tests.madriverdevelopment.com
-        domain_mrd: "{{ domain_test_prefix }}madriverdevelopment.com"
 
     - name: 'Route 53: Delete Externally-Used Test Records'
       route53:
@@ -74,9 +70,5 @@
         - { zone: "{{ zone }}", record: "_kpasswd._udp.{{ domain }}", type: 'SRV' }
         - { zone: "{{ zone_doh }}", record: "{{ domain_doh }}", type: 'A' }
         - { zone: "{{ zone_doh }}", record: "www.{{ domain_doh }}", type: 'A' }
-        - { zone: "{{ zone_mrc }}", record: "{{ domain_mrc }}", type: 'A' }
-        - { zone: "{{ zone_mrc }}", record: "www.{{ domain_mrc }}", type: 'A' }
-        - { zone: "{{ zone_mrd }}", record: "{{ domain_mrd }}", type: 'A' }
-        - { zone: "{{ zone_mrd }}", record: "www.{{ domain_mrd }}", type: 'A' }
       run_once: true
       delegate_to: localhost

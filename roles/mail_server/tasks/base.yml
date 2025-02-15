@@ -232,8 +232,6 @@
       /^webmaster@/                               karl@{{ domain }}
       /^karl.*@{{ domain }}/                      karl@{{ domain }}
       /^karl.*@{{ domain_doh }}/                  karl@{{ domain }}
-      /^karl.*@{{ domain_mrc }}/                  karl@{{ domain }}
-      /^karl.*@{{ domain_mrd }}/                  karl@{{ domain }}
       /^stephen@{{ domain }}$/                    stephen@{{ domain }}
       /^stephena@{{ domain }}$/                   stephen@{{ domain }}
       /^heystephen@{{ domain }}$/                 stephen@{{ domain }}
@@ -264,7 +262,7 @@
     line: "{{ item.key }} = {{ item.value }};"
   with_dict:
     # Ensure that all valid email domains are filtered.
-    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_doh }}\", \".{{ domain_mrc }}\", \".{{ domain_mrd }}\" )"
+    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_doh }}\" )"
     # Always tag mail with spam score headers.
     '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which
@@ -461,5 +459,3 @@
   with_items:
     - "{{ domain }}"
     - "{{ domain_doh }}"
-    - "{{ domain_mrc }}"
-    - "{{ domain_mrd }}"

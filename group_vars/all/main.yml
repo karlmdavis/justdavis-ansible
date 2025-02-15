@@ -13,37 +13,29 @@ ami_id_ubuntu_20_04: ami-02ae530dacc099fc9
 ami_id_ubuntu_22_04: ami-09d56f8956ab235b3
 
 # The domains being managed.
-# 
-# Note on Test Domains: The test variations below will actually be resolved 
+#
+# Note on Test Domains: The test variations below will actually be resolved
 # (and so must exist) during tests. At a minimum, this is required for Let's
-# Encrypt to generate certs, but is likely required by a bunch of other 
-# services being tested. The top-level test domains (e.g. 
-# `tests.justdavis.com`) are managed via Route 53, so that the tests can 
+# Encrypt to generate certs, but is likely required by a bunch of other
+# services being tested. The top-level test domains (e.g.
+# `tests.justdavis.com`) are managed via Route 53, so that the tests can
 # *actually manage* them. It's all kinda' complicated, but works.
 domain: "{{ domain_test_prefix if is_test else '' }}justdavis.com"
 domain_doh: "{{ domain_test_prefix if is_test else '' }}davisonlinehome.name"
-domain_mrc: "{{ domain_test_prefix if is_test else '' }}madrivercode.com"
-domain_mrd: "{{ domain_test_prefix if is_test else '' }}madriverdevelopment.com"
 domains:
   - "{{ domain }}"
   - "{{ domain_doh }}"
-  - "{{ domain_mrc }}"
-  - "{{ domain_mrd }}"
 domain_websites:
   - "{{ domain }}"
   - "www.{{ domain }}"
   - "mail.{{ domain }}"
   - "{{ domain_doh }}"
   - "www.{{ domain_doh }}"
-  - "{{ domain_mrc }}"
-  - "www.{{ domain_mrc }}"
-  - "{{ domain_mrd }}"
-  - "www.{{ domain_mrd }}"
 domain_webmaster: "karl@{{ domain }}"
 
-# The WAN IP addresses of the "home" network. Connections from these IPs will 
+# The WAN IP addresses of the "home" network. Connections from these IPs will
 # have more privileges.
-# Note: This is the Longview static IP block assigned by Comcast, as of 
+# Note: This is the Longview static IP block assigned by Comcast, as of
 # 2017-07-10.
 network_home_public_cidr: '96.86.32.136/29'
 

@@ -153,3 +153,9 @@
     cmd: /usr/bin/killall -USR1 systemd-journald
   become: true
   when: mkdir_var_log_journal.changed
+
+- name: Refresh snapd to ensure it's up to date
+  ansible.builtin.command:
+    cmd: snap refresh snapd
+  become: true
+  changed_when: false

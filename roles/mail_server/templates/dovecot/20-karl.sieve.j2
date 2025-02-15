@@ -64,12 +64,6 @@ if allof (header :contains ["Mailing-list"] "hapi-fhir@googlegroups.com") {
     stop;
 }
 
-# Mad River
-if anyof (address :all :contains :comparator "i;ascii-casemap" ["to"] "madrivercode.com") {
-    addflag "mad-river";
-    stop;
-}
-
 # Amazon Shipping
 if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "ship-confirm@amazon.com",
   header :matches ["subject"] "Your Amazon.com order of * has shipped!") {

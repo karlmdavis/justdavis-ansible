@@ -21,6 +21,12 @@
     state: reloaded
   become: true
   when: slapd_apparmor.changed
+# Manually run certbot hook script now that openldap is installed, to fix permissions for the
+# initially-created certs.
+- name: Manually Run Certbot Hook Script One Time
+  ansible.builtin.command:
+    cmd: /usr/local/bin/certbot-hook-deploy.sh
+  become: true
 # Not sure why, but applying these slapd config attributes via `ldap_attr` fails. It seems they need to be
 # written in a single transaction?
 - name: Create LDIF - slapd-ssl.ldif
@@ -29,12 +35,6 @@
     dest: /etc/ldap/slapd-ssl.ldif
   become: true
   register: slapd_ssl_ldif
-# Manually run certbot hook script now that openldap is installed, to fix permissions for the
-# initially-created certs.
-- name: Manually Run Certbot Hook Script One Time
-  ansible.builtin.command:
-    cmd: /usr/local/bin/certbot_hook_post.sh
-  become: true
 - name: Apply LDIF - slapd-ssl.ldif
   ansible.builtin.command:
     cmd: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-ssl.ldif'

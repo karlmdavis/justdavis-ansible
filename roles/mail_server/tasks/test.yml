@@ -99,7 +99,9 @@
 # run successfully, a `sudo systemctl restart clamav-daemon.service` should fix things. See
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=775112 for a similar problem.
 - name: Verify that Virus was Quarantined
-  ansible.builtin.shell: "set -o pipefail && /usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && /usr/bin/find /var/lib/amavis/virusmails/ -name \"virus-*\" -print | /usr/bin/wc --lines"
+    executable: /bin/bash
   become: true
   changed_when: false
   register: shell_find_virus_count

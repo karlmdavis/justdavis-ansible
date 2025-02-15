@@ -2,10 +2,10 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.{{ domain_doh }}.           hostmaster.{{ domain_doh }}. (
-                              2018040701 ; sn = serial number (yyyymmdd##)
+                              {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}01 ; sn = serial number (yyyymmdd##)
                               1h         ; ref = refresh
                               15M        ; ret = update retry
-                              4W         ; ex = expiry
+                              2W         ; ex = expiry
                               1h         ; min = minimum
                               )
 
@@ -50,4 +50,3 @@ tests.{{ domain_doh }}.         IN      NS                ns-365.awsdns-45.com.
                                 IN      NS                ns-1932.awsdns-49.co.uk.
                                 IN      NS                ns-819.awsdns-38.net.
 {% endif %}
-

@@ -2,7 +2,7 @@ $TTL 1h ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.{{ domain }}.           hostmaster.{{ domain }}. (
-                              2017083100 ; sn = serial number (yyyymmdd##)
+                              {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}01 ; sn = serial number (yyyymmdd##)
                               1h         ; ref = refresh
                               15M        ; ret = update retry
                               4W         ; ex = expiry
@@ -16,4 +16,3 @@ $TTL 1h ; sets the default time-to-live for this zone
 ; Reverse DNS PTR Records
 ; name                                    ttl    class   rr                name
 {{ eddings_public_ip.split('.')[-1] }}           IN      PTR               eddings.{{ domain }}.
-

@@ -52,7 +52,7 @@
     message_key: "{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (Authenticated and Out-of-Network)
   ansible.builtin.command:
-    cmd: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
+    cmd: "swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}@{{ domain }} --header 'Subject: Test Mail - Authenticated and Out-of-Network - {{ message_key }}'"
   delegate_to: localhost
   become: false
   changed_when: false
@@ -70,7 +70,7 @@
     message_key: "{{ lookup('password', '/dev/null chars=ascii_letters length=8') }}"
 - name: Send Mail (To Alias, Authenticated, and Out-of-Network)
   ansible.builtin.command:
-    cmd: "/usr/bin/swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
+    cmd: "swaks --server {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}:25 --tls --auth-user {{ test_username }} --auth-password {{ test_password }} --to {{ test_username }}_alias@{{ domain }} --header 'Subject: Test Mail - To Alias, Authenticated, and Out-of-Network - {{ message_key }}'"
   delegate_to: localhost
   become: false
   changed_when: false

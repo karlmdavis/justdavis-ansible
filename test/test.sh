@@ -18,30 +18,23 @@ set -e
 # Calculate the directory that this script is in.
 scriptDirectory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Use GNU getopt to parse the options passed to this script.
-TEMP=`getopt \
-  -o c:t:v: \
-  --long configure:,teardown:,verbosity: \
-  -n 'test.sh' -- "$@"`
-if [ $? != 0 ] ; then echo "Terminating." >&2 ; exit 1 ; fi
-eval set -- "$TEMP"
-
-# Parse the getopt results.
+# Default values
 configure=true
 teardown=true
 verbosity=0
-while true; do
-  case "$1" in
-    -c | --configure )
-      configure="$2"; shift 2 ;;
-    -t | --teardown )
-      teardown="$2"; shift 2 ;;
-    -v | --verbosity )
-      verbosity="$2"; shift 2 ;;
-    -- ) shift; break ;;
-    * ) break ;;
+
+# Use getopts (short options only)
+while getopts "c:t:v:" opt; do
+  case $opt in
+    c) configure="$OPTARG" ;;
+    t) teardown="$OPTARG" ;;
+    v) verbosity="$OPTARG" ;;
+    \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
   esac
 done
+
+# Shift away processed options
+shift $((OPTIND - 1))
 
 verboseArg=""
 if [[ "${verbosity}" -eq 1 ]]; then verboseArg="-v"; fi

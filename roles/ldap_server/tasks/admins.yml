@@ -22,7 +22,7 @@
     objectClass: 'posixGroup'
     attributes:
       cn: 'administrators_posix'
-      gidNumber: '11001'
+      gidNumber: '11002'
       memberUid:
         - 'karl'
 

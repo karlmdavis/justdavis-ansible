@@ -62,7 +62,9 @@ Ensure that the EC2 key to be used is loaded into SSH Agent:
 
 When testing this playbook, running it against the actual production systems is clearly not a great idea. Instead, the `./test/test.sh` script can be used to 1) provision some temporary AWS EC2 VMs to test against, 2) run the plays against those EC2 instances, and finally 3) tear down the EC2 instances afterwards. See here:
 
-    $ ./test/test.sh --configure=true --teardown=true
+    $ ./test/test.sh -c true -t true
+
+Set `-c` to `false` to skip the configuration playbook, e.g. if you just want to teardown the test instances ASAP. Set `-t` to `false` to skip the teardown phase, if you want the test instances to stick around after a successful configuration run.
 
 ### Production
 

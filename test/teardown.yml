@@ -57,18 +57,30 @@
         type: "{{ item.type }}"
       async: 600
       poll: 0
-      with_items:
-        - { zone: "{{ zone }}", record: "{{ domain }}", type: 'A' }
-        - { zone: "{{ zone }}", record: "www.{{ domain }}", type: 'A' }
-        - { zone: "{{ zone }}", record: "mail.{{ domain }}", type: 'A' }
-        - { zone: "{{ zone }}", record: "eddings.{{ domain }}", type: 'A' }
-        - { zone: "{{ zone }}", record: "eddings.karlanderica.{{ domain }}", type: 'A' }
-        - { zone: "{{ zone }}", record: "_kerberos.{{ domain }}", type: 'TXT' }
-        - { zone: "{{ zone }}", record: "_kerberos._udp.{{ domain }}", type: 'SRV' }
-        - { zone: "{{ zone }}", record: "_kerberos-master._udp.{{ domain }}", type: 'SRV' }
-        - { zone: "{{ zone }}", record: "_kerberos-adm._tcp.{{ domain }}", type: 'SRV' }
-        - { zone: "{{ zone }}", record: "_kpasswd._udp.{{ domain }}", type: 'SRV' }
-        - { zone: "{{ zone_doh }}", record: "{{ domain_doh }}", type: 'A' }
-        - { zone: "{{ zone_doh }}", record: "www.{{ domain_doh }}", type: 'A' }
+      loop:
+        - zone: 'tests.justdavis.com'
+          record: "{{ domain_test_prefix }}justdavis.com"
+          type: 'NS'
+        - zone: 'tests.justdavis.com'
+          record: "ns1.{{ domain_test_prefix }}justdavis.com"
+          type: 'A'
+        - zone: 'tests.davisonlinehome.name'
+          record: "{{ domain_test_prefix }}davisonlinehome.name"
+          type: 'NS'
+        - zone: 'tests.davisonlinehome.name'
+          record: "ns1.{{ domain_test_prefix }}davisonlinehome.name"
+          type: 'A'
+        - zone: 'tests.rpstourney.com'
+          record: "{{ domain_test_prefix }}rpstourney.com"
+          type: 'NS'
+        - zone: 'tests.rpstourney.com'
+          record: "ns1.{{ domain_test_prefix }}rpstourney.com"
+          type: 'A'
+        - zone: 'tests.storywyrm.com'
+          record: "{{ domain_test_prefix }}storywyrm.com"
+          type: 'NS'
+        - zone: 'tests.storywyrm.com'
+          record: "ns1.{{ domain_test_prefix }}storywyrm.com"
+          type: 'A'
       run_once: true
       delegate_to: localhost

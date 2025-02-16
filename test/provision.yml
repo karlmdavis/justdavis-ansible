@@ -148,6 +148,22 @@
           record: "ns1.{{ domain_test_prefix }}davisonlinehome.name"
           type: 'A'
           value: "{{ ec2_eddings.instances[0].public_ip_address }}"
+        - zone: 'tests.rpstourney.com'
+          record: "{{ domain_test_prefix }}rpstourney.com"
+          type: 'NS'
+          value: "ns1.{{ domain_test_prefix }}rpstourney.com"
+        - zone: 'tests.rpstourney.com'
+          record: "ns1.{{ domain_test_prefix }}rpstourney.com"
+          type: 'A'
+          value: "{{ ec2_eddings.instances[0].public_ip_address }}"
+        - zone: 'tests.storywyrm.com'
+          record: "{{ domain_test_prefix }}storywyrm.com"
+          type: 'NS'
+          value: "ns1.{{ domain_test_prefix }}storywyrm.com"
+        - zone: 'tests.storywyrm.com'
+          record: "ns1.{{ domain_test_prefix }}storywyrm.com"
+          type: 'A'
+          value: "{{ ec2_eddings.instances[0].public_ip_address }}"
 
     - name: Wait for Route53 Records
       async_status:

@@ -22,9 +22,13 @@ ami_id_ubuntu_22_04: ami-09d56f8956ab235b3
 # *actually manage* them. It's all kinda' complicated, but works.
 domain: "{{ domain_test_prefix if is_test else '' }}justdavis.com"
 domain_doh: "{{ domain_test_prefix if is_test else '' }}davisonlinehome.name"
+domain_rps: "{{ domain_test_prefix if is_test else '' }}rpstourney.com"
+domain_sw: "{{ domain_test_prefix if is_test else '' }}storywyrm.com"
 domains:
   - "{{ domain }}"
   - "{{ domain_doh }}"
+  - "{{ domain_rps }}"
+  - "{{ domain_sw }}"
 domain_websites:
   - "{{ domain }}"
   - "www.{{ domain }}"

@@ -1,7 +1,7 @@
 $TTL 15M ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
-@          IN    SOA   ns1.rpstourney.com.         hostmaster.rpstourney.com. (
+@          IN    SOA   ns1.storywyrm.com.         hostmaster.storywyrm.com. (
                               {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}01 ; sn = serial number (yyyymmdd##)
                               15M        ; ref = refresh
                               15M        ; ret = update retry
@@ -12,17 +12,17 @@ $TTL 15M ; sets the default time-to-live for this zone
 ; Nameserver Records
 {% if not is_test %}
 ; name                   ttl    class   rr                name
-@                               IN      NS                ns1.{{ domain_rps }}.
+@                               IN      NS                ns1.{{ domain_sw }}.
                                 IN      NS                ns6.gandi.net.
 
 ; subdomain              ttl    class   rr                name
-tests.rpstourney.com.           IN      NS                ns-1054.awsdns-03.org.
-                                IN      NS                ns-1647.awsdns-13.co.uk.
-                                IN      NS                ns-64.awsdns-08.com.
-                                IN      NS                ns-576.awsdns-08.net.
+tests.storywyrm.com.            IN      NS                ns-733.awsdns-27.net.
+                                IN      NS                ns-1595.awsdns-07.co.uk.
+                                IN      NS                ns-225.awsdns-28.com.
+                                IN      NS                ns-1192.awsdns-21.org.
 {% else %}
 ; name                   ttl    class   rr                name
-@                               IN      NS                ns1.{{ domain_rps }}.
+@                               IN      NS                ns1.{{ domain_sw }}.
 {% endif %}
 
 ; IPv4 Address Records
@@ -44,7 +44,7 @@ www                       IN      CNAME             @
 ; be rejected.
 ; The Google Search Console verification record
 ; (https://www.google.com/webmasters/tools/home):
-@                         IN      TXT               ("google-site-verification=L8ry8BOAnrshchn6K6Wv911QubG3mr1HBPIOuDLXL0U")
+
 
 ; SRV Records
 ; name                   ttl    class   rr                name

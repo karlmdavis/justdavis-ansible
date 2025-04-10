@@ -1,6 +1,7 @@
 [Unit]
 Description=PostgreSQL Dump All Databases
 OnFailure=status-email-root@%n.service
+After=postgresql.service
 
 [Service]
 Type=oneshot

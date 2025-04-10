@@ -19,6 +19,9 @@
     - name: Import role - base
       ansible.builtin.import_role:
         name: base
+    - name: Import role - docker
+      ansible.builtin.import_role:
+        name: docker
     - name: Import role - virtual_machines
       ansible.builtin.import_role:
         name: virtual_machines

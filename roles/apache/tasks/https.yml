@@ -33,6 +33,7 @@
       --non-interactive
       {{ domains | map('regex_replace', '^(.*)$', '-d "\1"') | join(' ') }}
       {{ domains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
+      {{ domain_extra_sans | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
     creates: "/etc/letsencrypt/live/{{ domains[0] }}/fullchain.pem"
   become: true
   register: certbot_cmd

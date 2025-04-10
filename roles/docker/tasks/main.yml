@@ -1,0 +1,7 @@
+---
+##
+# Installs the utilities required to run Docker containers.
+##
+
+- name: Import Tasks - install.yml
+  ansible.builtin.import_tasks: install.yml

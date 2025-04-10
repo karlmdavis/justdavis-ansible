@@ -51,7 +51,24 @@
   notify:
     - apache-restart
 
-- name: Create Apache HTTP Virtual Host Configuration
+- name: Configure Apache HTTP Virtual Host Configuration - Default
+  ansible.builtin.template:
+    src: 000-default.conf
+    dest: "/etc/apache2/sites-available/000-default.conf"
+    mode: u=rw,g=rw,o=r
+  become: true
+  notify:
+    - apache-reload
+
+- name: Enable Apache HTTP Virtual Host Configuration - Default
+  ansible.builtin.command:
+    cmd: "/usr/sbin/a2ensite 000-default.conf"
+    creates: "/etc/apache2/sites-enabled/000-default.conf"
+  become: true
+  notify:
+    - apache-reload
+
+- name: Create Apache HTTP Virtual Host Configuration - justdavis.com
   ansible.builtin.template:
     src: domain.conf
     dest: "/etc/apache2/sites-available/{{ domain }}.conf"
@@ -60,18 +77,10 @@
   notify:
     - apache-reload
 
-- name: Enable Apache HTTP Virtual Host Configuration
-  ansible.builtin.command: "/usr/sbin/a2ensite {{ domain }}.conf"
-  args:
+- name: Enable Apache HTTP Virtual Host Configuration - justdavis.com
+  ansible.builtin.command:
+    cmd: "/usr/sbin/a2ensite {{ domain }}.conf"
     creates: "/etc/apache2/sites-enabled/{{ domain }}.conf"
-  become: true
-  notify:
-    - apache-reload
-
-- name: Disable Default Apache HTTP Virtual Host Configuration
-  ansible.builtin.command: "/usr/sbin/a2dissite 000-default.conf"
-  args:
-    removes: "/etc/apache2/sites-enabled/000-default.conf"
   become: true
   notify:
     - apache-reload

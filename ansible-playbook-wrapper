@@ -45,7 +45,7 @@ if [ $errorCode -eq 0 ]; then
   echo "$ ansible-playbook $@" >> "${originalLog}"
   ansible-playbook "$@"
   errorCode=$?
-  echo -e "\n" | tee --append "${originalLog}"
+  echo -e "\n" | tee -a "${originalLog}"
 fi
 
 timestampLog

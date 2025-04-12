@@ -424,6 +424,11 @@
     mode: u=rwx,g=rx,o=rx
   become: true
 
+# Need Dovecot to restart after setting `sieve_extensions` in `90-sieve.conf`,
+# before we can compile the sieve rules.
+- name: Meta - Flush Handlers
+  ansible.builtin.meta: flush_handlers
+
 - name: Configure Dovecot Global Sieve Rules
   ansible.builtin.template:
     src: "dovecot/{{ item }}.j2"

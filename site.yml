@@ -40,9 +40,6 @@
     - name: Import role - auth_client
       ansible.builtin.import_role:
         name: auth_client
-    - name: Import role - vpn_server
-      ansible.builtin.import_role:
-        name: vpn_server
     - name: Import role - file_server
       ansible.builtin.import_role:
         name: file_server
@@ -92,7 +89,3 @@
     - name: Import role - user_karl_devenv
       ansible.builtin.import_role:
         name: user_karl_devenv
-    - name: Import role - vpn_client
-      ansible.builtin.import_role:
-        name: vpn_client
-      when: "'Microsoft' not in ansible_kernel"

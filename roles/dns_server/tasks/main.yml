@@ -9,6 +9,7 @@
     reverse_zone_name: "{{ eddings_public_ip.split('.')[2] + '.' + eddings_public_ip.split('.')[1] + '.' + eddings_public_ip.split('.')[0] + '.in-addr.arpa' }}"
     zones:
       - {name: "{{ domain }}", template_source: 'roles/dns_server/templates/db.justdavis.com.j2'}
+      - {name: "intranet.{{ domain }}", template_source: 'roles/dns_server/templates/db.intranet.justdavis.com.j2'}
       - {name: "{{ domain_doh }}", template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
       - {name: "{{ domain_rps }}", template_source: 'roles/dns_server/templates/db.rpstourney.com.j2'}
       - {name: "{{ domain_sw }}", template_source: 'roles/dns_server/templates/db.storywyrm.com.j2'}

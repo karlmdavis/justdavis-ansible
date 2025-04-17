@@ -1,10 +1,10 @@
 ---
 
-- name: Import tasks - install_and_configure.yml
-  ansible.builtin.import_tasks: install_and_configure.yml
+- name: Import tasks - certbot.yml
+  ansible.builtin.import_tasks: certbot.yml
 
-- name: Import tasks - https.yml
-  ansible.builtin.import_tasks: https.yml
+- name: Import tasks - apache.yml
+  ansible.builtin.import_tasks: apache.yml
 
 - name: Import tasks - test.yml
   ansible.builtin.import_tasks: test.yml

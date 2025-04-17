@@ -29,7 +29,7 @@ domains:
   - "{{ domain_doh }}"
   - "{{ domain_rps }}"
   - "{{ domain_sw }}"
-domain_extra_sans: "{{ [] if is_test else ['preview.storywyrm.com'] }}"
+domain_extra_sans: "{{ [] if is_test else ['preview.storywyrm.com', 'intranet.justdavis.com'] }}"
 domain_websites:
   - "{{ domain }}"
   - "www.{{ domain }}"

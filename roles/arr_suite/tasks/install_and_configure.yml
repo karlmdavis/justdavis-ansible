@@ -1,0 +1,73 @@
+---
+
+- name: Create Base Directory
+  ansible.builtin.file:
+    path: /opt/arr_suite
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Create System User for Application
+  ansible.builtin.user:
+    name: arr_suite
+    state: present
+    system: true
+    shell: /bin/false
+    home: /opt/arr_suite
+  become: true
+
+- name: Get System User Details
+  ansible.builtin.command:
+    cmd: getent passwd arr_suite
+  register: arr_suite_passwd_entry
+  changed_when: false
+
+- name: Parse Out UID for System User
+  ansible.builtin.set_fact:
+    arr_suite_uid: "{{ arr_suite_passwd_entry.stdout.split(':')[2] }}"
+
+- name: Get Media Group Details
+  ansible.builtin.command:
+    cmd: getent group media_managers
+  register: media_managers_group_entry
+  changed_when: false
+
+- name: Parse Out GID for Media User
+  ansible.builtin.set_fact:
+    media_managers_gid: "{{ media_managers_group_entry.stdout.split(':')[2] }}"
+
+- name: Set Other Variables for Docker Compose
+  ansible.builtin.set_fact:
+    arr_suite_umask: '002'
+    arr_suite_timezone: America/New_York
+    arr_suite_root_dir: /opt/arr_suite
+
+- name: Create Docker Compose File
+  ansible.builtin.template:
+    src: 'docker-compose.yml.j2'
+    dest: "/opt/arr_suite/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 'u=rw=,g=r,o=r'
+  become: true
+  notify: Restart arr_suite
+
+- name: Deploy Systemd Service for Docker Compose Stack
+  ansible.builtin.template:
+    src: 'arr_suite.service.j2'
+    dest: "/etc/systemd/system/arr_suite.service"
+    owner: root
+    group: root
+    mode: 'u=rw=,g=r,o=r'
+  become: true
+  notify: Reload Systemd
+
+- name: Enable and Start Docker Service
+  ansible.builtin.systemd:
+    name: arr_suite
+    # The `docker compose` command has `--pull always` to ensure the latest image is used.
+    state: restarted
+    enabled: true
+  become: true

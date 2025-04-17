@@ -14,6 +14,12 @@
     name: Apache
   become: true
 
+- name: Firewall - Allow Apache HTTPS
+  community.general.ufw:
+    rule: allow
+    name: Apache Secure
+  become: true
+
 - name: "Create Apache Directories"
   ansible.builtin.file:
     path: "{{ item }}"
@@ -23,6 +29,9 @@
     mode: u=rwx,g=rwx,o=rx
   become: true
   with_items:
+    - "/var/apache2/intranet"
+    - "/var/apache2/intranet/logs"
+    - "/var/apache2/intranet/www"
     - "/var/apache2/{{ domain }}"
     - "/var/apache2/{{ domain }}/logs"
     - "/var/apache2/{{ domain }}/www"
@@ -51,36 +60,46 @@
   notify:
     - apache-restart
 
-- name: Configure Apache HTTP Virtual Host Configuration - Default
+- name: Create Apache SSL Configuration
   ansible.builtin.template:
-    src: 000-default.conf
-    dest: "/etc/apache2/sites-available/000-default.conf"
+    src: shared-ssl.conf
+    dest: "/etc/apache2/conf-available/ssl.conf"
     mode: u=rw,g=rw,o=r
   become: true
   notify:
     - apache-reload
 
-- name: Enable Apache HTTP Virtual Host Configuration - Default
-  ansible.builtin.command:
-    cmd: "/usr/sbin/a2ensite 000-default.conf"
-    creates: "/etc/apache2/sites-enabled/000-default.conf"
+- name: Enable Apache SSL Configuration
+  ansible.builtin.command: "/usr/sbin/a2enconf ssl.conf"
+  args:
+    creates: "/etc/apache2/conf-enabled/ssl.conf"
   become: true
   notify:
     - apache-reload
 
-- name: Create Apache HTTP Virtual Host Configuration - justdavis.com
+- name: Configure Apache Virtual Host Configuration
   ansible.builtin.template:
-    src: domain.conf
-    dest: "/etc/apache2/sites-available/{{ domain }}.conf"
+    src: "{{ item }}.j2"
+    dest: "/etc/apache2/sites-available/{{ item }}"
     mode: u=rw,g=rw,o=r
+  loop:
+    - 000-default.conf
+    - justdavis.conf
+    - intranet.conf
+    - intranet-qbittorrent.conf
   become: true
   notify:
     - apache-reload
 
-- name: Enable Apache HTTP Virtual Host Configuration - justdavis.com
+- name: Enable Apache Virtual Host Configuration
   ansible.builtin.command:
-    cmd: "/usr/sbin/a2ensite {{ domain }}.conf"
-    creates: "/etc/apache2/sites-enabled/{{ domain }}.conf"
+    cmd: "/usr/sbin/a2ensite {{ item }}"
+    creates: "/etc/apache2/sites-enabled/{{ item }}"
+  loop:
+    - 000-default.conf
+    - justdavis.conf
+    - intranet.conf
+    - intranet-qbittorrent.conf
   become: true
   notify:
     - apache-reload

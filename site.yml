@@ -49,6 +49,9 @@
     - name: Import role - postgresql_server
       ansible.builtin.import_role:
         name: postgresql_server
+    - name: Import role - arr_suite
+      ansible.builtin.import_role:
+        name: arr_suite
     - name: Import role - jellyfin
       ansible.builtin.import_role:
         name: jellyfin

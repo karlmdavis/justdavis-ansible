@@ -1,0 +1,58 @@
+<VirtualHost *:80>
+  ServerName qbittorrent.intranet.{{ domain}}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Redirect all HTTP traffic to HTTPS.
+  RewriteEngine On
+  RewriteCond %{HTTPS} =off
+  RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
+</VirtualHost>
+
+<VirtualHost *:443>
+  ServerName qbittorrent.intranet.{{ domain}}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl)
+  SSLEngine on
+  SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/{{ domain }}/chain.pem
+  SSLCACertificateFile /etc/ssl/certs/ca-certificates.crt
+
+  # Configure mod_proxy to be used for proxying URLs on this site to other URLs/ports on this server.
+  ProxyRequests Off
+  ProxyVia Off
+  <Proxy *>
+    AddDefaultCharset off
+    Order deny,allow
+    Allow from all
+  </Proxy>
+
+  ProxyPass / "http://127.0.0.1:8080/"
+  ProxyPassReverse / "http://127.0.0.1:8080/"
+  ProxyPreserveHost On
+</VirtualHost>

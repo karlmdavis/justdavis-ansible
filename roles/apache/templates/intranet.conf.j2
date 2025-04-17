@@ -1,0 +1,73 @@
+<VirtualHost *:80>
+  ServerName intranet.{{ domain}}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Redirect all HTTP traffic to HTTPS.
+  RewriteEngine On
+  RewriteCond %{HTTPS} =off
+  RewriteCond %{REQUEST_URI} !^\/.well-known\/acme-challenge\/
+  RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
+</VirtualHost>
+
+<VirtualHost *:443>
+  ServerName intranet.{{ domain}}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl)
+  SSLEngine on
+  SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/{{ domain }}/chain.pem
+  SSLCACertificateFile /etc/ssl/certs/ca-certificates.crt
+
+  # Configure mod_proxy to be used for proxying URLs on this site to other URLs/ports on this server.
+  ProxyRequests Off
+  ProxyVia Off
+  <Proxy *>
+    AddDefaultCharset off
+    Order deny,allow
+    Allow from all
+  </Proxy>
+
+  <Location /sonarr>
+    ProxyPass "http://127.0.0.1:8989/sonarr"
+    ProxyPassReverse "http://127.0.0.1:8989/sonarr"
+    ProxyPreserveHost On
+  </Location>
+
+  <Location /bazarr>
+    ProxyPass "http://127.0.0.1:6767/bazarr"
+    ProxyPassReverse "http://127.0.0.1:6767/bazarr"
+    ProxyPreserveHost On
+  </Location>
+
+  <Location /prowlarr>
+    ProxyPass "http://127.0.0.1:9696/prowlarr"
+    ProxyPassReverse "http://127.0.0.1:9696/prowlarr"
+    ProxyPreserveHost On
+  </Location>
+</VirtualHost>

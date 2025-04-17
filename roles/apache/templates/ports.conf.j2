@@ -2,18 +2,18 @@
 # have to change the VirtualHost statement in
 # /etc/apache2/sites-enabled/000-default.conf
 
-Listen 80
+# Bind on localhost for both HTTP and HTTPS
+Listen 127.0.0.1:80
+Listen 127.0.0.1:443
 
-<IfModule ssl_module>
-	# Apache can't bind port 443 on all IPs, as OpenVPN needs 443 for the VPN gateway IP.
-	Listen 127.0.0.1:443
-	Listen {{ public_ip_address if is_test == false else private_ip_address }}:443
-</IfModule>
+# Bind on private IP address
+Listen {{ private_ip_address }}:80
+Listen {{ private_ip_address }}:443
 
-<IfModule mod_gnutls.c>
-	# Apache can't bind port 443 on all IPs, as OpenVPN needs 443 for the VPN gateway IP.
-	Listen 127.0.0.1:443
-	Listen {{ public_ip_address if is_test == false else private_ip_address }}:443
-</IfModule>
+# When not in test mode, also bind on public IP address
+{% if not is_test %}
+Listen {{ public_ip_address }}:80
+Listen {{ public_ip_address }}:443
+{% endif %}
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet

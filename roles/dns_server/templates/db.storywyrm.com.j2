@@ -2,7 +2,7 @@ $TTL 15M ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
 @          IN    SOA   ns1.storywyrm.com.         hostmaster.storywyrm.com. (
-                              {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}01 ; sn = serial number (yyyymmdd##)
+                              {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}10 ; sn = serial number (yyyymmdd##)
                               15M        ; ref = refresh
                               15M        ; ret = update retry
                               2W         ; ex = expiry
@@ -11,6 +11,7 @@ $TTL 15M ; sets the default time-to-live for this zone
 
 ; Nameserver Records
 preview                         IN      NS                ns1.preview.storywyrm.com.
+ns1.preview                     IN      A                 {{ eddings_public_ip }}
 {% if not is_test %}
 ; name                   ttl    class   rr                name
 @                               IN      NS                ns1.{{ domain_sw }}.

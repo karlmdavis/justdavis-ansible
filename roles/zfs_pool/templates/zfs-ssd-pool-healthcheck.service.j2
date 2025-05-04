@@ -1,0 +1,6 @@
+[Unit]
+Description=ZFS Health Check on ssd_pool
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '/sbin/zpool status -x ssd_pool || echo "ZFS health check failed for ssd_pool" | mail -s "ZFS ssd_pool Health Alert" {{ healthcheck_recipient }}'

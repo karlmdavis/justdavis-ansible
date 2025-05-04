@@ -1,0 +1,11 @@
+---
+
+- name: Import tasks - base.yml
+  ansible.builtin.import_tasks: base.yml
+
+- name: Import tasks - test_pool.yml
+  ansible.builtin.import_tasks: test_pool.yml
+  tags: test
+
+- name: Import tasks - services.yml
+  ansible.builtin.import_tasks: services.yml

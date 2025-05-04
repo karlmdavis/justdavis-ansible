@@ -1,0 +1,14 @@
+[Unit]
+Description=Load ZFS Key for ssd_pool
+DefaultDependencies=no
+Requires=zfs-import.target
+After=zfs-import.target
+Before=zfs-mount.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'if [ "$(/sbin/zfs get -H -o value keystatus ssd_pool)" = "unavailable" ]; then /sbin/zfs load-key ssd_pool; fi'
+
+[Install]
+WantedBy=zfs-mount.service

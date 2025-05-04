@@ -1,0 +1,57 @@
+---
+
+- name: Create zfs-load-key Systemd Unit
+  ansible.builtin.template:
+    src: zfs-load-key@.service.j2
+    dest: /etc/systemd/system/zfs-load-key@.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: Reload Systemd
+
+- name: Create Scrub Service Unit
+  ansible.builtin.template:
+    src: zfs-ssd-pool-scrub.service.j2
+    dest: /etc/systemd/system/zfs-ssd-pool-scrub.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: Reload Systemd
+
+- name: Create Scrub Timer Unit
+  ansible.builtin.template:
+    src: zfs-ssd-pool-scrub.timer.j2
+    dest: /etc/systemd/system/zfs-ssd-pool-scrub.timer
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: Reload Systemd
+
+- name: Deploy Healthcheck Service Unit
+  ansible.builtin.template:
+    src: zfs-ssd-pool-healthcheck.service.j2
+    dest: /etc/systemd/system/zfs-ssd-pool-healthcheck.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: Reload Systemd
+
+- name: Deploy Healthcheck Timer Unit
+  ansible.builtin.template:
+    src: zfs-ssd-pool-healthcheck.timer.j2
+    dest: /etc/systemd/system/zfs-ssd-pool-healthcheck.timer
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: Reload Systemd
+
+- name: Enable and Start Timers and load-key
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - "zfs-load-key@ssd-pool.service"
+    - "zfs-ssd-pool-scrub.timer"
+    - "zfs-ssd-pool-healthcheck.timer"

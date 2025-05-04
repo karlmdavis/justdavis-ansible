@@ -23,10 +23,13 @@
   register: getent_passwd
   changed_when: false
   failed_when: getent_passwd.rc != 0 or test_username not in getent_passwd.stdout
+  retries: 20
+  delay: 1
 
 - name: 'Test getent passwd for Test User'
   command: "/usr/bin/getent passwd {{ test_username }}"
   register: getent_passwd
   changed_when: false
   failed_when: getent_passwd.rc != 0 or test_username not in getent_passwd.stdout
-
+  retries: 20
+  delay: 1

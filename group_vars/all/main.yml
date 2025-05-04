@@ -12,6 +12,9 @@ ami_id_ubuntu_20_04: ami-02ae530dacc099fc9
 # Ubuntu 22.04 (Jammy), per https://cloud-images.ubuntu.com/locator/ec2/
 ami_id_ubuntu_22_04: ami-09d56f8956ab235b3
 
+# Ubuntu 24.04 (Noble), per https://cloud-images.ubuntu.com/locator/ec2/
+ami_id_ubuntu_24_04: ami-0f40b6e9b85d19284
+
 # The domains being managed.
 #
 # Note on Test Domains: The test variations below will actually be resolved

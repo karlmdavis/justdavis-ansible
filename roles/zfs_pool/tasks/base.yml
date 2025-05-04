@@ -1,0 +1,22 @@
+---
+- name: Ensure required packages are installed
+  ansible.builtin.apt:
+    name:
+      - zfsutils-linux
+      - bsd-mailx
+    state: present
+    update_cache: true
+
+- name: Create key directory
+  ansible.builtin.file:
+    path: "{{ key_file | dirname }}"
+    state: directory
+    mode: '0700'
+
+- name: Write encryption key from vault variable
+  ansible.builtin.copy:
+    dest: "{{ key_file }}"
+    content: "{{ vault_zfs_ssd_pool_key_b64 | b64decode }}"
+    owner: root
+    group: root
+    mode: '0600'

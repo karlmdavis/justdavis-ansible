@@ -11,7 +11,7 @@
 
 - name: Configure PostgreSQL to Listen on localhost and Docker Bridge
   ansible.builtin.lineinfile:
-    path: /etc/postgresql/14/main/postgresql.conf
+    path: /etc/postgresql/16/main/postgresql.conf
     regexp: '^listen_addresses ='
     line: "listen_addresses = 'localhost,172.17.0.1'"
     backup: false
@@ -20,7 +20,7 @@
 
 - name: Allow Connections from Docker Bridge in pg_hba.conf
   ansible.builtin.lineinfile:
-    path: /etc/postgresql/14/main/pg_hba.conf
+    path: /etc/postgresql/16/main/pg_hba.conf
     insertafter: '^#.*IPv4 local connections:'
     line: "host    all    all    172.17.0.0/16    md5"
     backup: false
@@ -36,13 +36,13 @@
 
 - name: Create the Override Directory for PostgreSQL's Service
   ansible.builtin.file:
-    path: /etc/systemd/system/postgresql@14-main.service.d
+    path: /etc/systemd/system/postgresql@16-main.service.d
     state: directory
     mode: '0755'
 
 - name: Create systemd override for PostgreSQL
   ansible.builtin.copy:
-    dest: /etc/systemd/system/postgresql@14-main.service.d/override.conf
+    dest: /etc/systemd/system/postgresql@16-main.service.d/override.conf
     content: |
       [Unit]
       After=docker.service docker.socket network-online.target

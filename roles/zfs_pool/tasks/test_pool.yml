@@ -1,0 +1,62 @@
+---
+
+- name: Create Fake Virtual Block File for Tests
+  ansible.builtin.command:
+    cmd: truncate -s 1G /tmp/fake-zfs-disk.img
+    creates: /tmp/fake-zfs-disk.img
+
+- name: Create Fake Virtual Block Device for Tests
+  ansible.builtin.command:
+    cmd: losetup --find --show /tmp/fake-zfs-disk.img
+  changed_when: true
+  register: losetup_result
+
+- name: Override ZFS Device for Tests
+  ansible.builtin.set_fact:
+    zfs_ssd_pool_device: "{{ losetup_result.stdout }}"
+
+- name: Check if ZFS Pool Exists
+  ansible.builtin.command:
+    cmd: zpool list ssd_pool
+  register: zpool_list
+  ignore_errors: true
+  changed_when: false
+
+- name: Create ZFS Pool for Tests
+  ansible.builtin.command:
+    cmd: >-
+      zpool create
+        -o ashift=12
+        -O encryption=on
+        -O keyformat=raw -O keylocation=file://{{ key_file }}
+        -O atime=off
+        -O compression=lz4
+        -O mountpoint=none
+        ssd_pool {{ zfs_ssd_pool_device }}
+  when: zpool_list.rc != 0
+  register: zpool_create
+
+- name: Check ZFS Encryption Key Status
+  ansible.builtin.command:
+    cmd: zfs get -H -o value keystatus ssd_pool
+  register: zfs_keystatus
+  changed_when: false
+
+- name: Load ZFS Encryption Key
+  ansible.builtin.command:
+    cmd: zfs load-key ssd_pool
+  changed_when: true
+  when: zfs_keystatus.stdout|trim == 'unavailable'
+
+# DISABLED: I'm not convinced there's value in creating these datasets in a test environment, and
+# doing this correctly and safely would involve a whole dance here to backup and restore the
+# mountpoints.
+#- name: Create ZFS Datasets for Tests
+#  ansible.builtin.command:
+#    cmd: >-
+#      zfs create
+#        -o recordsize={{ item.recordsize }}
+#        -o mountpoint={{ item.mountpoint }}
+#        ssd_pool/{{ item.name }}
+#    creates: "{{ item.mountpoint }}"
+#  loop: "{{ datasets }}"

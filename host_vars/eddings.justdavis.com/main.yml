@@ -1,4 +1,6 @@
 ---
+zfs_ssd_pool_device: /dev/sda1
+
 backup_includes:
   - /home
   - /var/fileshares

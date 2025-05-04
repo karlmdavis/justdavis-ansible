@@ -1,0 +1,32 @@
+---
+#device: /dev/sda
+#partition_number: 1
+#use_partition: true
+#pool_name: ssd_pool
+key_file: "/root/keys/ssd_pool.key"
+encrypt: true
+compression: lz4
+atime: off
+
+# Dataset definitions (name, recordsize, mountpoint, owner, group)
+datasets:
+  - name: pgdata
+    recordsize: 16K
+    mountpoint: /var/lib/postgresql
+    owner: postgres
+    group: postgres
+  - name: vmail
+    recordsize: 256K
+    mountpoint: /var/vmail
+    owner: dovecot
+    group: dovecot
+  - name: fileshares
+    recordsize: 1M
+    mountpoint: /var/fileshares
+    owner: root
+    group: root
+
+# Systemd timer schedules
+scrub_schedule: "*-*-01 03:00:00"
+healthcheck_schedule: "Sat *-*-* 04:00:00"
+healthcheck_recipient: root

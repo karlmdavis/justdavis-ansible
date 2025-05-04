@@ -19,6 +19,9 @@
     - name: Import role - base
       ansible.builtin.import_role:
         name: base
+    - name: Import role - zfs_pool
+      ansible.builtin.import_role:
+        name: zfs_pool
     - name: Import role - docker
       ansible.builtin.import_role:
         name: docker

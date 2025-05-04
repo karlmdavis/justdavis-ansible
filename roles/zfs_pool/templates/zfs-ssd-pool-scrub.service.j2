@@ -1,0 +1,6 @@
+[Unit]
+Description=ZFS Scrub on ssd_pool
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/zpool scrub ssd_pool

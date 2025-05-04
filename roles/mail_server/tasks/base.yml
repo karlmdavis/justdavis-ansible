@@ -39,7 +39,7 @@
     - dovecot-sieve
     # Spam and Virus Filtering Tools:
     - amavisd-new
-    - spamassassin
+    - spamd
     - clamav-daemon
     - libnet-dns-perl
     - libmail-spf-perl
@@ -55,10 +55,12 @@
     - mailutils
   become: true
 
-- name: Retrieve ClamAV Definitions
-  ansible.builtin.service:
+# This has to happen at least once after installing the clamav package, or
+# else the clamav-daemon service will fail to start.
+- name: Retrieve Initial ClamAV Definitions
+  ansible.builtin.systemd:
     name: clamav-freshclam
-    state: started
+    state: restarted
   become: true
 
 - name: Firewall - Allow Mail Traffic
@@ -176,13 +178,13 @@
     # The CAfile must contain the chain for both the cert_file and the certs offerred by all remote clients.
     'smtpd_tls_CAfile': '/etc/ssl/certs/ca-certificates.crt'
     # Only allow authenticated clients to send mail.
-    'smtpd_relay_restrictions': 'permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination'
+    'mua_relay_restrictions': 'permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination'
     # Ensure that Postfix uses its own keytab.
     'import_environment': 'KRB5_KTNAME=/etc/postfix/krb5.keytab'
     # Allow incoming mail from authenticated or local users, don't relay mail
     # for domains we don't control, and (for non-auth/local senders) verify that
     # they pass an SPF check.
-    'smtpd_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,check_policy_service unix:private/policy-spf'
+    'mua_recipient_restrictions': 'permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,check_policy_service unix:private/policy-spf'
     # Don't timeout while SPF is processing.
     'policy-spf_time_limit': '3600s'
     # Sign outgoing mail using OpenDKIM.
@@ -321,7 +323,7 @@
 
 - name: Enable SpamAssassin Updates
   ansible.builtin.lineinfile:
-    path: /etc/default/spamassassin
+    path: /etc/default/spamd
     regexp: '^CRON='
     line: 'CRON=1'
   become: true

@@ -2,6 +2,61 @@
 
 This directory contains scripts that can be used to bootstrap the Ansible environment on various systems.
 
+## Setup eddings on Ubuntu 24.04
+
+A clean Ubuntu 24.04 install on `eddings` can be prepared to run the Ansible plays against itself, as follows:
+
+1. Install Ubuntu, as normal, naming the system `eddings` and the first user `localuser`.
+2. Ensure that the `localuser` user can run `sudo` without having to enter a password:
+    
+    ```
+    $ echo -e "# Allow localuser to run sudo without requiring a password.\nlocaluser ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/localuser
+    ```
+    
+3. Install the pre-requisites that you'll need for the Ansible run:
+    
+    ```
+    $ sudo apt install pipx libpq-dev openssh-server
+    $ pipx install --include-deps ansible
+    $ pipx ensurepath
+    ```
+    
+4. Add a couple of entries to `/etc/hosts`, to workaround a bug with the Amplifi router's DNS server/relay:
+    
+    ```
+    $ echo -e "10.0.0.2 eddings.karlanderica.justdavis.com\n" | sudo tee -a /etc/hosts
+    ```
+    
+5. Create an SSH key (make sure to give it a secure passphrase, and to store that passphrase somewhere secure),
+   load it into the SSH agent, and then make note of its public key:
+    
+    ```
+    $ ssh-keygen -t ed25519 -C "localuser@eddings"
+    $ eval "$(ssh-agent -s)"
+    $ ssh-add ~/.ssh/id_ed25519
+    $ cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+    $ chmod 600 ~/.ssh/authorized_keys
+    ```
+    
+6. Clone the Ansible repo and setup its Python virtual environment:
+    
+    ```
+    $ mkdir -p ~/workspaces/justdavis
+    $ cd ~/workspaces/justdavis
+    $ git clone https://github.com/karlmdavis/justdavis-ansible.git justdavis-ansible.git
+    $ cd justdavis-ansible.git
+    $ ansible-galaxy install -r install_roles.yml
+    ```
+    
+7. Create the `vault.password` file in the `justdavis-ansible.git` project/repo,
+   containing the proper password for it.
+8. Run the playbook against just eddings:
+    
+    ```
+    $ ./ansible-playbook-wrapper site.yml --limit=eddings.justdavis.com
+    ```
+    
+
 ## Setup brust on Ubuntu 20.04
 
 A clean Ubuntu 20.04 install on `brust` can be prepared to run the Ansible plays against itself, as follows:

@@ -16,7 +16,7 @@ After applying this role,
 
 ```bash
 # ZFS should auto-scan /dev/ to find the pools available for import.
-$ sudo zpool import ssd_pool
+$ sudo zpool import -f ssd_pool
 $ sudo zfs load-key ssd_pool
 ```
 

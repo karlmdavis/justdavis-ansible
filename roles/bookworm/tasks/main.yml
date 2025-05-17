@@ -1,0 +1,9 @@
+---
+
+# Used by the <https://github.com/karlmdavis/bookworm> project to deploy to the server.
+- name: Authorize Deploy SSH Key for bookworm
+  ansible.posix.authorized_key:
+    user: localuser
+    state: present
+    key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMPDded42gcmuj7wx9AnsdM3D9VjZaqV7dLqwrb7jpAL github-actions-justdavis'
+  become: true

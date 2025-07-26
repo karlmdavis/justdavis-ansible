@@ -4,6 +4,7 @@ OnFailure=status-email-root@%n.service
 
 [Service]
 Type=oneshot
+TimeoutStartSec=1h
 WorkingDirectory=/root
 ExecStart=/usr/local/bin/tarsnap-backups.sh
 User=root

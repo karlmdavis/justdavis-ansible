@@ -14,4 +14,8 @@ backup_includes:
   - /var/lib/postgresql/backups
   - /var/lib/jenkins
 
-backup_excludes: []
+backup_excludes:
+  - /var/fileshares/justdavis.com/groups/media/movies
+  - /var/fileshares/justdavis.com/groups/media/tv-shows
+  - /var/fileshares/justdavis.com/groups/media/music-videos
+  - /var/fileshares/justdavis.com/groups/sysadmin/archives

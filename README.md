@@ -10,32 +10,17 @@ This repository contains the Ansible playbooks, roles, etc. used by the Davis fa
 
 In order to use and/or modify this repository, a number of tools need to be installed.
 
-### Python
+### Python Dependencies
 
-This project requires Python 3. On Ubuntu/Debian 20.04+ systems, it can be installed as follows:
+This project requires Python 3 and uses `pipx` to manage Ansible and related tools:
 
-    $ sudo apt install python3 python3-virtualenv
+    $ pipx install --include-deps ansible awscli black yamllint
 
-The following packages will also be required by `pip` (see below) to build/install some of the required Python modules and by some of the Ansible tasks:
+This will install Ansible along with all its dependencies including the AWS CLI, linting tools, and other utilities needed for this project.
+
+The following system packages will also be required by some of the Ansible tasks:
 
     $ sudo apt install build-essential python3-dev libpq-dev swaks
-
-### virtualenv
-
-This project has some dependencies that have to be installed via `pip` (as opposed to `apt`). Accordingly, it's strongly recommended that you make use of a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/) to manage those dependencies.
-
-Create a virtual environment for this project and install the project's dependencies into it:
-
-    $ cd justdavis-ansible.git
-    $ virtualenv -p /usr/bin/python3 venv
-    $ source venv/bin/activate
-    $ pip install -r requirements.txt
-
-The `source` command above will need to be run every time you open a new terminal to work on this project (after `cd`ing to the directory).
-
-Be sure to update the `requirements.frozen.txt` file after `pip install`ing a new dependency for this project, just to help keep track of specific working dependency versions:
-
-    $ pip freeze > requirements.frozen.txt
 
 ### Ansible Roles
 

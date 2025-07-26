@@ -2,14 +2,16 @@
 venv/
 roles_external/
 
-# Ignore Eclipse metadata.
+# Ignore IDE metadata.
 .project
+justdavis-ansible.git.code-workspace
 
 # Ignore the Ansible Vault password file.
 vault.password
 
-# Ignore Ansible's `.retry` files.
+# Ignore Ansible's temp files.
 *.retry
+.ansible/
 
 # Ignore the test data and host inventory.
 test/hosts-test

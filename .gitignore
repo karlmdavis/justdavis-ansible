@@ -22,3 +22,7 @@ logs/
 
 # Ignore vim swp files.
 *.swp
+
+# Ignore Claude AI local settings
+.claude/settings.local.json
+

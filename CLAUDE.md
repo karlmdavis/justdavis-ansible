@@ -41,7 +41,7 @@ The codebase uses Ansible roles in `/roles/` for modular configuration:
 ### Development Environment Setup
 ```bash
 # Install Ansible with all dependencies via pipx
-pipx install --include-deps ansible awscli black yamllint
+pipx install --include-deps ansible passlib awscli black yamllint
 
 # Install external Ansible roles
 ansible-galaxy install -r install_roles.yml
@@ -68,6 +68,9 @@ ansible-galaxy install -r install_roles.yml
 
 # Teardown only
 ./test/test.sh -c false -t true
+
+# SSH into test instances
+ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test)
 ```
 
 ### Environment Requirements
@@ -98,16 +101,36 @@ Use the `is_test` variable to conditionally skip network configurations incompat
 ## Development Workflow
 
 ### Branch Strategy
-- Work directly on `master` branch (no pull requests or feature branches)
-- Tests must pass before committing any changes
-- Commit completed work immediately; avoid leaving untracked or staged changes
-- Each commit should have a clear overall purpose/goal
+- Create feature branches for changes and submit pull requests
+- Branch names should be descriptive (e.g., `add-immich-role`, `fix-postgresql-config`)
+- Tests must pass before creating a pull request
+- Each PR should have a clear overall purpose/goal
+- Group related changes together in logical PRs
+
+### Useful Git Commands
+```bash
+# List all untracked and changed files (including individual files in new directories)
+git status --untracked-files=all
+
+# Compare vault changes with colored diff (for manual execution only)
+(git show HEAD:group_vars/all/vault.yml | ansible-vault view - > /tmp/vault-old.yml && ansible-vault view group_vars/all/vault.yml > /tmp/vault-new.yml && diff -u --color=auto /tmp/vault-old.yml /tmp/vault-new.yml || true) && rm -f /tmp/vault-old.yml /tmp/vault-new.yml
+```
+
+### Security Guidelines
+- **NEVER** run `ansible-vault view` or decrypt vault files yourself
+- **NEVER** attempt to view plaintext secrets from vault files
+- If you need information about vault contents, ask the user to check manually
+- The user will run vault commands themselves and share relevant information as needed
 
 ### Cross-Platform Compatibility
 - All scripts and playbooks must work on both macOS and Linux
 - Avoid newer Bash features that may not be available on macOS
 - Prevent "works on my machine" issues by avoiding local path dependencies
 - Test on the actual deployment platform when possible
+
+### File Formatting Standards
+- Always ensure files end with a single trailing newline character
+- This follows POSIX standards and prevents Git warnings about "No newline at end of file"
 
 ### AWS Usage
 - AWS is used primarily for testing infrastructure, not production services

@@ -1,0 +1,19 @@
+---
+# Basic setup tasks for eddings server that other roles depend on
+
+- name: Create localuser account
+  ansible.builtin.user:
+    name: localuser
+    comment: "Local User Account"
+    state: present
+    password: "{{ vault_eddings_localuser_password | password_hash('sha512') }}"
+    shell: /bin/bash
+    create_home: true
+  become: true
+
+- name: Add localuser to sudo group
+  ansible.builtin.user:
+    name: localuser
+    groups: sudo
+    append: true
+  become: true

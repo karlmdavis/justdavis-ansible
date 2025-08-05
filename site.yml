@@ -10,6 +10,9 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Import role - eddings_base
+      ansible.builtin.import_role:
+        name: eddings_base
     # Configure networking, except during tests in AWS (because networking there is
     # completely different and incompatible).
     - name: Import role - eddings_networking

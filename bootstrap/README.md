@@ -17,7 +17,7 @@ A clean Ubuntu 24.04 install on `eddings` can be prepared to run the Ansible pla
     
     ```
     $ sudo apt install pipx libpq-dev openssh-server
-    $ pipx install --include-deps ansible
+    $ pipx install --include-deps ansible passlib
     $ pipx ensurepath
     ```
     

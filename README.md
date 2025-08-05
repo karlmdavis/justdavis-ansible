@@ -14,7 +14,7 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 This project requires Python 3 and uses `pipx` to manage Ansible and related tools:
 
-    $ pipx install --include-deps ansible awscli black yamllint
+    $ pipx install --include-deps ansible passlib awscli black yamllint
 
 This will install Ansible along with all its dependencies including the AWS CLI, linting tools, and other utilities needed for this project.
 
@@ -50,6 +50,10 @@ When testing this playbook, running it against the actual production systems is 
     $ ./test/test.sh -c true -t true
 
 Set `-c` to `false` to skip the configuration playbook, e.g. if you just want to teardown the test instances ASAP. Set `-t` to `false` to skip the teardown phase, if you want the test instances to stick around after a successful configuration run.
+
+To SSH into a test instance for debugging:
+
+    $ ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test)
 
 ### Production
 

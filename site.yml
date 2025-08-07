@@ -64,6 +64,9 @@
     - name: Import role - jellyfin
       ansible.builtin.import_role:
         name: jellyfin
+    - name: Import role - immitch
+      ansible.builtin.import_role:
+        name: immitch
     # - import_role: name=nexus_server
     # - import_role: name=sonarqube_server
     # - import_role: name=jenkins_server

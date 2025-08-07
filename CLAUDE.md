@@ -69,8 +69,11 @@ ansible-galaxy install -r install_roles.yml
 # Teardown only
 ./test/test.sh -c false -t true
 
-# SSH into test instances
+# SSH into test instances (interactive)
 ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test)
+
+# One-shot SSH commands for troubleshooting
+ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test) "command_here"
 ```
 
 ### Environment Requirements

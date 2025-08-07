@@ -1,0 +1,18 @@
+---
+
+- name: Restart PostgreSQL
+  ansible.builtin.service:
+    name: postgresql@16-main
+    state: restarted
+  become: true
+
+- name: Reload Systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart Immich
+  ansible.builtin.systemd:
+    name: immich
+    state: restarted
+  become: true

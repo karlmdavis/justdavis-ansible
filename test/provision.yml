@@ -62,6 +62,14 @@
         # Sonatype Nexus needs at least 3GB RAM, then Jenkins and Nexus need a decent chunk more.
         instance_type: t2.large
         image_id: "{{ ami_id_ubuntu_24_04 }}"
+        # Override default Ubuntu AMI root volume size (8 GB) to provide sufficient disk space
+        # for PostgreSQL databases, Docker images, and application data during testing
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 30
+              volume_type: gp3
+              delete_on_termination: true
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but
@@ -127,6 +135,8 @@
         record: "{{ item.record }}"
         type: "{{ item.type }}"
         ttl: 60
+        # Disabled overwrite, though it's sometimes needed if things have gone sideways.
+        # overwrite: true
         value: "{{ item.value }}"
       register: route53_records
       async: 600

@@ -87,6 +87,7 @@
     - justdavis.conf
     - intranet.conf
     - intranet-qbittorrent.conf
+    - intranet-immich.conf
   become: true
   notify:
     - apache-reload
@@ -100,6 +101,7 @@
     - justdavis.conf
     - intranet.conf
     - intranet-qbittorrent.conf
+    - intranet-immich.conf
   become: true
   notify:
     - apache-reload

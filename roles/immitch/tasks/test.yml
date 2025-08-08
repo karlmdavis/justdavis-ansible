@@ -1,0 +1,32 @@
+---
+
+- name: Test - Verify Immich Service is Running
+  ansible.builtin.systemd:
+    name: immich
+  register: immich_service_status
+  failed_when: immich_service_status.status.ActiveState != "active"
+  become: true
+
+- name: Test - Check Immich API Health
+  ansible.builtin.uri:
+    url: "http://{{ private_ip_address }}:2283/api/server/ping"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: immich_ping
+  retries: 120
+  delay: 1
+
+- name: Test - Verify Immich API Response
+  ansible.builtin.assert:
+    that:
+      - immich_ping.json.res == "pong"
+    fail_msg: "Immich API did not respond with expected 'pong'"
+
+- name: Test - Check Immich Web UI is Accessible
+  ansible.builtin.uri:
+    url: "http://{{ private_ip_address }}:2283/"
+    method: GET
+    status_code: 200
+  retries: 3
+  delay: 5

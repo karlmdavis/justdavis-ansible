@@ -1,5 +1,5 @@
-<VirtualHost *:80>
-  ServerName qbittorrent.intranet.{{ domain}}
+<VirtualHost {{ private_ip_address }}:80>
+  ServerName qbittorrent.intranet.{{ domain }}
 
   DocumentRoot /var/apache2/intranet/www/
   <Directory /var/apache2/intranet/www/>
@@ -20,8 +20,8 @@
   RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
 </VirtualHost>
 
-<VirtualHost *:443>
-  ServerName qbittorrent.intranet.{{ domain}}
+<VirtualHost {{ private_ip_address }}:443>
+  ServerName qbittorrent.intranet.{{ domain }}
 
   DocumentRoot /var/apache2/intranet/www/
   <Directory /var/apache2/intranet/www/>

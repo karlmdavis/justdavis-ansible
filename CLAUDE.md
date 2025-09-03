@@ -110,6 +110,36 @@ Use the `is_test` variable to conditionally skip network configurations incompat
 - Each PR should have a clear overall purpose/goal
 - Group related changes together in logical PRs
 
+### Critical PR Workflow Order
+**ALWAYS follow this exact sequence when creating pull requests:**
+
+1. **Create branch FIRST** (before making any changes):
+   ```bash
+   git checkout -b descriptive-branch-name
+   ```
+
+2. **Make changes and commit to the feature branch**:
+   ```bash
+   # Make your changes
+   git add .
+   git commit -m "Your commit message"
+   ```
+
+3. **Push the feature branch**:
+   ```bash
+   git push -u origin descriptive-branch-name
+   ```
+
+4. **Create PR from the feature branch**:
+   ```bash
+   gh pr create --title "PR Title" --body "PR Description"
+   ```
+
+**NEVER:**
+- Commit changes to main/master branch first
+- Create branches after committing changes
+- Push to main branch when intending to create a PR
+
 ### Useful Git Commands
 ```bash
 # List all untracked and changed files (including individual files in new directories)

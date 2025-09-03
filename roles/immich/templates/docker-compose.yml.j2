@@ -1,0 +1,76 @@
+---
+##
+# Defines the containers for Immich photo and video management.
+#
+# Using external PostgreSQL instead of containerized database.
+# Hardware acceleration is conditionally enabled for non-test environments.
+##
+
+name: immich
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:{{ immich_version }}
+{% if not is_test %}
+    # Hardware acceleration for video transcoding (AMD VAAPI)
+    # extends:
+    #   file: hwaccel.transcoding.yml
+    #   service: vaapi
+{% endif %}
+    volumes:
+      - /var/fileshares/justdavis.com/groups/media/photos:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+{% if not is_test %}
+      # GPU device for hardware acceleration (if enabled above)
+      # - /dev/dri:/dev/dri
+{% endif %}
+    env_file:
+      - .env
+    environment:
+      - PUID={{ immich_uid }}
+      - PGID={{ media_managers_gid }}
+    ports:
+      - "127.0.0.1:2283:2283"
+      - "{{ private_ip_address }}:2283:2283"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      disable: false
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}
+{% if not is_test %}
+    # Optional: ML hardware acceleration
+    # For AMD GPUs with ROCm support, uncomment the following:
+    # extends:
+    #   file: hwaccel.ml.yml
+    #   service: rocm
+    # And change the image tag above to :{{ immich_version }}-rocm
+{% endif %}
+    volumes:
+      - "{{ immich_base_dir }}/model-cache:/cache"
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      disable: false
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8.0-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: valkey-cli ping || exit 1
+
+volumes:
+  model-cache:
+
+# Use the pre-created Immich network (created by Ansible docker_network task)
+# This ensures the network and gateway IP exist before PostgreSQL starts
+networks:
+  default:
+    external: true
+    name: immich_default

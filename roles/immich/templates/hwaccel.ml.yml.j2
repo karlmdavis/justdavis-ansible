@@ -1,0 +1,41 @@
+# Hardware acceleration configuration for machine learning
+# To enable, uncomment the extends section in docker-compose.yml
+
+services:
+  cpu:
+    # No hardware acceleration, CPU only
+
+  rocm:
+    # For AMD GPUs with ROCm support
+    # Note: Requires changing image tag to :version-rocm
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    environment:
+      # Uncomment if GPU not officially supported by ROCm
+      # - HSA_OVERRIDE_GFX_VERSION=10.3.0
+
+  cuda:
+    # For NVIDIA GPUs with CUDA
+    # Note: Requires changing image tag to :version-cuda
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
+  openvino:
+    # For Intel integrated graphics
+    # Note: Requires changing image tag to :version-openvino
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - NEOReadDebugKeys=1
+      - OverrideGpuAddressSpace=48
+
+  armnn:
+    # For ARM boards with Mali GPUs
+    # Note: Requires changing image tag to :version-armnn
+    devices:
+      - /dev/mali0:/dev/mali0
+    volumes:
+      - /lib/firmware/mali_csffw.bin:/lib/firmware/mali_csffw.bin:ro
+      - /usr/lib/libmali.so:/usr/lib/libmali.so:ro

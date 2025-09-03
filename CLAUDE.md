@@ -69,8 +69,11 @@ ansible-galaxy install -r install_roles.yml
 # Teardown only
 ./test/test.sh -c false -t true
 
-# SSH into test instances
+# SSH into test instances (interactive)
 ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test)
+
+# One-shot SSH commands for troubleshooting
+ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test) "command_here"
 ```
 
 ### Environment Requirements
@@ -131,6 +134,7 @@ git status --untracked-files=all
 ### File Formatting Standards
 - Always ensure files end with a single trailing newline character
 - This follows POSIX standards and prevents Git warnings about "No newline at end of file"
+- Avoid unnecessary trailing whitespace on lines (spaces/tabs at end of lines)
 
 ### AWS Usage
 - AWS is used primarily for testing infrastructure, not production services

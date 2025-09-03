@@ -1,0 +1,223 @@
+---
+# Create user and directories following arr_suite pattern
+
+- name: Create Base Directory
+  ansible.builtin.file:
+    path: "{{ immich_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Create System User for Application
+  ansible.builtin.user:
+    name: "{{ immich_user }}"
+    state: present
+    system: true
+    shell: /bin/false
+    home: "{{ immich_base_dir }}"
+  become: true
+
+- name: Get System User Details
+  ansible.builtin.command:
+    cmd: "getent passwd {{ immich_user }}"
+  register: immich_passwd_entry
+  changed_when: false
+
+- name: Parse Out UID for System User
+  ansible.builtin.set_fact:
+    immich_uid: "{{ immich_passwd_entry.stdout.split(':')[2] }}"
+
+- name: Get Media Group Details
+  ansible.builtin.command:
+    cmd: getent group media_managers
+  register: media_managers_group_entry
+  changed_when: false
+
+- name: Parse Out GID for Media Group
+  ansible.builtin.set_fact:
+    media_managers_gid: "{{ media_managers_group_entry.stdout.split(':')[2] }}"
+
+- name: Create Upload Directory
+  ansible.builtin.file:
+    path: /var/fileshares/justdavis.com/groups/media/photos
+    state: directory
+    owner: "{{ immich_user }}"
+    group: media_managers
+    mode: 'u=rwx,g=rwx,o=rx'
+  become: true
+
+# TODO: Add disk space monitoring/limits for ML model cache (Claude Code Review)
+#       Models can be several GB each and could consume significant disk space over time
+#       Consider adding disk usage monitoring or TTL-based cleanup
+- name: Create Model Cache Directory
+  ansible.builtin.file:
+    path: "{{ immich_base_dir }}/model-cache"
+    state: directory
+    owner: "{{ immich_user }}"
+    group: media_managers
+    mode: 'u=rwx,g=rwx,o=rx'
+  become: true
+
+# Pre-create the Immich Docker network to ensure the gateway IP exists before PostgreSQL starts
+# This resolves the circular dependency where PostgreSQL needs to bind to 172.30.0.1
+# but that IP doesn't exist until Docker Compose creates the network
+- name: Create Immich Docker Network
+  community.docker.docker_network:
+    name: immich_default
+    driver: bridge
+    ipam_config:
+      - subnet: 172.30.0.0/16
+        gateway: 172.30.0.1
+  become: true
+  notify: Restart PostgreSQL
+
+# PostgreSQL Vector Extension Setup
+# Note: PostgreSQL APT repository is configured by postgresql_server role
+
+# Install pgvector from PostgreSQL APT repository (prerequisite for VectorChord)
+# Immich requires: pgvector >= 0.7.0, < 1.0.0
+# The PostgreSQL APT repository has newer versions than Ubuntu's default
+- name: Install PostgreSQL pgvector Extension
+  ansible.builtin.apt:
+    name: postgresql-16-pgvector
+    state: present
+    update_cache: true
+  become: true
+
+# Manual installation of VectorChord from GitHub (not available in Ubuntu repository)
+# Reference: https://immich.app/docs/administration/postgres-standalone/
+# Immich requires: VectorChord >= 0.3.0, < 0.5.0
+- name: Download VectorChord Package
+  ansible.builtin.get_url:
+    url: 'https://github.com/tensorchord/VectorChord/releases/download/0.4.3/postgresql-16-vchord_0.4.3-1_amd64.deb'
+    dest: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'
+    mode: 'u=rw,g=r,o=r'
+
+- name: Install VectorChord Package
+  ansible.builtin.apt:
+    deb: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'
+    update_cache: true
+  become: true
+
+- name: Install psycopg2 for System Python
+  ansible.builtin.apt:
+    name: python3-psycopg2
+    state: present
+    update_cache: true
+  become: true
+
+- name: Configure PostgreSQL to Preload vchord.so
+  community.postgresql.postgresql_alter_system:
+    param: shared_preload_libraries
+    value: vchord.so
+  become: true
+  become_user: postgres
+  notify: Restart PostgreSQL
+
+# Force PostgreSQL restart to load the VectorChord extension and start listening on the new Immich
+# network
+- name: Flush handlers to restart PostgreSQL
+  ansible.builtin.meta: flush_handlers
+
+- name: Create PostgreSQL User
+  community.postgresql.postgresql_user:
+    name: "{{ vault_postgres_immich_username }}"
+    password: "{{ vault_postgres_immich_password }}"
+    encrypted: true
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Create PostgreSQL Database
+  community.postgresql.postgresql_db:
+    name: immich
+    owner: "{{ vault_postgres_immich_username }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Grant PostgreSQL User Privileges On Database
+  community.postgresql.postgresql_privs:
+    login_db: immich
+    role: "{{ vault_postgres_immich_username }}"
+    type: database
+    privs: ALL
+  become: true
+  become_user: postgres
+
+- name: Create VectorChord Extension in Immich Database
+  community.postgresql.postgresql_ext:
+    name: vchord
+    login_db: immich
+    cascade: true
+    state: present
+  become: true
+  become_user: postgres
+
+# Grant superuser privileges to Immich user so it can create required extensions
+# Immich needs to create earthdistance, cube, and other extensions during migrations
+# TODO: SECURITY FIX REQUIRED - Remove SUPERUSER privilege escalation (Claude Code Review)
+#       1. Create extensions during setup phase as 'postgres' user
+#       2. Use minimal privileges for Immich runtime user (CREATE, USAGE on schema, table privileges)
+#       3. Document which specific extensions Immich needs beyond vchord and pgvector
+- name: Grant Superuser Privileges to Immich User
+  community.postgresql.postgresql_user:
+    name: "{{ vault_postgres_immich_username }}"
+    role_attr_flags: SUPERUSER
+    state: present
+  become: true
+  become_user: postgres
+
+# Docker Compose Configuration
+
+- name: Create Docker Compose File
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ immich_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+
+- name: Create Environment File
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ immich_base_dir }}/.env"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o='
+  become: true
+
+- name: Create Hardware Acceleration Config Files
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "{{ immich_base_dir }}/{{ item | replace('.j2', '') }}"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  loop:
+    - hwaccel.transcoding.yml.j2
+    - hwaccel.ml.yml.j2
+
+# Service Management
+
+- name: Deploy Systemd Service for Immich
+  ansible.builtin.template:
+    src: immich.service.j2
+    dest: /etc/systemd/system/immich.service
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify: Reload Systemd
+
+- name: Enable and Start Immich Service
+  ansible.builtin.systemd:
+    name: immich
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

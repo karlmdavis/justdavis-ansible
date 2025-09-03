@@ -1,0 +1,38 @@
+# Hardware acceleration configuration for video transcoding
+# To enable, uncomment the extends section in docker-compose.yml
+
+services:
+  cpu:
+    # No hardware acceleration, CPU only
+
+  vaapi:
+    # For AMD integrated graphics (like Ryzen 9 4900H)
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - LIBVA_DRIVER_NAME=radeonsi
+
+  vaapi-wsl:
+    # For AMD on Windows WSL2
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - LIBVA_DRIVER_NAME=d3d12
+
+  nvenc:
+    # For NVIDIA GPUs
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+
+  quicksync:
+    # For Intel integrated graphics
+    devices:
+      - /dev/dri:/dev/dri
+
+  rkmpp:
+    # For Rockchip ARM boards
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/mpp_service:/dev/mpp_service

@@ -1,24 +1,44 @@
 ---
 
+# Add PostgreSQL official APT repository for newer extension versions
+# Required for immich role which needs pgvector >= 0.7.0 with halfvec[] type support
+# Ubuntu's default repository has older pgvector versions that lack required features
+- name: Add PostgreSQL APT repository key
+  ansible.builtin.apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+  become: true
+
+- name: Add PostgreSQL APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    state: present
+    filename: pgdg
+  become: true
+
 - name: Install PostgreSQL
   ansible.builtin.package:
     name:
-      # Install the PostgreSQL server:
-      - postgresql
-      # Install the PostgreSQL client:
-      - postgresql-client
+      # Install PostgreSQL 16 specifically (Ubuntu 24.04 default version)
+      # The PostgreSQL APT repo would allow installing newer versions (e.g., postgresql-17)
+      - postgresql-16
+      # Install the PostgreSQL 16 client:
+      - postgresql-client-16
   become: true
 
-- name: Configure PostgreSQL to Listen on localhost and Docker Bridge
+# Configure PostgreSQL to listen on localhost, default Docker bridge, and Immich network
+# 172.17.0.1 - Default Docker bridge (for other compose apps)
+# 172.30.0.1 - Fixed Immich network subnet
+- name: Configure PostgreSQL to Listen on localhost and Docker Networks
   ansible.builtin.lineinfile:
     path: /etc/postgresql/16/main/postgresql.conf
     regexp: '^listen_addresses ='
-    line: "listen_addresses = 'localhost,172.17.0.1'"
+    line: "listen_addresses = 'localhost,172.17.0.1,172.30.0.1'"
     backup: false
   become: true
   notify: Restart PostgreSQL
 
-- name: Allow Connections from Docker Bridge in pg_hba.conf
+- name: Allow Connections from Default Docker Bridge in pg_hba.conf
   ansible.builtin.lineinfile:
     path: /etc/postgresql/16/main/pg_hba.conf
     insertafter: '^#.*IPv4 local connections:'
@@ -27,12 +47,30 @@
   become: true
   notify: Restart PostgreSQL
 
-- name: Allow PostgreSQL (5432) for Docker Bridge Network
+# Allow connections from the Immich Docker network (172.30.0.0/16)
+- name: Allow Connections from Immich Docker Network in pg_hba.conf
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/16/main/pg_hba.conf
+    insertafter: '^#.*IPv4 local connections:'
+    line: "host    all    all    172.30.0.0/16    md5"
+    backup: false
+  become: true
+  notify: Restart PostgreSQL
+
+- name: Allow PostgreSQL (5432) for Default Docker Bridge Network
   community.general.ufw:
     rule: allow
     port: '5432'
     proto: tcp
     src: '172.17.0.0/16'
+
+# Allow PostgreSQL connections from the Immich Docker network
+- name: Allow PostgreSQL (5432) for Immich Docker Network
+  community.general.ufw:
+    rule: allow
+    port: '5432'
+    proto: tcp
+    src: '172.30.0.0/16'
 
 - name: Create the Override Directory for PostgreSQL's Service
   ansible.builtin.file:

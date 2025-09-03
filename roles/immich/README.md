@@ -84,17 +84,17 @@ The role performs the following steps:
 To upgrade to a new version:
 
 1. Check the [Immich releases](https://github.com/immich-app/immich/releases) for breaking changes
-2. Update the version in `roles/immitch/defaults/main.yml`:
+2. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
    immich_version: v1.137.0  # or newer
    ```
 3. If VectorChord needs updating:
    - Check [VectorChord releases](https://github.com/tensorchord/VectorChord/releases) for PostgreSQL 16 compatible versions
-   - Update the download URL in `roles/immitch/tasks/install_and_configure.yml`
+   - Update the download URL in `roles/immich/tasks/install_and_configure.yml`
    - Ensure the version remains within Immich's required range (>= 0.3.0, < 0.5.0)
 4. Run the playbook:
    ```bash
-   ./ansible-playbook-wrapper site.yml --tags immitch
+   ./ansible-playbook-wrapper site.yml --tags immich
    ```
 5. The service will automatically pull new images and restart
 6. Database migrations run automatically on startup

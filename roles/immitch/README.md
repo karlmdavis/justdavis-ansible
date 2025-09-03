@@ -51,16 +51,9 @@ The role configures the PostgreSQL official APT repository to ensure newer pgvec
 
 ## Role Variables
 
+This role requires no configuration, but the following variables must be set in the Ansible vault:
+
 ```yaml
-# Version of Immich to install (in defaults/main.yml)
-immich_version: v1.136.0
-
-# Base directory for Immich installation
-immich_base_dir: /opt/immich
-
-# System user for running Immich
-immich_user: immich
-
 # PostgreSQL credentials (in vault)
 vault_postgres_immich_username: immich
 vault_postgres_immich_password: <encrypted>

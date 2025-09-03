@@ -97,6 +97,3 @@
     - name: Import role - workstation_apps
       ansible.builtin.import_role:
         name: workstation_apps
-    - name: Import role - user_karl_devenv
-      ansible.builtin.import_role:
-        name: user_karl_devenv

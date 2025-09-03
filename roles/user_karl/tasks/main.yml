@@ -43,57 +43,30 @@
   become: true
   loop: "{{ ssh_keys_karl_public }}"
 
-- name: Copy SSH Public Key
-  ansible.builtin.copy:
-    content: "{{ ssh_key_karlmdavis.public }}"
-    dest: "/home/karl/.ssh/id_rsa.pub"
+- name: Install chezmoi
+  ansible.builtin.package:
+    name: chezmoi
+    state: present
+  become: true
+
+- name: Initialize chezmoi with dotfiles repo
+  ansible.builtin.command:
+    cmd: chezmoi init karlmdavis
+    creates: /home/karl/.local/share/chezmoi
+  become_user: karl
+  become: true
+
+- name: Apply chezmoi dotfiles
+  ansible.builtin.command:
+    cmd: chezmoi apply
+  become_user: karl
+  become: true
+
+- name: Create Git Config
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: /home/karl/.gitconfig
     owner: karl
     group: karl
     mode: u=rw,g=r,o=r
   become: true
-
-- name: Copy SSH Private Key
-  ansible.builtin.copy:
-    content: "{{ ssh_key_karlmdavis.private }}"
-    dest: "/home/karl/.ssh/id_rsa"
-    owner: karl
-    group: karl
-    mode: u=rw,g=,o=
-  become: true
-  no_log: true
-
-- name: Install tmux
-  ansible.builtin.package:
-    name: tmux
-    state: present
-  become: true
-
-- name: Create tmux Plugins Dir
-  ansible.builtin.file:
-    state: directory
-    path: "{{ item }}"
-  become: true
-  become_user: karl
-  with_items:
-    - /home/karl/.tmux
-    - /home/karl/.tmux/plugins
-
-- name: Install tmux Plugin Manager
-  ansible.builtin.git:
-    repo: 'https://github.com/tmux-plugins/tpm'
-    dest: '/home/karl/.tmux/plugins/tpm'
-    update: false
-  become: true
-  become_user: karl
-
-- name: Install and Configure RCM
-  ansible.builtin.import_role:
-    name: karlmdavis.rcm-dotfiles
-  vars:
-    rcm_user: karl
-    rcm_install_mode: default
-    rcm_replace_existing_files: true
-    rcm_repos:
-      - repo: 'git@github.com:karlmdavis/dotfiles.git'
-        dest: '/home/karl/.dotfiles-karlmdavis.git'
-  become: false

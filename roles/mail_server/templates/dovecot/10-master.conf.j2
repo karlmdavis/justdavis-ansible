@@ -64,6 +64,7 @@ service imap {
   # Most of the memory goes to mmap()ing files. You may need to increase this
   # limit if you have huge mailboxes.
   #vsz_limit = $default_vsz_limit
+  vsz_limit = 512M
 
   # Max. number of IMAP processes (connections)
   #process_limit = 1024

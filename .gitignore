@@ -1,5 +1,4 @@
-# Ignore the Python virtual environment and external roles.
-venv/
+# Ignore external roles.
 roles_external/
 
 # Ignore IDE metadata.

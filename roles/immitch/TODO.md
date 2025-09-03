@@ -24,7 +24,7 @@ Implementing Immich (self-hosted photo and video management) using Docker Compos
 - **Upload location**: `/var/fileshares/justdavis.com/groups/media/photos`
 - **Database variables**: Using vault variables: `vault_postgres_immich_username` and `vault_postgres_immich_password`
 - **Service user**: Follow arr_suite pattern (system user with UID/GID management)
-- **Backup integration**: 
+- **Backup integration**:
   - PostgreSQL backups already handled by existing pg_dumpall service ✓
   - Photos directory already covered by tarsnap via `/var/fileshares` ✓
 - **Version pinning**: Pin to v1.136.0 (latest stable as of 2025-07-27)

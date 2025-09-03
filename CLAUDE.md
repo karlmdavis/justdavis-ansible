@@ -134,6 +134,7 @@ git status --untracked-files=all
 ### File Formatting Standards
 - Always ensure files end with a single trailing newline character
 - This follows POSIX standards and prevents Git warnings about "No newline at end of file"
+- Avoid unnecessary trailing whitespace on lines (spaces/tabs at end of lines)
 
 ### AWS Usage
 - AWS is used primarily for testing infrastructure, not production services

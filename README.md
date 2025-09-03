@@ -53,7 +53,13 @@ Set `-c` to `false` to skip the configuration playbook, e.g. if you just want to
 
 To SSH into a test instance for debugging:
 
+In Bash/ZSH:
+
     $ ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' test/hosts-test)
+
+In nu shell:
+
+    $ ssh $"ubuntu@((open test/hosts-test | lines | where {|l| $l | str starts-with 'eddings.justdavis.com'} | parse --regex '^.*?\bansible_host=(?P<h>\S+)' | get h | first))"
 
 ### Production
 

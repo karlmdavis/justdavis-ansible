@@ -1,7 +1,0 @@
-[Unit]
-Description=Run spideroak-backups.service daily.
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-

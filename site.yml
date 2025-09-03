@@ -67,10 +67,6 @@
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich
-    # - import_role: name=nexus_server
-    # - import_role: name=sonarqube_server
-    # - import_role: name=jenkins_server
-    # - import_role: name=spideroak
 
 - name: Apply Common Configuration
   hosts: all

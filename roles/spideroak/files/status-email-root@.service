@@ -1,8 +1,0 @@
-[Unit]
-Description=Emails the status of the %i service to root.
-
-[Service]
-Type=oneshot
-ExecStart=/bin/systemctl status --full %i | /usr/bin/mail --subject "Status of Service %i" root
-User=nobody
-Group=systemd-journal

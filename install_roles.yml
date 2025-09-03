@@ -17,17 +17,9 @@
 # Installs and configures the BIND DNS server.
 - src: karlmdavis.bind-dns
 
-# https://galaxy.ansible.com/karlmdavis/jenkins2/
-# Installs and configures Jenkins 2.
-- src: karlmdavis.jenkins2
-
 # https://galaxy.ansible.com/geerlingguy/java/
 # Installs and configures Java.
 - src: geerlingguy.java
-
-# https://galaxy.ansible.com/ansible-ThoTeam/nexus3-oss/
-# Installs and configures Sonatype's Nexus OSS.
-- src: ansible-ThoTeam.nexus3-oss
 
 # https://github.com/karlmdavis/rcm-ansible-role
 # This Ansible role can be used to install and configure RCM (https://github.com/thoughtbot/rcm), a management suite for dotfiles.

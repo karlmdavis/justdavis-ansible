@@ -180,6 +180,7 @@
     group: root
     mode: 'u=rw,g=r,o=r'
   become: true
+  notify: Restart Immich
 
 - name: Create Environment File
   ansible.builtin.template:
@@ -189,6 +190,7 @@
     group: root
     mode: 'u=rw,g=r,o='
   become: true
+  notify: Restart Immich
 
 - name: Create Hardware Acceleration Config Files
   ansible.builtin.template:

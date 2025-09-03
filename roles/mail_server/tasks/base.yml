@@ -230,7 +230,6 @@
       /^postmaster@/                              karl@{{ domain }}
       /^acme@eddings.{{ domain }}$/               karl@{{ domain }}
       /^root@eddings.{{ domain }}$/               karl@{{ domain }}
-      /^jenkins@{{ domain }}$/                    karl@{{ domain }}
       /^webmaster@/                               karl@{{ domain }}
       /^karl.*@{{ domain }}/                      karl@{{ domain }}
       /^karl.*@{{ domain_doh }}/                  karl@{{ domain }}

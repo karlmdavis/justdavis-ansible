@@ -165,12 +165,6 @@ if anyof (header :contains ["to","cc"] "kerberos@mit.edu",
     stop;
 }
 
-# [sonar-user]
-if anyof (header :contains ["to","cc"] "user@sonar.codehaus.org") {
-    fileinto "INBOX.Lists.Open Source.sonar-user";
-    stop;
-}
-
 # [ATrpms-users]
 if anyof (header :contains ["to","cc"] "atrpms-users@atrpms.net") {
     fileinto "INBOX.Lists.Open Source.atrpms-users";

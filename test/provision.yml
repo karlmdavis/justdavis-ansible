@@ -59,7 +59,7 @@
         key_name: "{{ aws_ec2_key_name }}"
         # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
         # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However,
-        # Sonatype Nexus needs at least 3GB RAM, then Jenkins and Nexus need a decent chunk more.
+        # the various services need more RAM and CPU resources for testing.
         instance_type: t2.large
         image_id: "{{ ami_id_ubuntu_24_04 }}"
         # Override default Ubuntu AMI root volume size (8 GB) to provide sufficient disk space

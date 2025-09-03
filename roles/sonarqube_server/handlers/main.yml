@@ -1,7 +1,0 @@
----
-
-- name: "Restart 'sonar'"
-  service:
-    name: sonar
-    state: restarted
-  become: true

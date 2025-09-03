@@ -10,9 +10,7 @@ backup_includes:
   - /var/apache2
   - /var/lib/tomcat8
   - /var/log/tomcat8
-  - /var/nexus-backup
   - /var/lib/postgresql/backups
-  - /var/lib/jenkins
 
 backup_excludes:
   - /var/fileshares/justdavis.com/groups/media/movies

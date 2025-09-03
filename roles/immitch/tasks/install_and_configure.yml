@@ -89,9 +89,6 @@
 # Manual installation of VectorChord from GitHub (not available in Ubuntu repository)
 # Reference: https://immich.app/docs/administration/postgres-standalone/
 # Immich requires: VectorChord >= 0.3.0, < 0.5.0
-# TODO: Add checksum validation for VectorChord package integrity (Claude Code Review)
-#       Hardcoded URL may become unavailable and no integrity validation exists
-#       Consider adding checksum validation for package security
 - name: Download VectorChord Package
   ansible.builtin.get_url:
     url: 'https://github.com/tensorchord/VectorChord/releases/download/0.4.3/postgresql-16-vchord_0.4.3-1_amd64.deb'

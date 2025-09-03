@@ -48,6 +48,9 @@
     mode: 'u=rwx,g=rwx,o=rx'
   become: true
 
+# TODO: Add disk space monitoring/limits for ML model cache (Claude Code Review)
+#       Models can be several GB each and could consume significant disk space over time
+#       Consider adding disk usage monitoring or TTL-based cleanup
 - name: Create Model Cache Directory
   ansible.builtin.file:
     path: "{{ immich_base_dir }}/model-cache"
@@ -86,6 +89,9 @@
 # Manual installation of VectorChord from GitHub (not available in Ubuntu repository)
 # Reference: https://immich.app/docs/administration/postgres-standalone/
 # Immich requires: VectorChord >= 0.3.0, < 0.5.0
+# TODO: Add checksum validation for VectorChord package integrity (Claude Code Review)
+#       Hardcoded URL may become unavailable and no integrity validation exists
+#       Consider adding checksum validation for package security
 - name: Download VectorChord Package
   ansible.builtin.get_url:
     url: 'https://github.com/tensorchord/VectorChord/releases/download/0.4.3/postgresql-16-vchord_0.4.3-1_amd64.deb'
@@ -155,6 +161,10 @@
 
 # Grant superuser privileges to Immich user so it can create required extensions
 # Immich needs to create earthdistance, cube, and other extensions during migrations
+# TODO: SECURITY FIX REQUIRED - Remove SUPERUSER privilege escalation (Claude Code Review)
+#       1. Create extensions during setup phase as 'postgres' user
+#       2. Use minimal privileges for Immich runtime user (CREATE, USAGE on schema, table privileges)
+#       3. Document which specific extensions Immich needs beyond vchord and pgvector
 - name: Grant Superuser Privileges to Immich User
   community.postgresql.postgresql_user:
     name: "{{ vault_postgres_immich_username }}"

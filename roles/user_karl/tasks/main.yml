@@ -56,6 +56,26 @@
     state: present
   become: true
 
+- name: Create chezmoi config directory
+  ansible.builtin.file:
+    path: /home/karl/.config/chezmoi
+    state: directory
+    mode: u=rwx,g=,o=
+    owner: karl
+    group: karl
+  become: true
+
+- name: Create chezmoi config with template variables
+  ansible.builtin.copy:
+    dest: /home/karl/.config/chezmoi/chezmoi.toml
+    content: |
+      [data]
+      systemType = "personal"
+    owner: karl
+    group: karl
+    mode: u=rw,g=r,o=r
+  become: true
+
 - name: Initialize chezmoi with dotfiles repo
   ansible.builtin.command:
     cmd: chezmoi init karlmdavis

@@ -44,9 +44,9 @@
   loop: "{{ ssh_keys_karl_public }}"
 
 - name: Install chezmoi
-  ansible.builtin.shell:
-    cmd: sh -c "$(curl -fsLS get.chezmoi.io)"
-    creates: /usr/local/bin/chezmoi
+  ansible.builtin.apt:
+    deb: https://github.com/twpayne/chezmoi/releases/latest/download/chezmoi_linux_amd64.deb
+    state: present
   become: true
 
 - name: Initialize chezmoi with dotfiles repo

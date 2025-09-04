@@ -43,9 +43,16 @@
   become: true
   loop: "{{ ssh_keys_karl_public }}"
 
+- name: Get latest chezmoi release info
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/twpayne/chezmoi/releases/latest
+    return_content: yes
+  register: chezmoi_release
+  become: false
+
 - name: Install chezmoi
   ansible.builtin.apt:
-    deb: https://github.com/twpayne/chezmoi/releases/latest/download/chezmoi_linux_amd64.deb
+    deb: "https://github.com/twpayne/chezmoi/releases/download/{{ chezmoi_release.json.tag_name }}/chezmoi_{{ chezmoi_release.json.tag_name[1:] }}_linux_amd64.deb"
     state: present
   become: true
 

@@ -43,57 +43,70 @@
   become: true
   loop: "{{ ssh_keys_karl_public }}"
 
-- name: Copy SSH Public Key
+# Did you know Homebrew is a perfectly cromulent option for dev tools on Linux?
+# Me either, but it is!
+- name: Install Homebrew
+  ansible.builtin.shell:
+    cmd: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    creates: /home/linuxbrew/.linuxbrew/bin/brew
+  environment:
+    NONINTERACTIVE: "1"
+  become_user: karl
+  become: true
+
+- name: Define Homebrew Path for Later Tasks
+  ansible.builtin.set_fact:
+    brew_prefix: /home/linuxbrew/.linuxbrew
+
+- name: Configure Homebrew in Bash Profile
   ansible.builtin.copy:
-    content: "{{ ssh_key_karlmdavis.public }}"
-    dest: "/home/karl/.ssh/id_rsa.pub"
-    owner: karl
-    group: karl
+    dest: /etc/profile.d/homebrew.sh
+    content: |
+      ##
+      # This script configures Homebrew for all users on the system.
+      #
+      # Note: For login shells, Bash will source `/etc/profile`, which in turn sources all scripts in
+      # `/etc/profile.d/`, including this one.
+      ##
+
+      # Homebrew shellenv setup for all users
+      if [ -x {{ brew_prefix }}/bin/brew ]; then
+        eval "$({{ brew_prefix }}/bin/brew shellenv)"
+      fi
+    owner: root
+    group: root
     mode: u=rw,g=r,o=r
   become: true
 
-- name: Copy SSH Private Key
-  ansible.builtin.copy:
-    content: "{{ ssh_key_karlmdavis.private }}"
-    dest: "/home/karl/.ssh/id_rsa"
-    owner: karl
-    group: karl
-    mode: u=rw,g=,o=
-  become: true
-  no_log: true
-
-- name: Install tmux
-  ansible.builtin.package:
-    name: tmux
+- name: Install chezmoi Using Homebrew
+  community.general.homebrew:
+    name: chezmoi
     state: present
-  become: true
-
-- name: Create tmux Plugins Dir
-  ansible.builtin.file:
-    state: directory
-    path: "{{ item }}"
-  become: true
   become_user: karl
-  with_items:
-    - /home/karl/.tmux
-    - /home/karl/.tmux/plugins
-
-- name: Install tmux Plugin Manager
-  ansible.builtin.git:
-    repo: 'https://github.com/tmux-plugins/tpm'
-    dest: '/home/karl/.tmux/plugins/tpm'
-    update: false
   become: true
-  become_user: karl
 
-- name: Install and Configure RCM
-  ansible.builtin.import_role:
-    name: karlmdavis.rcm-dotfiles
-  vars:
-    rcm_user: karl
-    rcm_install_mode: default
-    rcm_replace_existing_files: true
-    rcm_repos:
-      - repo: 'git@github.com:karlmdavis/dotfiles.git'
-        dest: '/home/karl/.dotfiles-karlmdavis.git'
-  become: false
+- name: Initialize chezmoi with dotfiles repo
+  ansible.builtin.shell:
+    cmd: set -o pipefail; echo "personal" | chezmoi init --no-tty karlmdavis
+    executable: /bin/bash
+    creates: /home/karl/.local/share/chezmoi
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
+    HOMEBREW_PREFIX: "{{ brew_prefix }}"
+    HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
+    HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
+  become_user: karl
+  become: true
+
+- name: Apply chezmoi dotfiles
+  ansible.builtin.command:
+    cmd: chezmoi apply
+    # Just checking for an arbitrary file that should exist if chezmoi has been applied.
+    creates: /home/karl/.config/zellij/config.kdl
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
+    HOMEBREW_PREFIX: "{{ brew_prefix }}"
+    HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
+    HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
+  become_user: karl
+  become: true

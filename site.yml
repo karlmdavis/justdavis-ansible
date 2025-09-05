@@ -94,9 +94,4 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Import role - workstation_apps
-      ansible.builtin.import_role:
-        name: workstation_apps
-    - name: Import role - user_karl_devenv
-      ansible.builtin.import_role:
-        name: user_karl_devenv
+    # Note: don't have any workstation-only roles now/anymore. Might in the future.

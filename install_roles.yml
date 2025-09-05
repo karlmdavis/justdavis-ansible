@@ -20,7 +20,3 @@
 # https://galaxy.ansible.com/geerlingguy/java/
 # Installs and configures Java.
 - src: geerlingguy.java
-
-# https://github.com/karlmdavis/rcm-ansible-role
-# This Ansible role can be used to install and configure RCM (https://github.com/thoughtbot/rcm), a management suite for dotfiles.
-- src: karlmdavis.rcm-dotfiles

@@ -54,6 +54,10 @@
   become_user: karl
   become: true
 
+- name: Define Homebrew Path for Later Tasks
+  ansible.builtin.set_fact:
+    brew_prefix: /home/linuxbrew/.linuxbrew
+
 - name: Configure Homebrew in Bash Profile
   ansible.builtin.copy:
     dest: /etc/profile.d/homebrew.sh
@@ -66,8 +70,8 @@
       ##
 
       # Homebrew shellenv setup for all users
-      if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      if [ -x {{ brew_prefix }}/bin/brew ]; then
+        eval "$({{ brew_prefix }}/bin/brew shellenv)"
       fi
     owner: root
     group: root
@@ -83,18 +87,26 @@
 
 - name: Initialize chezmoi with dotfiles repo
   ansible.builtin.shell:
-    cmd: set -o pipefail; echo "personal" | /home/linuxbrew/.linuxbrew/bin/chezmoi init --no-tty karlmdavis
+    cmd: set -o pipefail; echo "personal" | chezmoi init --no-tty karlmdavis
     executable: /bin/bash
     creates: /home/karl/.local/share/chezmoi
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
+    HOMEBREW_PREFIX: "{{ brew_prefix }}"
+    HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
+    HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
   become_user: karl
   become: true
 
 - name: Apply chezmoi dotfiles
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: chezmoi apply
-    # Note: We need the user's environment/path for this to work correctly.
-    executable: /bin/bash
     # Just checking for an arbitrary file that should exist if chezmoi has been applied.
     creates: /home/karl/.config/zellij/config.kdl
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
+    HOMEBREW_PREFIX: "{{ brew_prefix }}"
+    HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
+    HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
   become_user: karl
   become: true

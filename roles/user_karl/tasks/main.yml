@@ -78,7 +78,6 @@
   community.general.homebrew:
     name: chezmoi
     state: present
-    update_homebrew: true
   become_user: karl
   become: true
 
@@ -91,8 +90,10 @@
   become: true
 
 - name: Apply chezmoi dotfiles
-  ansible.builtin.command:
-    cmd: /home/linuxbrew/.linuxbrew/bin/chezmoi apply
+  ansible.builtin.shell:
+    cmd: chezmoi apply
+    # Note: We need the user's environment/path for this to work correctly.
+    executable: /bin/bash
     # Just checking for an arbitrary file that should exist if chezmoi has been applied.
     creates: /home/karl/.config/zellij/config.kdl
   become_user: karl

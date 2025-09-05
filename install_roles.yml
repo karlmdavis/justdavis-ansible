@@ -1,22 +1,8 @@
 ---
 # Run the following command against this file to install all of the Ansible roles required by this project:
-# 
+#
 #     $ ansible-galaxy install --force --role-file=install_roles.yml
-
-# https://github.com/geerlingguy/ansible-role-certbot
-# Manages the 'Certbot' client for Let's Encrypt, which can be used to register
-# and renew free SSL certificates.
-#- src: geerlingguy.certbot
-# TODO: switch back to main releases once <https://github.com/simonspa/ansible-role-certbot.git>
-# is merged.
-- src: 'https://github.com/simonspa/ansible-role-certbot.git'
-  version: 'webroot'
-  name: geerlingguy.certbot
 
 # https://galaxy.ansible.com/karlmdavis/tested-bind/
 # Installs and configures the BIND DNS server.
 - src: karlmdavis.bind-dns
-
-# https://galaxy.ansible.com/geerlingguy/java/
-# Installs and configures Java.
-- src: geerlingguy.java

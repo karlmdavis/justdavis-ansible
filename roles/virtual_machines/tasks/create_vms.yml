@@ -1,0 +1,77 @@
+---
+# Create and configure VMs using libvirt/KVM.
+
+- name: Create libvirt storage pool directory
+  ansible.builtin.file:
+    path: "{{ virtual_machines_libvirt_storage_pool_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Define libvirt storage pool
+  community.libvirt.virt_pool:
+    command: define
+    name: "{{ virtual_machines_libvirt_storage_pool_name }}"
+    xml: |
+      <pool type='dir'>
+        <name>{{ virtual_machines_libvirt_storage_pool_name }}</name>
+        <source>
+        </source>
+        <target>
+          <path>{{ virtual_machines_libvirt_storage_pool_path }}</path>
+          <permissions>
+            <mode>0755</mode>
+            <owner>0</owner>
+            <group>0</group>
+          </permissions>
+        </target>
+      </pool>
+  become: true
+
+- name: Start and autostart libvirt storage pool
+  community.libvirt.virt_pool:
+    state: active
+    autostart: true
+    name: "{{ virtual_machines_libvirt_storage_pool_name }}"
+  become: true
+
+- name: Download Ubuntu cloud image
+  ansible.builtin.get_url:
+    url: "{{ virtual_machines_ubuntu_cloud_image_url }}"
+    dest: "{{ virtual_machines_ubuntu_cloud_image_path }}"
+    mode: 'u=rw,g=r,o=r'
+    timeout: 300
+    force: false
+  become: true
+  retries: 3
+  delay: 10
+
+- name: Create VMs
+  ansible.builtin.include_tasks: create_single_vm.yml
+  loop: "{{ virtual_machines_vms }}"
+  loop_control:
+    loop_var: vm
+  when: not is_test | default(false)
+
+- name: List all VMs for verification
+  community.libvirt.virt:
+    command: list_vms
+  register: all_vms
+  become: true
+  when: not is_test | default(false)
+
+- name: Display VM summary
+  ansible.builtin.debug:
+    msg: |
+      Virtual Machine Summary:
+      - Total VMs configured: {{ virtual_machines_vms | length }}
+      - VMs in libvirt: >
+        {{ all_vms.list_vms | length if all_vms.list_vms is defined else 0 }}
+      - Configured VMs: >
+        {{ virtual_machines_vms | map(attribute='name') | list | join(', ') }}
+      {% if all_vms.list_vms is defined %}
+      - Active VMs: {{ all_vms.list_vms | join(', ') }}
+      {% endif %}
+  when: not is_test | default(false)

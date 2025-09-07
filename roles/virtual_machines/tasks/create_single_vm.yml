@@ -1,0 +1,53 @@
+---
+# Create a single VM from the vms list.
+
+- name: Create VM disk from cloud image
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create -f {{ vm.disk_format }} -F qcow2
+      -b {{ virtual_machines_ubuntu_cloud_image_path }}
+      {{ virtual_machines_libvirt_storage_pool_path }}/{{ vm.name }}.{{ vm.disk_format }}
+      {{ vm.disk_size }}
+    creates: "{{ virtual_machines_libvirt_storage_pool_path }}/{{ vm.name }}.{{ vm.disk_format }}"
+  become: true
+
+- name: Create cloud-init user-data file
+  ansible.builtin.copy:
+    content: |
+      #cloud-config
+      {{ vm.user_data | to_nice_yaml(indent=2) }}
+    dest: "{{ virtual_machines_libvirt_storage_pool_path }}/{{ vm.name }}-user-data.yaml"
+    mode: 'u=rw,g=r,o=r'
+  become: true
+
+- name: Create VM
+  ansible.builtin.command:
+    cmd: >
+      virt-install --name {{ vm.name }}
+      --memory {{ vm.memory }}
+      --vcpus {{ vm.vcpus }}
+      --disk
+      path={{ virtual_machines_libvirt_storage_pool_path }}/{{ vm.name }}.{{ vm.disk_format }},format={{ vm.disk_format }}
+      --os-variant {{ vm.os_variant }}
+      --network {{ vm.network }}
+      --graphics none
+      --console pty,target_type=serial
+      --cloud-init
+      user-data={{ virtual_machines_libvirt_storage_pool_path }}/{{ vm.name }}-user-data.yaml
+      --import
+      --noautoconsole
+    creates: "/etc/libvirt/qemu/{{ vm.name }}.xml"
+  become: true
+
+- name: Set VM to autostart
+  community.libvirt.virt:
+    name: "{{ vm.name }}"
+    autostart: "{{ vm.autostart }}"
+  become: true
+  when: vm.autostart | default(false)
+
+- name: Start VM if not running
+  community.libvirt.virt:
+    name: "{{ vm.name }}"
+    state: running
+  become: true

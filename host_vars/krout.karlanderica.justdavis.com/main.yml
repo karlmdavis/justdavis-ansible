@@ -1,0 +1,55 @@
+---
+##
+# Host-specific configuration for the `krout` development VM.
+##
+
+# Backup configuration for development environment.
+backup_includes:
+  - /home
+
+# Exclude development artifacts and caches.
+backup_excludes:
+  # Rust build artifacts
+  - /home/*/workspaces/**/target
+  # Node.js dependencies
+  - /home/*/workspaces/**/node_modules
+  # Gradle cache
+  - /home/*/workspaces/**/.gradle
+  # Maven cache
+  - /home/*/workspaces/**/.maven
+  # User cache directories
+  - /home/*/.cache
+  # Trash directories
+  - /home/*/.local/share/Trash
+  # npm cache
+  - /home/*/.npm
+  # Cargo registry cache
+  - /home/*/.cargo/registry
+  # Cargo git cache
+  - /home/*/.cargo/git
+  # Rustup toolchain cache
+  - /home/*/.rustup
+  # Gradle user cache
+  - /home/*/.gradle
+  # Maven local repository
+  - /home/*/.m2/repository
+  # Go module cache
+  - /home/*/go/pkg
+  # Python virtual environments
+  - /home/*/.local/share/virtualenvs
+  # Python bytecode cache
+  - /home/*/__pycache__
+  # Pytest cache
+  - /home/*/.pytest_cache
+  # MyPy cache
+  - /home/*/.mypy_cache
+
+##
+# VM-specific variables.
+##
+
+# Configure the user_karl role for karl_bot user
+user_karl_target_user: karl_bot
+
+# Same keys are authorized to access this account via SSH as for `karl`
+user_karl_ssh_keys: "{{ ssh_keys_karl_public }}"

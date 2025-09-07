@@ -88,6 +88,12 @@ people:
     uidAndGidNumber: 10003
     mail: media_server@justdavis.com
     initialPassword: "{{ vault_people.media_server.initialPassword }}"
+  karl_bot:
+    givenName: Karl
+    sn: Bot
+    uidAndGidNumber: 10006
+    mail: karl_bot@justdavis.com
+    initialPassword: "{{ vault_people.karl_bot.initialPassword }}"
 
 # The service accounts to be created in LDAP.
 service_accounts: []

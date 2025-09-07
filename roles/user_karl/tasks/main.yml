@@ -2,56 +2,61 @@
 
 - name: Create User Home Directory
   ansible.builtin.command:
-    cmd: /sbin/mkhomedir_helper karl
+    cmd: /sbin/mkhomedir_helper {{ user_karl_target_user }}
   args:
-    creates: /home/karl
+    creates: "/home/{{ user_karl_target_user }}"
   become: true
 
 - name: Create User .ssh Directory
   ansible.builtin.file:
     state: directory
-    dest: /home/karl/.ssh
+    dest: "/home/{{ user_karl_target_user }}/.ssh"
     mode: u=rwx,g=,o=
-    owner: karl
-    group: karl
+    owner: "{{ user_karl_target_user }}"
+    group: "{{ user_karl_target_user }}"
   become: true
 
-- name: Authorize karl for NOPASSWD sudo Use
+- name: Authorize User for NOPASSWD sudo Use
   ansible.builtin.copy:
-    dest: '/etc/sudoers.d/karl'
+    dest: '/etc/sudoers.d/{{ user_karl_target_user }}'
     content: |
-      # Allow the `karl` account sudo access without requiring a password.
-      karl ALL=(ALL) NOPASSWD:ALL
+      # Allow the `{{ user_karl_target_user }}` account sudo access
+      # without requiring a password.
+      {{ user_karl_target_user }} ALL=(ALL) NOPASSWD:ALL
     owner: root
     group: root
     mode: u=w,g=r,o=
     validate: '/usr/sbin/visudo --check --file=%s'
   become: true
 
-- name: Add karl to sudo Group
-  # This seems redundant with the above sudoers.d entry, but is needed by polkit.
+- name: Add User to sudo Group
+  # This seems redundant with the above sudoers.d entry,
+  # but is needed by polkit.
   ansible.builtin.user:
-    name: karl
+    name: "{{ user_karl_target_user }}"
     groups: sudo
     append: true
   become: true
 
 - name: Authorize SSH Keys
   ansible.posix.authorized_key:
-    user: karl
+    user: "{{ user_karl_target_user }}"
     key: "{{ item }}"
   become: true
-  loop: "{{ ssh_keys_karl_public }}"
+  loop: "{{ user_karl_ssh_keys }}"
+  when: user_karl_ssh_keys | length > 0
 
 # Did you know Homebrew is a perfectly cromulent option for dev tools on Linux?
 # Me either, but it is!
 - name: Install Homebrew
   ansible.builtin.shell:
-    cmd: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    cmd: >
+      /bin/bash -c "$(curl -fsSL
+      https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     creates: /home/linuxbrew/.linuxbrew/bin/brew
   environment:
     NONINTERACTIVE: "1"
-  become_user: karl
+  become_user: "{{ user_karl_target_user }}"
   become: true
 
 - name: Define Homebrew Path for Later Tasks
@@ -82,31 +87,33 @@
   community.general.homebrew:
     name: chezmoi
     state: present
-  become_user: karl
+  become_user: "{{ user_karl_target_user }}"
   become: true
 
 - name: Initialize chezmoi with dotfiles repo
   ansible.builtin.shell:
-    cmd: set -o pipefail; echo "personal" | chezmoi init --no-tty karlmdavis
+    cmd: >
+      set -o pipefail; echo "personal" |
+      chezmoi init --no-tty karlmdavis
     executable: /bin/bash
-    creates: /home/karl/.local/share/chezmoi
+    creates: "/home/{{ user_karl_target_user }}/.local/share/chezmoi"
   environment:
     PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
     HOMEBREW_PREFIX: "{{ brew_prefix }}"
     HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
     HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
-  become_user: karl
+  become_user: "{{ user_karl_target_user }}"
   become: true
 
 - name: Apply chezmoi dotfiles
   ansible.builtin.command:
     cmd: chezmoi apply
     # Just checking for an arbitrary file that should exist if chezmoi has been applied.
-    creates: /home/karl/.config/zellij/config.kdl
+    creates: "/home/{{ user_karl_target_user }}/.config/zellij/config.kdl"
   environment:
     PATH: "{{ ansible_env.PATH }}:{{ brew_prefix }}/bin:{{ brew_prefix }}/sbin"
     HOMEBREW_PREFIX: "{{ brew_prefix }}"
     HOMEBREW_CELLAR: "{{ brew_prefix }}/Cellar"
     HOMEBREW_REPOSITORY: "{{ brew_prefix }}"
-  become_user: karl
+  become_user: "{{ user_karl_target_user }}"
   become: true

@@ -12,3 +12,6 @@ eddings.justdavis.com ansible_user=localuser ansible_host=eddings.karlanderica.j
 
 # Karl WSL environment on Erica's Surface laptop.
 #lawson.karlanderica.justdavis.com ansible_user=localuser ansible_port=2222
+
+# Development VM running on eddings
+krout.karlanderica.justdavis.com ansible_user=localuser ansible_python_interpreter=/usr/bin/python3

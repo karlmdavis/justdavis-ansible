@@ -1,0 +1,128 @@
+---
+##
+# Configures a development sandbox VM with GUI desktop environment and RDP access. This role transforms
+# a headless Ubuntu server into a desktop environment suitable for development work with remote access.
+##
+
+- name: Install Desktop Environment Packages
+  ansible.builtin.apt:
+    name: "{{ desktop_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  vars:
+    desktop_packages:
+      # Ubuntu desktop base with XFCE session support
+      - ubuntu-desktop-minimal
+      - xfce4
+      - xfce4-goodies
+      # RDP server (no display manager needed for RDP-only access)
+      - xrdp
+      # Font support for proper text rendering (fonts-noto-color-emoji included in ubuntu-desktop-minimal)
+      - fonts-liberation
+      - fonts-dejavu-core
+      - fonts-noto-core
+      - fonts-jetbrains-mono
+      # HTTP client utility
+      - curl
+      # Download utility
+      - wget
+      # Process monitor
+      - htop
+      # Directory listing utility
+      - tree
+      # Additional web browser (firefox included in ubuntu-desktop-minimal)
+      - chromium-browser
+      # Text editor
+      - vim
+      # Terminal emulator
+      - alacritty
+
+- name: Install Mail Client Packages
+  ansible.builtin.apt:
+    name: "{{ mail_packages }}"
+    state: present
+    update_cache: false
+  become: true
+  vars:
+    mail_packages:
+      # Modern terminal mail client
+      - aerc
+      # SMTP client for scripts
+      - msmtp
+      # For HTML mail rendering in aerc
+      - w3m
+
+- name: Set Default Target to Graphical
+  ansible.builtin.systemd:
+    name: graphical.target
+    enabled: true
+  become: true
+
+- name: Set System Default Session Manager to XFCE
+  community.general.alternatives:
+    name: x-session-manager
+    path: /usr/bin/xfce4-session
+  become: true
+
+#- name: Enable Snap Desktop Integration for XFCE4
+#  ansible.builtin.copy:
+#    src: /etc/profile.d/apps-bin-path.sh
+#    dest: /etc/X11/Xsession.d/20snap
+#    mode: u=rw,g=r,o=r
+#    remote_src: true
+#  become: true
+#  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure Firewall for RDP Access
+  community.general.ufw:
+    rule: allow
+    port: '3389'
+    proto: tcp
+    src: "{{ item }}"
+    comment: "RDP access for development VM"
+  become: true
+  loop:
+    # Home LAN
+    - "{{ network_home_private_cidr }}"
+    # Tailscale VPN range
+    - "100.64.0.0/10"
+
+- name: Configure xrdp for Performance and Security
+  ansible.builtin.blockinfile:
+    path: /etc/xrdp/xrdp.ini
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Performance Optimization"
+    insertafter: "\\[Globals\\]"
+    block: |
+      # Performance optimizations for remote desktop
+      bitmap_cache=yes
+      bitmap_compression=yes
+      bulk_compression=yes
+      max_bpp=32
+
+      # Security settings
+      security_layer=negotiate
+      crypt_level=high
+      ssl_protocols=TLSv1.2, TLSv1.3
+
+      # Connection settings optimized for macOS RDP clients
+      tcp_nodelay=yes
+      tcp_keepalive=yes
+  become: true
+  notify: Restart XRDP
+
+- name: Enable and Start xrdp Service
+  ansible.builtin.systemd:
+    name: xrdp
+    enabled: true
+    state: started
+  become: true
+
+- name: Add xrdp User to ssl-cert Group for Certificate Access
+  ansible.builtin.user:
+    name: xrdp
+    groups: ssl-cert
+    append: true
+  become: true
+  notify: Restart XRDP

@@ -40,3 +40,13 @@ This document is used to keep track of open ideas, tasks, etc. related to this p
 - [X] Update things to use the new version of my dotfiles, which moved from rcm to chezmoi.
 - [X] Yoink out the "workstation apps" setup. Probably. Doubt it's useful anymore.
 - [ ] Set disk encryption to unlock with USB key.
+- [ ] Move most of my `become` usage up to higher levels (e.g., play or role level) to speed up runs.
+- [ ] Build a system inventory doc, mostly to keep track of hardware lifecycles.
+    - [ ] This should also include an inventory of SSH keys.
+- [ ] Oops: netdata isn't installed anymore. Re-add it or something similar.
+    - Didn't I pay for it?
+- [ ] Consider moving krout to a new LAN bridge interface, rather than its current vtap.
+    - With the vtap, eddings can't communicate with krout.
+      This means I can't run the plays using the VPN with eddings as the exit node.
+- [ ] Is it possible to automatically start an unattach xrdp session after krout boots,
+        so that any start-on-login services are always avaialable?

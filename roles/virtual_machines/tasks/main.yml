@@ -6,3 +6,6 @@
 
 - name: Import Tasks - install.yml
   ansible.builtin.import_tasks: install.yml
+
+- name: Import Tasks - create_vms.yml
+  ansible.builtin.import_tasks: create_vms.yml

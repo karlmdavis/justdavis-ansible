@@ -1,0 +1,11 @@
+---
+##
+# Handlers for the dev_sandbox role.
+##
+
+- name: Restart XRDP
+  ansible.builtin.systemd:
+    name: xrdp
+    state: restarted
+  become: true
+

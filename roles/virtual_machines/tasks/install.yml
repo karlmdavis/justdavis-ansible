@@ -8,4 +8,7 @@
   with_items:
     - libvirt-daemon-system
     - virtinst
+    - qemu-utils
+    - python3-lxml
+    - python3-libvirt
   become: true

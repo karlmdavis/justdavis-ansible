@@ -12,14 +12,14 @@ network:
   ethernets:
     # The ethernet connection for WAN connectivity.
     eno1:
-      # Nothing set here, as it's only directly used to host the br0 bridge.
+      # Nothing set here, as it's only directly used to host the br-wan bridge.
       dhcp4: false # This is the default, just including it so we have valid YAML.
     # The ethernet connection for LAN connectivity.
-    # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.
     enp4s0:
-      dhcp4: true
+      # Nothing set here, as it's only directly used to host the br-lan bridge.
+      dhcp4: false # This is the default, just including it so we have valid YAML.
   bridges:
-    br0:
+    br-wan:
       interfaces: [eno1]
       addresses:
         # The primary public IP address for the server.
@@ -32,3 +32,7 @@ network:
       routes:
         - to: default
           via: 96.86.32.142
+    br-lan:
+      interfaces: [enp4s0]
+      # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.
+      dhcp4: true

@@ -7,7 +7,7 @@ virtual_machines_vms:
     disk_size: 100G  # 100GB disk
     disk_format: qcow2
     os_variant: ubuntu24.04
-    network: "type=direct,source={{ private_ip_interface }},source_mode=bridge,model=virtio,mac=52:54:00:fa:6a:44"
+    network: "type=bridge,source={{ private_ip_interface }},model=virtio,mac=52:54:00:fa:6a:44"
     autostart: true
     # Cloud-init configuration
     user_data:

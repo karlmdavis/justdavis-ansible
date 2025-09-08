@@ -29,6 +29,7 @@
         </target>
       </pool>
   become: true
+  when: not is_test | default(false)
 
 - name: Start and autostart libvirt storage pool
   community.libvirt.virt_pool:
@@ -36,6 +37,7 @@
     autostart: true
     name: "{{ virtual_machines_libvirt_storage_pool_name }}"
   become: true
+  when: not is_test | default(false)
 
 - name: Download Ubuntu cloud image
   ansible.builtin.get_url:
@@ -47,6 +49,7 @@
   become: true
   retries: 3
   delay: 10
+  when: not is_test | default(false)
 
 - name: Create VMs
   ansible.builtin.include_tasks: create_single_vm.yml

@@ -74,36 +74,36 @@ This becomes critical when accessing the homelab remotely via `eddings` as VPN g
   where the communication path must traverse the `eddings` host.
 
 
-## Desired Architecture
+## Implementation Architecture
 
-### Target Configuration
+### Deployed Configuration
 
 **WAN Bridge (`br-wan`):**
 
-- Bridge the `eno1` interface (renamed from `br0`).
-- Maintain public IP configuration.
-- No functional changes to WAN connectivity.
+- Bridges the `eno1` interface (renamed from legacy `br0`).
+- Maintains public IP configuration without changes.
+- Preserves all WAN connectivity functionality.
 
 **LAN Bridge (`br-lan`):**
-- Bridge the `enp4s0` interface (new configuration).
-- DHCP client on bridge interface.
-- VMs attach directly to bridge (no macvtap).
+- Bridges the `enp4s0` interface with DHCP client configuration.
+- VMs attach directly to bridge interface (macvtap eliminated).
+- Full bidirectional host-VM communication enabled.
 
-### Benefits Over Current Approach
+### Advantages of Bridge Architecture
 
 **Technical Benefits:**
 
-- **Direct host-VM communication**: Eliminates macvtap isolation barrier.
-- **Standard Linux networking**: Uses well-established kernel bridge implementation.
-- **Simplified troubleshooting**: Consistent tools and procedures across interfaces.
-- **Enhanced visibility**: Better network monitoring and debugging capabilities.
+- **Direct Host-VM Communication**: Complete elimination of macvtap isolation barriers.
+- **Standard Linux Networking**: Leverages well-established kernel bridge implementation.
+- **Simplified Troubleshooting**: Consistent tools and procedures across all interfaces.
+- **Enhanced Visibility**: Comprehensive network monitoring and debugging capabilities.
 
 **Operational Benefits:**
 
-- **Ansible compatibility**: Enables VM management from `eddings` host.
-- **Remote access reliability**: SSH/RDP works consistently via VPN.
-- **Scalability**: Supports additional VMs without architectural changes.
-- **Maintenance efficiency**: Unified configuration and management approach
+- **Ansible Compatibility**: Full VM management capability from `eddings` host.
+- **Reliable Remote Access**: SSH/RDP functions consistently via VPN connections.
+- **Scalability**: Additional VMs supported without architectural modifications.
+- **Unified Management**: Single configuration and management approach across interfaces.
 
 
 ## Impact Assessment
@@ -160,17 +160,43 @@ This becomes critical when accessing the homelab remotely via `eddings` as VPN g
 - [ ] No regressions in existing functionality or performance.
 
 
-## Strategic Context
+## Implementation Details
 
-This architecture change directly supports the **GUI Development VM Epic**
+### Netplan Configuration
+
+The bridge architecture is implemented via netplan configuration in
+`roles/eddings_networking/files/netplan/00-installer-config.yaml`:
+
+**WAN Bridge Implementation:**
+- `br-wan` bridge interfaces the `eno1` physical interface
+- Maintains existing public IP configuration
+- Preserves all public service connectivity
+
+**LAN Bridge Implementation:**
+- `br-lan` bridge interfaces the `enp4s0` physical interface  
+- DHCP client configuration maintains dynamic IP assignment
+- Direct VM attachment without macvtap isolation layer
+
+### Integration Benefits
+
+This architecture change directly enables the **GUI Development VM Product**
   by removing the primary technical barrier to remote desktop access.
-The decision to standardize on bridges creates a foundation
-  for future homelab expansion while solving immediate operational challenges.
+The bridge standardization creates a robust foundation
+  for future homelab expansion while solving current operational requirements.
 
-The migration represents a shift from a mixed networking approach to a consistent,
-  enterprise-standard architecture that will serve as the
-  foundation for future virtualization and networking requirements.
+### Strategic Value
+
+The implementation represents a successful transition from mixed networking approaches
+  to a consistent, enterprise-standard architecture that serves as the
+  foundation for current and future virtualization and networking needs.
+
+## Potential Future Enhancements
+
+- **VLAN Support**: Advanced network segmentation capabilities if needed
+- **Traffic Monitoring**: Enhanced network monitoring and analytics
+- **QoS Implementation**: Traffic prioritization for critical services
+- **Additional Bridges**: Support for additional network segments
 
 ---
 
-**Status**: ✅ Architecture Defined | 🔄 Implementation Planning
+**Status**: ✅ Product Specification | 🚀 Fully Implemented

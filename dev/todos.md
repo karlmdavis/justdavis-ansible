@@ -20,6 +20,12 @@ This document is used to keep track of open ideas, tasks, etc. related to this p
     - [X] Run `rcdn -v` on the server to unlink all the old rcm dotfiles.
     - [X] Uninstall rcm on the server.
     - [X] Apply the new setup to the server by running the playbook.
+- [ ] Remove mentions of the server being an OpenVPN VPN server, since it no longer is.
+- [X] Skip cloud image download in tests. Too slow.
+- [ ] Consider switching tests to newer EC2 instance types, to speed them up.
+- [ ] Might cut down on which packages are installed by `chexmoi apply` in tests, to save time.
+    - This run of the tests, it's been stuck on that step for 33 minutes.
+- [ ] Get `ntfy` wired up to send me notifications for completion of long commands in nu shell.
 
 
 ## Larger Tasks

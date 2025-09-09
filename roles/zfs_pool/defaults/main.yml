@@ -25,6 +25,11 @@ datasets:
     mountpoint: /var/fileshares
     owner: root
     group: root
+  - name: vms
+    recordsize: 1M
+    mountpoint: /var/lib/libvirt/vms
+    owner: root
+    group: root
 
 # Systemd timer schedules
 scrub_schedule: "*-*-01 03:00:00"

@@ -1,0 +1,32 @@
+---
+# VM configuration defaults.
+virtual_machines_vms:
+  - name: krout
+    memory: 4096  # 4GB RAM
+    vcpus: 2      # 2 CPU cores
+    disk_size: 100G  # 100GB disk
+    disk_format: qcow2
+    os_variant: ubuntu24.04
+    network: "type=bridge,source={{ private_ip_interface }},model=virtio,mac=52:54:00:fa:6a:44"
+    autostart: true
+    # Cloud-init configuration
+    user_data:
+      users:
+        - name: localuser
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          ssh_authorized_keys: "{{ ssh_keys_karl_public }}"
+      packages:
+        - openssh-server
+      runcmd:
+        - systemctl enable ssh
+        - systemctl start ssh
+
+# Ubuntu cloud image URL.
+virtual_machines_ubuntu_cloud_image_url: >
+  https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+virtual_machines_ubuntu_cloud_image_path: >
+  /var/lib/libvirt/vms/ubuntu-24.04-server-cloudimg-amd64.img
+
+# Libvirt storage pool.
+virtual_machines_libvirt_storage_pool_name: "vms"
+virtual_machines_libvirt_storage_pool_path: "/var/lib/libvirt/vms"

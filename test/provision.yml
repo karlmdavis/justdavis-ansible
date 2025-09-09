@@ -115,7 +115,7 @@
                    # this, Kerberos domain creation takes FOREVER.)
                    # Also: run `apt-get upgrade`, to grab the latest SSL root certs, which are
                    # needed.
-                   sudo apt-get update -qq && sudo apt-get install -y -qq haveged && sudo apt-get upgrade
+                   sudo apt-get update -qq && sudo apt-get install -y -qq haveged && sudo apt-get upgrade -y
         region: "{{ aws_region }}"
         network:
           vpc_subnet_id: "{{ aws_vpc_subnet }}"

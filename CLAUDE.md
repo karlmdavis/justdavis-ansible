@@ -162,9 +162,17 @@ git status --untracked-files=all
 - Test on the actual deployment platform when possible
 
 ### File Formatting Standards
-- Always ensure files end with a single trailing newline character
-- This follows POSIX standards and prevents Git warnings about "No newline at end of file"
-- Avoid unnecessary trailing whitespace on lines (spaces/tabs at end of lines)
+
+- Always ensure files end with a single trailing newline character.
+- This follows POSIX standards and prevents Git warnings about "No newline at end of file".
+- Avoid unnecessary trailing whitespace on lines (spaces/tabs at end of lines).
+- Use symbolic file permissions (e.g., `u=rwx,g=rx,o=rx`) instead of octal modes (e.g., `0755`) in Ansible tasks for better readability.
+- **Avoid trailing line comments** in YAML files - they're difficult to keep properly formatted/aligned. Instead, place comments on the line above the item they describe.
+- **Ansible handler names should always be Title Cased** (e.g., `Restart Apache`, `Reload Nginx`) for consistency and readability.
+- **Ansible YAML files should be line wrapped at 110 characters** whenever it doesn't require extreme formatting hacks. This applies to both code and comments for better readability.
+- **In Markdown files, always end list items that are just text with periods** for consistency and proper punctuation.
+- **In Markdown files, always leave a blank line preceding the start of a list** to improve readability and visual separation.
+- **Comments should end with a period** for proper punctuation and consistency.
 
 ### AWS Usage
 - AWS is used primarily for testing infrastructure, not production services

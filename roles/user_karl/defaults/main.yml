@@ -1,0 +1,8 @@
+---
+##
+# Default variables for the user_karl role.
+# These can be overridden when applying the role to different users.
+##
+
+user_karl_target_user: karl
+user_karl_ssh_keys: "{{ ssh_keys_karl_public }}"

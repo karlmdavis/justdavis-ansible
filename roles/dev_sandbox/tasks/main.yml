@@ -1,0 +1,8 @@
+---
+##
+# Configures a development sandbox VM with GUI desktop and RDP access. This role transforms a headless
+# Ubuntu server into a desktop environment suitable for development work with remote access capabilities.
+##
+
+- name: Import Tasks - configure.yml
+  ansible.builtin.import_tasks: configure.yml

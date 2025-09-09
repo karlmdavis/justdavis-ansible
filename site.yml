@@ -95,3 +95,15 @@
   gather_facts: true
   tasks:
     # Note: don't have any workstation-only roles now/anymore. Might in the future.
+
+- name: Configure Development VM
+  hosts: krout.karlanderica.justdavis.com
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Import role - dev_sandbox
+      ansible.builtin.import_role:
+        name: dev_sandbox
+    - name: Import role - user_karl (for karl_bot user)
+      ansible.builtin.import_role:
+        name: user_karl

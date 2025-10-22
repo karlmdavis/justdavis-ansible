@@ -75,6 +75,21 @@
   become: true
   register: 'install_krb'
 
+# Kerberos Firewall Configuration.
+#
+# Goal: Restrict Kerberos services to trusted networks only.
+#
+# Reasoning:
+# - Port 88 (KDC): Required for authentication, needs LAN + Tailscale access for legitimate users.
+# - Port 464 (kpasswd): Required for password changes, same access requirements as KDC.
+# - Port 749 (kadmin): Administrative interface - localhost-only prevents internet exposure.
+#
+# Tradeoffs:
+# - Users can only authenticate from LAN or Tailscale VPN (not directly from internet).
+# - This is acceptable because remote users should connect via Tailscale VPN first.
+# - Localhost-only kadmin means remote administration requires SSH tunnel or VPN.
+#
+# Security benefit: Prevents brute force attacks and credential theft from internet.
 - name: Firewall - Allow Kerberos KDC from LAN and Tailscale
   community.general.ufw:
     rule: allow

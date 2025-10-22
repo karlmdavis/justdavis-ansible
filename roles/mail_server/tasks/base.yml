@@ -63,7 +63,32 @@
     state: restarted
   become: true
 
-- name: Firewall - Allow Mail Traffic
+# Mail Server Firewall Configuration.
+#
+# Goal: Allow necessary mail services while preventing abuse and attacks.
+#
+# Reasoning:
+# - Port 25 (Postfix SMTP): MUST accept mail from any mail server on internet (RFC requirement).
+# - Port 465 (Postfix SMTPS): Legacy encrypted submission, needed for some older mail clients.
+# - Port 587 (Postfix Submission): Modern mail submission, requires SASL authentication.
+# - Port 993 (Dovecot IMAPS): Encrypted IMAP for mail retrieval, needs internet access.
+#
+# Rate Limiting Decision:
+# - Port 25 (SMTP): NO rate limiting - legitimate mail servers may send multiple messages rapidly.
+#   Rate limiting could cause mail delivery failures and bounce messages.
+# - Ports 465/587 (Submission): NO rate limiting - authenticated users, protected by SASL auth.
+#   fail2ban monitors for auth failures instead.
+# - Port 993 (IMAPS): YES rate limiting - mail clients don't need rapid new connections.
+#   Helps prevent IMAP brute force attacks alongside fail2ban.
+#
+# Tradeoffs:
+# - No rate limiting on SMTP means we rely on fail2ban and application-level protections.
+# - IMAP rate limiting won't affect normal mail clients (they maintain persistent connections).
+# - fail2ban provides application-level protection for all mail services based on log analysis.
+#
+# Security benefit: Multi-layer protection via fail2ban (auth failures), rate limiting (IMAP),
+# and application-level controls (SASL authentication, spam filtering, virus scanning).
+- name: Firewall - Allow Mail Traffic (SMTP, SMTPS, Submission)
   community.general.ufw:
     rule: allow
     name: "{{ item }}"
@@ -71,7 +96,12 @@
     - Postfix
     - Postfix SMTPS
     - Postfix Submission
-    - Dovecot Secure IMAP
+  become: true
+
+- name: Firewall - Allow Mail Traffic (IMAPS with rate limiting)
+  community.general.ufw:
+    rule: limit
+    name: Dovecot Secure IMAP
   become: true
 
 - name: Create 'vmail' User and Group

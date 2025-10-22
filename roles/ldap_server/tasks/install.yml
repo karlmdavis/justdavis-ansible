@@ -57,6 +57,23 @@
     - ldap-utils
   become: true
 
+# OpenLDAP Firewall Configuration.
+#
+# Goal: Restrict directory service access to trusted networks only.
+#
+# Reasoning:
+# - Port 389 (LDAP): Unencrypted directory access, contains user accounts and authentication data.
+# - Port 636 (LDAPS): Encrypted directory access, same sensitive data but protected in transit.
+# - Both ports need LAN + Tailscale access for legitimate authentication and directory lookups.
+#
+# Tradeoffs:
+# - Applications can only query LDAP from LAN or Tailscale VPN (not directly from internet).
+# - This is acceptable because all services needing LDAP are either on the same LAN or should use VPN.
+# - Remote users authenticate via Kerberos (which is also LAN/Tailscale restricted).
+#
+# Security benefit: Prevents directory enumeration and credential exposure from internet.
+# LDAP contains sensitive information (usernames, email addresses, organizational structure) that
+# should never be publicly accessible.
 - name: Firewall - Allow LDAP from LAN and Tailscale
   community.general.ufw:
     rule: allow

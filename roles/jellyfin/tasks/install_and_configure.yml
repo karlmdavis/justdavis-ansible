@@ -38,6 +38,23 @@
     state: present
   become: true
 
+# Jellyfin Firewall Configuration.
+#
+# Goal: Restrict media server access to trusted networks only.
+#
+# Reasoning:
+# - Port 8096: Direct access to Jellyfin web interface and streaming.
+# - Currently NOT proxied through Apache (see GitHub issue #35).
+# - Media content should only be accessible to family members, not the public internet.
+#
+# Tradeoffs:
+# - Users can only stream media from LAN or Tailscale VPN (not directly from internet).
+# - This is acceptable for a private family media server.
+# - Remote streaming requires connecting to Tailscale VPN first (adds one extra step).
+#
+# Security benefit: Prevents unauthorized access to media library and reduces attack surface.
+# Future improvement: Proxy through Apache (like other intranet services) to allow localhost-only
+# binding and centralized TLS termination.
 - name: Firewall - Allow Jellyfin from LAN and Tailscale
   community.general.ufw:
     rule: allow

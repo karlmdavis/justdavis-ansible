@@ -11,6 +11,24 @@
     - smbclient
   become: true
 
+# Samba File Sharing Firewall Configuration.
+#
+# Goal: Restrict file sharing to trusted networks only.
+#
+# Reasoning:
+# - Ports 137-139: NetBIOS services for Windows file sharing compatibility.
+# - Port 445: SMB/CIFS direct file sharing (modern Windows/macOS/Linux clients).
+# - File shares contain private family data and should never be internet-accessible.
+#
+# Tradeoffs:
+# - Users can only access file shares from LAN or Tailscale VPN (not directly from internet).
+# - This is the CORRECT configuration - file shares should NEVER be exposed to internet.
+# - Note: Samba daemon is configured to bind only to localhost and LAN interface, so this is
+#   defense-in-depth (application-level binding + firewall restriction).
+#
+# Security benefit: Critical protection against ransomware and data theft.
+# Internet-exposed SMB shares are a primary target for automated attacks and have been the
+# source of numerous high-profile breaches (e.g., WannaCry, NotPetya).
 - name: Firewall - Allow Samba from LAN and Tailscale
   community.general.ufw:
     rule: allow

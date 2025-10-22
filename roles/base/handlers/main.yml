@@ -1,0 +1,12 @@
+---
+
+- name: Restart fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted
+  become: true
+
+- name: Load security sysctl configuration
+  ansible.builtin.command:
+    cmd: /usr/sbin/sysctl --system
+  become: true

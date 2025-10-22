@@ -8,15 +8,31 @@
   with_items:
     - apache2
 
-- name: Firewall - Allow Apache HTTP
+# Apache Firewall Configuration with Rate Limiting.
+#
+# Goal: Allow public HTTP/HTTPS access while preventing flood attacks.
+#
+# Reasoning:
+# - Port 80 (HTTP): Redirects to HTTPS, needs to be public for Let's Encrypt challenges.
+# - Port 443 (HTTPS): Public web server, must be accessible from internet.
+# - Rate limiting: Prevents rapid connection attempts (6+ connections in 30 seconds per IP).
+#
+# Tradeoffs:
+# - Rate limiting could affect: Legitimate users on shared IPs (NAT, corporate networks).
+# - Rate limiting does NOT affect: Normal browsing (browsers reuse connections).
+# - fail2ban provides additional protection at application level (analyzing Apache logs).
+#
+# Security benefit: Mitigates HTTP flood attacks and reduces load from aggressive scanners/bots.
+# Combined with fail2ban's application-level analysis, provides multi-layer protection.
+- name: Firewall - Allow Apache HTTP with rate limiting
   community.general.ufw:
-    rule: allow
+    rule: limit
     name: Apache
   become: true
 
-- name: Firewall - Allow Apache HTTPS
+- name: Firewall - Allow Apache HTTPS with rate limiting
   community.general.ufw:
-    rule: allow
+    rule: limit
     name: Apache Secure
   become: true
 

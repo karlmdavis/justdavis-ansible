@@ -23,6 +23,30 @@
       # Gandi's ns6.gandi.net secondary name server
       - 217.70.177.40
 
+# DNS Server Firewall Configuration.
+#
+# Goal: Allow public DNS queries while relying on BIND's built-in protections.
+#
+# Reasoning:
+# - Port 53 (DNS): Must be publicly accessible for authoritative DNS service.
+# - Serves multiple domains: justdavis.com, davisonlinehome.name, rpstourney.com, storywyrm.com.
+# - DNS queries can be legitimately rapid (e.g., browser loading page with many subdomains).
+#
+# Rate Limiting Decision: NO rate limiting on DNS.
+# - Legitimate use cases generate rapid queries (web page with multiple resources from subdomains).
+# - Rate limiting could break legitimate DNS resolution and cause website/email failures.
+# - BIND9 has built-in DoS protections:
+#   - Query rate limiting (RRL) built into BIND
+#   - Response rate limiting to prevent DNS amplification attacks
+#   - Client query limits per IP
+#
+# Tradeoffs:
+# - Rely on BIND's application-level protections rather than kernel-level rate limiting.
+# - BIND is specifically designed to handle high query volumes safely.
+# - UFW rate limiting is too coarse-grained for DNS (can't distinguish legitimate from attack traffic).
+#
+# Security benefit: BIND's RRL (Response Rate Limiting) specifically designed for DNS DoS protection.
+# This is more effective than generic connection rate limiting.
 - name: Firewall - Allow DNS Traffic
   community.general.ufw:
     rule: allow

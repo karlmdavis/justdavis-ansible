@@ -112,6 +112,8 @@ ssh_keys_karl_public:
   - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHlQsv8b+QzmbAKky9AJ14n0ZnqhYwe2Wont3jWuGoRF karl@justdavis.com'
   # FaceID-derived key from Termius iPhone app:
   - 'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEzoHynGA3rnwhji/xbIPzyzeelhXwxvJynckxuwyylMqOBD2mIVZR63Zn6J5gZbQMNcgGXPrvr4HgCVO0QBp5E= karl-iphone-faceid-key'
+  # FaceID-derived key from Termius iPad app:
+  - 'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBKUlRKH891LQPwqLLg853qVpR63MdNVm7HDYd4Exc2V4POlUYPcPeA5a+xfaBhlay7H91qu/uGm6s9wOWl6nJNs= karl-ipadpro-faceid-key'
 
 # The account to create and use for test purposes.
 test_username: 'test'

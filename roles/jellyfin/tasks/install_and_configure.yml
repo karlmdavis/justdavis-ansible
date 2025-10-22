@@ -38,22 +38,14 @@
     state: present
   become: true
 
-- name: Firewall - Create Jellyfin Server Profile
-  ansible.builtin.copy:
-    src: jellyfin-server.ufw.profile
-    dest: /etc/ufw/applications.d/jellyfin-server.ufw.profile
-    mode: u=rw,g=r,o=r
-  become: true
-  register: ufw_profile_jellyfin_server
-
-- name: Firewall - Load Jellyfin Server Profile
-  ansible.builtin.command:
-    cmd: /usr/sbin/ufw app update jellyfin-server.ufw.profile
-  become: true
-  when: ufw_profile_jellyfin_server
-
-- name: Firewall - Allow Jellyfin Server
+- name: Firewall - Allow Jellyfin from LAN and Tailscale
   community.general.ufw:
     rule: allow
-    name: Jellyfin Server
+    port: '8096'
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Jellyfin - {{ 'LAN' if item == network_home_private_cidr else 'Tailscale' }}"
   become: true
+  loop:
+    - "{{ network_home_private_cidr }}"
+    - '100.64.0.0/10'

@@ -57,14 +57,26 @@
     - ldap-utils
   become: true
 
-- name: Firewall - Allow LDAP
+- name: Firewall - Allow LDAP from LAN and Tailscale
   community.general.ufw:
     rule: allow
-    name: OpenLDAP LDAP
+    port: '389'
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "OpenLDAP LDAP - {{ 'LAN' if item == network_home_private_cidr else 'Tailscale' }}"
   become: true
+  loop:
+    - "{{ network_home_private_cidr }}"
+    - '100.64.0.0/10'
 
-- name: Firewall - Allow LDAPS
+- name: Firewall - Allow LDAPS from LAN and Tailscale
   community.general.ufw:
     rule: allow
-    name: OpenLDAP LDAPS
+    port: '636'
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "OpenLDAP LDAPS - {{ 'LAN' if item == network_home_private_cidr else 'Tailscale' }}"
   become: true
+  loop:
+    - "{{ network_home_private_cidr }}"
+    - '100.64.0.0/10'

@@ -11,8 +11,20 @@
     - smbclient
   become: true
 
-- name: Firewall - Allow Samba
+- name: Firewall - Allow Samba from LAN and Tailscale
   community.general.ufw:
     rule: allow
-    name: Samba
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.source }}"
+    comment: "Samba - {{ item.name }}"
   become: true
+  loop:
+    - { port: '137', proto: 'udp', source: "{{ network_home_private_cidr }}", name: 'LAN' }
+    - { port: '138', proto: 'udp', source: "{{ network_home_private_cidr }}", name: 'LAN' }
+    - { port: '139', proto: 'tcp', source: "{{ network_home_private_cidr }}", name: 'LAN' }
+    - { port: '445', proto: 'tcp', source: "{{ network_home_private_cidr }}", name: 'LAN' }
+    - { port: '137', proto: 'udp', source: '100.64.0.0/10', name: 'Tailscale' }
+    - { port: '138', proto: 'udp', source: '100.64.0.0/10', name: 'Tailscale' }
+    - { port: '139', proto: 'tcp', source: '100.64.0.0/10', name: 'Tailscale' }
+    - { port: '445', proto: 'tcp', source: '100.64.0.0/10', name: 'Tailscale' }

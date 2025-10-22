@@ -2,8 +2,8 @@
 # VM configuration defaults.
 virtual_machines_vms:
   - name: krout
-    memory: 4096  # 4GB RAM
-    vcpus: 2      # 2 CPU cores
+    memory: 8192  # 8GB RAM (out of 30GB on host)
+    vcpus: 4      # 4 CPU cores (out of 16 on host)
     disk_size: 100G  # 100GB disk
     disk_format: qcow2
     os_variant: ubuntu24.04

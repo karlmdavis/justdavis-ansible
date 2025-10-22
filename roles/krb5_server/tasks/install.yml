@@ -75,22 +75,39 @@
   become: true
   register: 'install_krb'
 
-- name: Firewall - Kerberos Profile
-  ansible.builtin.copy:
-    src: kerberos-server.ufw.profile
-    dest: /etc/ufw/applications.d/kerberos-server.ufw.profile
-    mode: u=rw,g=r,o=r
-  become: true
-  register: ufw_profile_kerberos_server
-
-- name: Firewall - Kerberos Profile (load)
-  ansible.builtin.command:
-    cmd: /usr/sbin/ufw app update kerber-server.ufw.profile
-  become: true
-  when: ufw_profile_kerberos_server.changed
-
-- name: Firewall - Allow Kerberos
+- name: Firewall - Allow Kerberos KDC from LAN and Tailscale
   community.general.ufw:
     rule: allow
-    name: Kerberos KDC and Admin
+    port: '88'
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.source }}"
+    comment: "Kerberos KDC - {{ item.name }}"
+  become: true
+  loop:
+    - { source: "{{ network_home_private_cidr }}", proto: 'tcp', name: 'LAN' }
+    - { source: "{{ network_home_private_cidr }}", proto: 'udp', name: 'LAN' }
+    - { source: '100.64.0.0/10', proto: 'tcp', name: 'Tailscale' }
+    - { source: '100.64.0.0/10', proto: 'udp', name: 'Tailscale' }
+
+- name: Firewall - Allow Kerberos Password Change from LAN and Tailscale
+  community.general.ufw:
+    rule: allow
+    port: '464'
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.source }}"
+    comment: "Kerberos password change - {{ item.name }}"
+  become: true
+  loop:
+    - { source: "{{ network_home_private_cidr }}", proto: 'tcp', name: 'LAN' }
+    - { source: "{{ network_home_private_cidr }}", proto: 'udp', name: 'LAN' }
+    - { source: '100.64.0.0/10', proto: 'tcp', name: 'Tailscale' }
+    - { source: '100.64.0.0/10', proto: 'udp', name: 'Tailscale' }
+
+- name: Firewall - Allow Kerberos Admin from Localhost Only
+  community.general.ufw:
+    rule: allow
+    port: '749'
+    proto: tcp
+    from_ip: '127.0.0.1'
+    comment: "Kerberos admin - localhost only"
   become: true

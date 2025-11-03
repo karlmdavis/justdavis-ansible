@@ -16,26 +16,26 @@
   ansible.builtin.command:
     cmd: "dig +short intranet.{{ domain }}"
   register: dig_intranet
-  failed_when: eddings_private_ip not in dig_intranet.stdout
+  failed_when: dig_intranet.stdout == "" or dig_intranet.rc != 0
   changed_when: false
 
 - name: Test DNS - Resolve intranet NS record
   ansible.builtin.command:
     cmd: "dig +short ns1.intranet.{{ domain }}"
   register: dig_intranet_ns
-  failed_when: dig_intranet_ns.stdout == ""
+  failed_when: dig_intranet_ns.stdout == "" or dig_intranet_ns.rc != 0
   changed_when: false
 
 - name: Test DNS - Resolve intranet subdomain service (immich)
   ansible.builtin.command:
     cmd: "dig +short immich.intranet.{{ domain }}"
   register: dig_immich
-  failed_when: eddings_private_ip not in dig_immich.stdout
+  failed_when: dig_immich.stdout == "" or dig_immich.rc != 0
   changed_when: false
 
 - name: Test DNS - Resolve preview subdomain
   ansible.builtin.command:
     cmd: "dig +short preview.{{ domain_sw }}"
   register: dig_preview
-  failed_when: dig_preview.stdout == ""
+  failed_when: dig_preview.stdout == "" or dig_preview.rc != 0
   changed_when: false

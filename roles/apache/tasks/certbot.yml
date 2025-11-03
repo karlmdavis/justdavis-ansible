@@ -34,14 +34,15 @@
         --manual-cleanup-hook /usr/local/bin/certbot-hook-dns-cleanup.sh \
         --deploy-hook /usr/local/bin/certbot-hook-deploy.sh \
         --non-interactive \
-        {{ domains | map('regex_replace', '^(.*)$', '-d "\1"') | join(' ') }} \
-        {{ domains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
+        {{ domains_root | map('regex_replace', '^(.*)$', '-d "\1"') | join(' ') }} \
+        {{ domains_root | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }} \
+        {{ domains_subdomains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
   become: true
 
 - name: Request wildcard certificate with manual DNS
   ansible.builtin.command:
     cmd: /usr/local/bin/certbot-certonly.sh
-    creates: "/etc/letsencrypt/live/{{ domains[0] }}/fullchain.pem"
+    creates: "/etc/letsencrypt/live/{{ domains_root[0] }}/fullchain.pem"
   become: true
   register: certbot_cmd
 

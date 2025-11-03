@@ -27,13 +27,15 @@ domain: "{{ domain_test_prefix if is_test else '' }}justdavis.com"
 domain_doh: "{{ domain_test_prefix if is_test else '' }}davisonlinehome.name"
 domain_rps: "{{ domain_test_prefix if is_test else '' }}rpstourney.com"
 domain_sw: "{{ domain_test_prefix if is_test else '' }}storywyrm.com"
-domains:
+domains_root:
   - "{{ domain }}"
   - "{{ domain_doh }}"
   - "{{ domain_rps }}"
   - "{{ domain_sw }}"
+domains_subdomains:
   - "preview.{{ domain_sw }}"
   - "intranet.{{ domain }}"
+domains: "{{ domains_root + domains_subdomains }}"
 domains_mail_exclude:
   - "intranet.{{ domain }}"
 domain_webmaster: "karl@{{ domain }}"

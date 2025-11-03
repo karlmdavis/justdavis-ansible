@@ -35,7 +35,7 @@
     line: "{{ item.line }}"
   with_items:
     - { regexp: '^BASE', line: "BASE\tdc=justdavis,dc=com" }
-    - { regexp: '^URI', line: "URI\tldaps://{{ domain }}" }
+    - { regexp: '^URI', line: "URI\tldaps://intranet.{{ domain }}" }
     - { regexp: '^TLS_CACERT', line: "TLS_CACERT\t/etc/ssl/certs/ca-certificates.crt" }
   become: true
 

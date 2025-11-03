@@ -28,22 +28,23 @@ domain_doh: "{{ domain_test_prefix if is_test else '' }}davisonlinehome.name"
 domain_rps: "{{ domain_test_prefix if is_test else '' }}rpstourney.com"
 domain_sw: "{{ domain_test_prefix if is_test else '' }}storywyrm.com"
 
-# Root domains - Let's Encrypt requests both bare domain + wildcard.
-# (e.g., justdavis.com + *.justdavis.com)
+# Root domains, which need to be split from subdomains because Let's Encrypt
+# requests both bare domain + wildcard for these (e.g., justdavis.com + *.justdavis.com).
 domains_root:
   - "{{ domain }}"
   - "{{ domain_doh }}"
   - "{{ domain_rps }}"
   - "{{ domain_sw }}"
 
-# Subdomains - Let's Encrypt requests wildcard only to avoid redundancy.
-# (e.g., *.intranet.justdavis.com, NOT intranet.justdavis.com since it's
-# already covered by *.justdavis.com)
+# Subdomains, which need to be split from root domains because Let's Encrypt
+# requests wildcard only for these to avoid redundancy (e.g., *.intranet.justdavis.com,
+# NOT intranet.justdavis.com since it's already covered by *.justdavis.com).
 domains_subdomains:
   - "preview.{{ domain_sw }}"
   - "intranet.{{ domain }}"
 
-# Combined list of all managed domains (used for DNS, mail, etc.)
+# Combined list of all managed domains, used for DNS, mail, and other services
+# that don't care about the root/subdomain certificate distinction.
 domains: "{{ domains_root + domains_subdomains }}"
 
 # Domains to exclude from mail handling (Postfix virtual_mailbox_domains).

@@ -41,7 +41,7 @@
     # Not sure this is needed, since Samba isn't listening on that IP. Doesn't hurt, though.
     - eddings
     # Samba listens on the LAN/VPN-only IP that this resolves to.
-    - eddings.karlanderica
+    - intranet
 
 - name: Configure smb.conf
   ansible.builtin.template:

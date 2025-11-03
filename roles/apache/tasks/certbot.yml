@@ -35,8 +35,7 @@
         --deploy-hook /usr/local/bin/certbot-hook-deploy.sh \
         --non-interactive \
         {{ domains | map('regex_replace', '^(.*)$', '-d "\1"') | join(' ') }} \
-        {{ domains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }} \
-        {{ domain_extra_sans | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
+        {{ domains | map('regex_replace', '^(.*)$', '-d "*.\1"') | join(' ') }}
   become: true
 
 - name: Request wildcard certificate with manual DNS

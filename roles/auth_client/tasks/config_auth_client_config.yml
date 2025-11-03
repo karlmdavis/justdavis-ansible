@@ -27,7 +27,7 @@
     vtype: "{{ item.vtype }}"
   with_items:
     # TODO: This won't change values after the package is installed. Need to also edit /etc/nslcd.conf.
-    - { question: 'nslcd/ldap-uris', value: "ldaps://eddings.karlanderica.{{ domain }}", vtype: 'string' }
+    - { question: 'nslcd/ldap-uris', value: "ldaps://intranet.{{ domain }}", vtype: 'string' }
     - { question: 'nslcd/ldap-base', value: 'dc=justdavis,dc=com', vtype: 'string' }
     - { question: 'nslcd/ldap-reqcert', value: 'demand', vtype: 'select' }
     - { question: 'nslcd/nsswitch', value: '', vtype: 'multiselect' }

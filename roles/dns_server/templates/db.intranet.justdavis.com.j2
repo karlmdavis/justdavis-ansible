@@ -1,7 +1,7 @@
 $TTL 15M ; sets the default time-to-live for this zone
 
 ; name ttl class rr    name-server                 email-addr  (sn ref ret ex min)
-@          IN    SOA   ns1.intranet.justdavis.com.           hostmaster.intranet.justdavis.com. (
+@          IN    SOA   ns1.intranet.{{ domain }}.           hostmaster.intranet.{{ domain }}. (
                               {{ ansible_date_time.year }}{{ '%02d' | format(ansible_date_time.month | int) }}{{ '%02d' | format(ansible_date_time.day | int) }}10 ; sn = serial number (yyyymmdd##)
                               15M        ; ref = refresh
                               15M        ; ret = update retry
@@ -11,7 +11,7 @@ $TTL 15M ; sets the default time-to-live for this zone
 
 ; Nameserver Records
 ; name                   ttl    class   rr                name
-@                               IN      NS                ns1.intranet.justdavis.com.
+@                               IN      NS                ns1.intranet.{{ domain }}.
 
 ; IPv4 Address Records
 ; name             ttl    class   rr                name

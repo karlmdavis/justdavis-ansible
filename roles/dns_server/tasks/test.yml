@@ -11,3 +11,31 @@
     - Restart systemd-resolved
     - Restart systemd-networkd
   when: is_test
+
+- name: Test DNS - Resolve intranet subdomain
+  ansible.builtin.command:
+    cmd: "dig +short intranet.{{ domain }}"
+  register: dig_intranet
+  failed_when: eddings_private_ip not in dig_intranet.stdout
+  changed_when: false
+
+- name: Test DNS - Resolve intranet NS record
+  ansible.builtin.command:
+    cmd: "dig +short ns1.intranet.{{ domain }}"
+  register: dig_intranet_ns
+  failed_when: dig_intranet_ns.stdout == ""
+  changed_when: false
+
+- name: Test DNS - Resolve intranet subdomain service (immich)
+  ansible.builtin.command:
+    cmd: "dig +short immich.intranet.{{ domain }}"
+  register: dig_immich
+  failed_when: eddings_private_ip not in dig_immich.stdout
+  changed_when: false
+
+- name: Test DNS - Resolve preview subdomain
+  ansible.builtin.command:
+    cmd: "dig +short preview.{{ domain_sw }}"
+  register: dig_preview
+  failed_when: dig_preview.stdout == ""
+  changed_when: false

@@ -15,11 +15,11 @@ filter_groups = root
 #debug_level = 6
 
 id_provider = ldap
-ldap_uri = ldaps://eddings.karlanderica.{{ domain }}
+ldap_uri = ldaps://intranet.{{ domain }}
 ldap_search_base = dc=justdavis,dc=com
 
 auth_provider = krb5
-krb5_server = eddings.karlanderica.{{ domain }}
+krb5_server = intranet.{{ domain }}
 krb5_realm = {{ domain | upper }}
 
 # Optional but very useful for laptops that are sometimes offline.

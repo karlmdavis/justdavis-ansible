@@ -13,7 +13,7 @@
       - {name: "{{ domain_doh }}", template_source: 'roles/dns_server/templates/db.davisonlinehome.name.j2'}
       - {name: "{{ domain_rps }}", template_source: 'roles/dns_server/templates/db.rpstourney.com.j2'}
       - {name: "{{ domain_sw }}", template_source: 'roles/dns_server/templates/db.storywyrm.com.j2'}
-      - {name: "preview.storywyrm.com", template_source: 'roles/dns_server/templates/db.preview.storywyrm.com.j2'}
+      - {name: "preview.{{ domain_sw }}", template_source: 'roles/dns_server/templates/db.preview.storywyrm.com.j2'}
       - {name: "{{ reverse_zone_name }}", template_source: 'roles/dns_server/templates/db.reverse_zone.j2'}
     forwarders:
       # Google's Public DNS Servers: https://developers.google.com/speed/public-dns/

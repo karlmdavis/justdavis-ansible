@@ -11,7 +11,7 @@ $TTL 15M ; sets the default time-to-live for this zone
 
 ; Nameserver Records
 ; name                   ttl    class   rr                name
-intranet                        IN      NS                ns1.intranet.justdavis.com.
+intranet                        IN      NS                ns1.intranet.{{ domain }}.
 ns1.intranet                    IN      A                 {{ eddings_public_ip }}
 {% if not is_test %}
 ; name                   ttl    class   rr                name

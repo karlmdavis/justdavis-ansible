@@ -13,7 +13,7 @@
 
 - name: 'Test LDAP Search (SSL)'
   ansible.builtin.command:
-    cmd: "/usr/bin/ldapsearch -H ldaps://eddings.karlanderica.{{ domain }} -x -b dc=justdavis,dc=com"
+    cmd: "/usr/bin/ldapsearch -H ldaps://intranet.{{ domain }} -x -b dc=justdavis,dc=com"
   register: ldap_search_ssl_result
   failed_when: ldap_search_ssl_result.rc != 0 or test_user_dn not in ldap_search_ssl_result.stdout
   changed_when: false

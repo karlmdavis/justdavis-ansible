@@ -28,13 +28,24 @@
   ansible.builtin.script: "add-keytab.sh --principal host/eddings.{{ domain }}"
   become: true
 
-- name: Create Service Principal for LDAP Server
+# Both LDAP service principals are required because:
+# - Clients connect to ldaps://intranet.{{ domain }} (private IP, no hairpin NAT)
+# - Kerberos canonicalizes intranet.* to eddings.* (the server's actual hostname)
+# - The keytab must contain both to handle canonicalization correctly
+- name: Create Service Principals for LDAP Server
   krb_principal:
-    name: "ldap/intranet.{{ domain }}"
+    name: "{{ item }}"
     policy: services
+  with_items:
+    - "ldap/eddings.{{ domain }}"
+    - "ldap/intranet.{{ domain }}"
   become: true
 
-- name: Create Service Keytab for LDAP Server
+- name: Create Service Keytab for LDAP Server (eddings)
+  ansible.builtin.script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
+  become: true
+
+- name: Create Service Keytab for LDAP Server (intranet)
   ansible.builtin.script: "add-keytab.sh --principal ldap/intranet.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
 

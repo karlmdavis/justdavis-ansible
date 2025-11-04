@@ -34,10 +34,15 @@
     policy: services
   with_items:
     - "ldap/eddings.{{ domain }}"
+    - "ldap/intranet.{{ domain }}"
   become: true
 
-- name: Create Service Keytab for LDAP Server
+- name: Create Service Keytab for LDAP Server (eddings)
   ansible.builtin.script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
+  become: true
+
+- name: Create Service Keytab for LDAP Server (intranet)
+  ansible.builtin.script: "add-keytab.sh --principal ldap/intranet.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
 
 - name: Ensure /etc/ldap/ldap.keytab exists with correct permissions

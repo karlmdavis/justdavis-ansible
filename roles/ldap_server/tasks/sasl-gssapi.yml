@@ -30,18 +30,11 @@
 
 - name: Create Service Principal for LDAP Server
   krb_principal:
-    name: "{{ item }}"
+    name: "ldap/intranet.{{ domain }}"
     policy: services
-  with_items:
-    - "ldap/eddings.{{ domain }}"
-    - "ldap/intranet.{{ domain }}"
   become: true
 
-- name: Create Service Keytab for LDAP Server (eddings)
-  ansible.builtin.script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
-  become: true
-
-- name: Create Service Keytab for LDAP Server (intranet)
+- name: Create Service Keytab for LDAP Server
   ansible.builtin.script: "add-keytab.sh --principal ldap/intranet.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
 

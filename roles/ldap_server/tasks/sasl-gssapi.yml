@@ -27,6 +27,8 @@
 - name: Create Host Keytab for LDAP Server
   ansible.builtin.script: "add-keytab.sh --principal host/eddings.{{ domain }}"
   become: true
+  notify:
+    - "Restart 'slapd'"
 
 # Both LDAP service principals are required because:
 # - Clients connect to ldaps://intranet.{{ domain }} (private IP, no hairpin NAT)
@@ -44,10 +46,14 @@
 - name: Create Service Keytab for LDAP Server (eddings)
   ansible.builtin.script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
+  notify:
+    - "Restart 'slapd'"
 
 - name: Create Service Keytab for LDAP Server (intranet)
   ansible.builtin.script: "add-keytab.sh --principal ldap/intranet.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
+  notify:
+    - "Restart 'slapd'"
 
 - name: Ensure /etc/ldap/ldap.keytab exists with correct permissions
   ansible.builtin.file:

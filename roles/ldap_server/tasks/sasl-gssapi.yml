@@ -79,3 +79,5 @@
     cmd: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-sasl.ldif'
   become: true
   when: slapd_sasl_ldif.changed
+  notify:
+    - "Restart 'slapd'"

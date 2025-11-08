@@ -1,10 +1,13 @@
 dn: cn=config
 changetype: modify
-# Note: olcSaslHost is intentionally NOT configured here. When omitted, slapd will
-# auto-detect the service principal from incoming GSSAPI requests and check the keytab
-# for that principal. This allows clients to connect using either eddings.{{ domain }}
-# or intranet.{{ domain }} hostnames, as both ldap/eddings.* and ldap/intranet.*
-# principals are present in the keytab.
+# The hostname to use for SASL/GSSAPI authentication. This must match the hostname
+# clients use to connect. Since clients connect to ldaps://intranet.{{ domain }}, this
+# must be set to intranet.{{ domain }} (not eddings.{{ domain }}, the server's actual
+# hostname). When omitted, slapd uses gethostname() which returns "eddings", causing
+# GSSAPI authentication failures.
+replace: olcSaslHost
+olcSaslHost: intranet.{{ domain }}
+-
 # The Kerberos realm name.
 replace: olcSaslRealm
 olcSaslRealm: {{ domain | upper }}

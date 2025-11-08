@@ -1,9 +1,10 @@
 dn: cn=config
 changetype: modify
-# The FQDN of the Kerberos KDC.
-replace: olcSaslHost
-olcSaslHost: eddings.{{ domain }}
--
+# Note: olcSaslHost is intentionally NOT configured here. When omitted, slapd will
+# auto-detect the service principal from incoming GSSAPI requests and check the keytab
+# for that principal. This allows clients to connect using either eddings.{{ domain }}
+# or intranet.{{ domain }} hostnames, as both ldap/eddings.* and ldap/intranet.*
+# principals are present in the keytab.
 # The Kerberos realm name.
 replace: olcSaslRealm
 olcSaslRealm: {{ domain | upper }}

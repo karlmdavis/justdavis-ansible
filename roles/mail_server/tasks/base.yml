@@ -100,7 +100,7 @@
 
 - name: Firewall - Allow Mail Traffic (IMAPS with rate limiting)
   community.general.ufw:
-    rule: "{{ 'allow' if is_test else 'limit' }}"
+    rule: limit
     name: Dovecot Secure IMAP
   become: true
 

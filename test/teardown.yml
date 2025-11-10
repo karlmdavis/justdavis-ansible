@@ -41,6 +41,15 @@
       run_once: true
       delegate_to: localhost
 
+    - name: Clean Up EC2 Test Hosts from SSH Known Hosts
+      ansible.builtin.command:
+        cmd: "ssh-keygen -R {{ hostvars[item]['ansible_host'] }}"
+      loop: "{{ groups['all'] }}"
+      run_once: true
+      delegate_to: localhost
+      failed_when: false
+      changed_when: false
+
     - name: Calculate Test Zones and Domains
       set_fact:
         zone: tests.justdavis.com

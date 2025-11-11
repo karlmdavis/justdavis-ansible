@@ -137,24 +137,28 @@
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
+- name: Compute Hostname Prefix (strip base domain)
+  ansible.builtin.set_fact:
+    hostname_prefix: "{{ inventory_hostname | regex_replace('\\.justdavis\\.com$', '') }}"
+
 - name: Configure 'hosts'
   ansible.builtin.lineinfile:
     dest: /etc/hosts
     regexp: '^127.0.1.1'
-    line: "127.0.1.1 {{ inventory_hostname_short }}.{{ domain }} {{ inventory_hostname_short }}"
+    line: "127.0.1.1 {{ hostname_prefix }}.{{ domain }} {{ hostname_prefix }}"
   become: true
 
 - name: Configure 'hostname' (permanent)
   ansible.builtin.copy:
     dest: /etc/hostname
-    content: "{{ inventory_hostname_short }}"
+    content: "{{ hostname_prefix }}"
   register: hostname_file
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
 - name: Configure 'hostname' (transient)
   ansible.builtin.command:
-    cmd: "/usr/bin/hostnamectl set-hostname {{ inventory_hostname_short }}"
+    cmd: "/usr/bin/hostnamectl set-hostname {{ hostname_prefix }}"
   become: true
   when: "hostname_file.changed and 'Microsoft' not in ansible_kernel"
 

@@ -5,7 +5,7 @@
 # property.
 ##
 
-eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3 public_ip_address={{ ec2_eddings.instances[0].public_ip_address }} public_ip_interface=enX0 vpn_gateway_ip={{ ec2_eddings.instances[0].private_ip_address }} private_ip_address={{ ec2_eddings.instances[0].private_ip_address }} private_ip_interface=enX0
+eddings.justdavis.com    ansible_host={{ ec2_eddings.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3 public_ip_address={{ ec2_eddings.instances[0].public_ip_address }} public_ip_interface=enX0 vpn_gateway_ip={{ ec2_eddings.instances[0].private_ip_address }} private_ip_address={{ ec2_eddings.instances[0].private_ip_address }} private_ip_interface=enX0 ec2_instance_id={{ ec2_eddings.instances[0].instance_id }}
 
 [workstations]
-jordan-u.karlanderica.justdavis.com    ansible_host={{ ec2_jordan_u.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3
+jordan-u.karlanderica.justdavis.com    ansible_host={{ ec2_jordan_u.instances[0].public_dns_name }} ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3 ec2_instance_id={{ ec2_jordan_u.instances[0].instance_id }}

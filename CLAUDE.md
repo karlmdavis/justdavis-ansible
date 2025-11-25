@@ -38,15 +38,6 @@ The codebase uses Ansible roles in `/roles/` for modular configuration:
 
 ## Essential Commands
 
-### Development Environment Setup
-```bash
-# Install Ansible with all dependencies via pipx
-pipx install --include-deps ansible passlib awscli black yamllint
-
-# Install external Ansible roles
-ansible-galaxy install -r install_roles.yml
-```
-
 ### Running Playbooks
 
 #### Production Deployment
@@ -77,9 +68,13 @@ ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' te
 ```
 
 ### Environment Requirements
+- Python dependencies managed via `uv` - if you encounter errors about `ansible`, `black`, or related
+  commands not being found, tell the user to run the development environment setup steps from the README
 - AWS credentials configured in `~/.aws/credentials` with `[justdavis]` profile
 - Vault password in `vault.password` file (contact karl@madriverdevelopment.com)
 - SSH keys loaded for EC2 access when testing
+- Dependency lockfile (`uv.lock`) and configuration (`pyproject.toml`) committed to git; virtual
+  environment (`.venv/`) is gitignored
 
 ## Configuration Management
 

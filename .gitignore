@@ -28,3 +28,6 @@ logs/
 # Ignore Python build artifacts.
 *.egg-info/
 
+# Python virtual environment (uv-managed)
+/.venv/
+

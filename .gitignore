@@ -25,3 +25,9 @@ logs/
 # Ignore Claude AI local settings
 .claude/settings.local.json
 
+# Ignore Python build artifacts.
+*.egg-info/
+
+# Python virtual environment (uv-managed)
+/.venv/
+

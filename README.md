@@ -12,11 +12,21 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 ### Python Dependencies
 
-This project requires Python 3 and uses `pipx` to manage Ansible and related tools:
+This project requires Python 3 and uses `uv` to manage Ansible and related tools:
 
-    $ pipx install --include-deps ansible passlib awscli black yamllint
+```bash
+# Install uv (one-time setup)
+brew install uv  # macOS
+# For Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-This will install Ansible along with all its dependencies including the AWS CLI, linting tools, and other utilities needed for this project.
+# Sync all Python dependencies from lockfile
+uv sync
+
+# Install external Ansible roles
+uv run ansible-galaxy install -r install_roles.yml
+```
+
+This synchronizes all project dependencies from the lockfile, including Ansible, AWS CLI, linting tools, and related utilities.
 
 The following system packages will also be required by some of the Ansible tasks:
 
@@ -24,9 +34,7 @@ The following system packages will also be required by some of the Ansible tasks
 
 ### Ansible Roles
 
-This project also makes use of a number of Ansible roles, which are reusable pieces of Ansible logic. Run the following command to download and install the roles required by this project into the project-specific `roles_external` directory:
-
-    $ ansible-galaxy install -r install_roles.yml
+This project uses external Ansible roles (reusable pieces of Ansible logic). The `uv run ansible-galaxy install` command above downloads these roles into the project-specific `roles_external` directory.
 
 ### AWS Credentials
 

@@ -76,6 +76,26 @@ ssh ubuntu@$(sed -n 's/^eddings.justdavis.com *ansible_host=\([^ ]*\).*/\1/p' te
 - Dependency lockfile (`uv.lock`) and configuration (`pyproject.toml`) committed to git; virtual
   environment (`.venv/`) is gitignored
 
+### Python Environment Management - CRITICAL
+
+**NEVER modify the global/system Python environment.** This includes:
+- **NEVER** run `pip install` or `pip3 install` without `uv run` prefix
+- **NEVER** run `python -m pip install` or `python3 -m pip install` outside of uv
+- **NEVER** install packages to user site-packages (`pip install --user`)
+
+**ALWAYS use uv-managed environments:**
+- Add dependencies to `pyproject.toml`
+- Run `uv sync` to update the lockfile and `.venv`
+- Use `uv run <command>` or activate `.venv` to run Python tools
+
+**If you discover a missing dependency:**
+1. Add it to `pyproject.toml` dependencies list
+2. Run `uv lock` to update the lockfile
+3. Run `uv sync` to install it in `.venv`
+4. Commit both `pyproject.toml` and `uv.lock` changes
+
+This ensures reproducible environments and prevents polluting the system Python installation.
+
 ## Configuration Management
 
 ### Inventory Structure

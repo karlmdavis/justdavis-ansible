@@ -68,6 +68,20 @@ wheels = [
 ]
 
 [[package]]
+name = "boto3"
+version = "1.36.16"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+    { name = "jmespath" },
+    { name = "s3transfer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/bd/46dea249b6fab89f30a341683844d7b176ce0c439b90c59818bd6407b505/boto3-1.36.16.tar.gz", hash = "sha256:0cf92ca0538ab115447e1c58050d43e1273e88c58ddfea2b6f133fdc508b400a", size = 110986, upload-time = "2025-02-07T20:23:45.274Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/af/29/7018c7a7106f3dbb6a43d21db68f854259c117551876702ffeac9e8a01c9/boto3-1.36.16-py3-none-any.whl", hash = "sha256:b10583bf8bd35be1b4027ee7e26b7cdf2078c79eab18357fd602cecb6d39400b", size = 139178, upload-time = "2025-02-07T20:23:41.366Z" },
+]
+
+[[package]]
 name = "botocore"
 version = "1.36.16"
 source = { registry = "https://pypi.org/simple" }
@@ -241,6 +255,7 @@ dependencies = [
     { name = "ansible" },
     { name = "awscli" },
     { name = "black" },
+    { name = "boto3" },
     { name = "passlib" },
     { name = "yamllint" },
 ]
@@ -250,6 +265,7 @@ requires-dist = [
     { name = "ansible", specifier = "==11.8.0" },
     { name = "awscli", specifier = "==1.37.16" },
     { name = "black", specifier = "==25.1.0" },
+    { name = "boto3", specifier = "==1.36.16" },
     { name = "passlib", specifier = "==1.7.4" },
     { name = "yamllint", specifier = "==1.35.1" },
 ]

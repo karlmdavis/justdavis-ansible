@@ -1,0 +1,19 @@
+[project]
+name = "justdavis-ansible-tools"
+version = "1.0.0"
+description = "Python tooling for justdavis-ansible infrastructure management"
+requires-python = ">=3.13"
+dependencies = [
+    "ansible==11.8.0",
+    "awscli==1.37.16",
+    "black==25.1.0",
+    "passlib==1.7.4",
+    "yamllint==1.35.1",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = []

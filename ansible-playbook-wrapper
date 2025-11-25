@@ -43,7 +43,7 @@ errorCode=0
 # Run Ansible, as requested.
 if [ $errorCode -eq 0 ]; then
   echo "$ ansible-playbook $@" >> "${originalLog}"
-  ansible-playbook "$@"
+  uv run ansible-playbook "$@"
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi

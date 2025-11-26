@@ -25,12 +25,39 @@
     - name: Local - whoami
       local_action: command whoami
       register: whoami
-    
+
+    - name: Check if EC2 key pair exists
+      amazon.aws.ec2_key:
+        name: "{{ lookup('env', 'AWS_EC2_KEY_NAME') }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
+        state: present
+      check_mode: true
+      register: ec2_key_check
+      ignore_errors: true
+
+    - name: Display EC2 key pair status
+      debug:
+        msg: "EC2 key pair '{{ lookup('env', 'AWS_EC2_KEY_NAME') }}' {{ 'exists' if ec2_key_check is succeeded else 'does not exist, will be created' }}"
+
+    - name: Upload SSH public key if key pair doesn't exist
+      amazon.aws.ec2_key:
+        name: "{{ lookup('env', 'AWS_EC2_KEY_NAME') }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
+        key_material: "{{ lookup('file', lookup('env', 'SSH_KEY_PATH')) }}"
+        state: present
+      when: ec2_key_check is failed
+      register: ec2_key_upload
+
+    - name: Display key pair registration result
+      debug:
+        msg: "Registering EC2 key pair '{{ lookup('env', 'AWS_EC2_KEY_NAME') }}'..."
+      when: ec2_key_upload is changed
+
     - name: EC2 - Provision Security Group 'ssh-all'
       ec2_group:
         name: ssh-all
         description: Allows incoming traffic on port 22 (from all IPs).
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         rules:
           - proto: tcp
             from_port: 22
@@ -40,13 +67,13 @@
           - proto: all
             cidr_ip: 0.0.0.0/0
     
-    # This would normally be a bad idea. But in this case, we want to mimic the 
+    # This would normally be a bad idea. But in this case, we want to mimic the
     # setup of the production systems, which don't have a separate firewall.
     - name: EC2 - Provision Security Group 'all'
       ec2_group:
         name: all
         description: Allows all incoming traffic (from all IPs).
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         rules:
           - proto: all
             cidr_ip: 0.0.0.0/0
@@ -56,7 +83,7 @@
     
     - name: EC2 - Provision 'eddings'
       ec2_instance:
-        key_name: "{{ aws_ec2_key_name }}"
+        key_name: "{{ lookup('env', 'AWS_EC2_KEY_NAME') }}"
         # The `t2.small` instance type has 1 vCPUs, 2GB RAM, and 12 CPU credits/hour.
         # For eddings, `t2.small` seems to be the minimum workable number of CPU credits. However,
         # the various services need more RAM and CPU resources for testing.
@@ -83,9 +110,9 @@
                    # database creation failures due to collation mismatches
                    sudo locale-gen en_US.UTF-8
                    sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         network:
-          vpc_subnet_id: "{{ aws_vpc_subnet }}"
+          vpc_subnet_id: "{{ lookup('env', 'AWS_VPC_SUBNET') }}"
           assign_public_ip: true
         security_groups:
           - default
@@ -103,7 +130,7 @@
     
     - name: EC2 - Provision 'jordan-u'
       ec2_instance:
-        key_name: "{{ aws_ec2_key_name }}"
+        key_name: "{{ lookup('env', 'AWS_EC2_KEY_NAME') }}"
         # The `t2.micro` instance type has 1 vCPUs, 1GB RAM, and 6 CPU credits/hour.
         instance_type: t2.micro
         image_id: "{{ ami_id_ubuntu_24_04 }}"
@@ -116,9 +143,9 @@
                    # Also: run `apt-get upgrade`, to grab the latest SSL root certs, which are
                    # needed.
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged && sudo apt-get upgrade -y
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         network:
-          vpc_subnet_id: "{{ aws_vpc_subnet }}"
+          vpc_subnet_id: "{{ lookup('env', 'AWS_VPC_SUBNET') }}"
           assign_public_ip: true
         security_groups:
           - default

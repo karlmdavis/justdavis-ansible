@@ -75,9 +75,6 @@ if [[ "${verbosity}" -eq 4 ]]; then verboseArg="-vvvv"; fi
 if [[ -z "$AWS_PROFILE" ]]; then
   export AWS_PROFILE=justdavis
 fi
-if [[ -z "$AWS_PROVISIONING_VARS_FILE" ]]; then
-  AWS_PROVISIONING_VARS_FILE="${scriptDirectory}/vars_aws_provisioning_karlmdavis.yml"
-fi
 
 # Doesn't work well with throwaway EC2 instances.
 export ANSIBLE_HOST_KEY_CHECKING=False
@@ -114,19 +111,56 @@ errorCode=0
 
 cd "${scriptDirectory}/.."
 
-# Generate a random domain prefix for use in tests, to play nice with Let's
-# Encrypt's rate limits.
+# Load or create test.env with all user-specific settings.
 if [[ -f "${scriptDirectory}/test.env" ]]; then
+  echo "Loading test configuration from test.env..."
   source "${scriptDirectory}/test.env"
 else
+  echo "Initializing test environment..."
+
+  # Generate random domain prefix for DNS isolation.
   DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
-  echo "DOMAIN_TEST_PREFIX=\"${DOMAIN_TEST_PREFIX}\"" > "${scriptDirectory}/test.env"
+
+  # Detect SSH public key.
+  SSH_KEY_PATH=$(detect_ssh_key)
+  echo "✓ SSH key detected: ${SSH_KEY_PATH}"
+
+  # Detect username.
+  USERNAME="${USERNAME:-$(whoami)}"
+  echo "✓ Username: ${USERNAME}"
+
+  # Set AWS defaults (can be overridden via environment variables).
+  AWS_PROFILE="${AWS_PROFILE:-justdavis}"
+  AWS_REGION="${AWS_REGION:-us-east-1}"
+  AWS_VPC_SUBNET="${AWS_VPC_SUBNET:-subnet-9a1dfeb0}"
+  echo "✓ AWS settings: ${AWS_REGION}, ${AWS_VPC_SUBNET}"
+
+  # Write configuration to test.env.
+  cat > "${scriptDirectory}/test.env" <<EOF
+DOMAIN_TEST_PREFIX="${DOMAIN_TEST_PREFIX}"
+SSH_KEY_PATH="${SSH_KEY_PATH}"
+USERNAME="${USERNAME}"
+AWS_PROFILE="${AWS_PROFILE}"
+AWS_REGION="${AWS_REGION}"
+AWS_VPC_SUBNET="${AWS_VPC_SUBNET}"
+EOF
+  echo "Configuration saved to test/test.env"
 fi
+
+# Export variables for Ansible.
+export AWS_PROFILE
+export AWS_REGION
+export AWS_VPC_SUBNET
+export SSH_KEY_PATH
+export AWS_EC2_KEY_NAME="ansible-test-${USERNAME}"
+export DOMAIN_TEST_PREFIX
+
+echo ""
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/provision.yml --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
@@ -141,8 +175,8 @@ fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 

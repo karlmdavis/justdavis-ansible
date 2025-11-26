@@ -78,9 +78,10 @@ The test infrastructure automatically detects and configures user-specific setti
 When you run `./test/test.sh` for the first time:
 
 1. The script auto-detects your SSH public key from standard locations:
-   - `~/.ssh/id_ed25519.pub` (preferred)
-   - `~/.ssh/id_ecdsa.pub`
-   - `~/.ssh/id_rsa.pub`
+   - `~/.ssh/id_ed25519.pub` (preferred).
+   - `~/.ssh/id_ecdsa.pub`.
+   - `~/.ssh/id_rsa.pub`.
+
 
 2. It detects your username and applies AWS defaults.
 
@@ -121,6 +122,7 @@ rm test/test.env
 - SSH key pair (generate with `ssh-keygen -t ed25519` if you don't have one).
 - AWS credentials configured with the `justdavis` profile or your own profile.
 - IAM permissions for `ec2:ImportKeyPair`, `ec2:RunInstances`, and related EC2 operations.
+
 
 ### Production
 

@@ -106,15 +106,12 @@ errorCode=0
 
 cd "${scriptDirectory}/.."
 
-# Load or create test.env with all user-specific settings.
-if [[ -f "${scriptDirectory}/test.env" ]]; then
-  echo "Loading test configuration from test.env..."
-  source "${scriptDirectory}/test.env"
+# Load or create user configuration (durable).
+if [[ -f "${scriptDirectory}/user-config.env" ]]; then
+  echo "Loading user configuration..."
+  source "${scriptDirectory}/user-config.env"
 else
-  echo "Initializing test environment..."
-
-  # Generate random domain prefix for DNS isolation.
-  DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
+  echo "Initializing user configuration..."
 
   # Detect SSH public key.
   SSH_KEY_PATH=$(detect_ssh_key)
@@ -130,16 +127,27 @@ else
   AWS_VPC_SUBNET="${AWS_VPC_SUBNET:-subnet-9a1dfeb0}"
   echo "✓ AWS settings: ${AWS_REGION}, ${AWS_VPC_SUBNET}"
 
-  # Write configuration to test.env.
-  cat > "${scriptDirectory}/test.env" <<EOF
-DOMAIN_TEST_PREFIX="${DOMAIN_TEST_PREFIX}"
+  # Write configuration to user-config.env.
+  cat > "${scriptDirectory}/user-config.env" <<EOF
 SSH_KEY_PATH="${SSH_KEY_PATH}"
 USERNAME="${USERNAME}"
 AWS_PROFILE="${AWS_PROFILE}"
 AWS_REGION="${AWS_REGION}"
 AWS_VPC_SUBNET="${AWS_VPC_SUBNET}"
 EOF
-  echo "Configuration saved to test/test.env"
+  echo "User configuration saved to test/user-config.env"
+fi
+
+# Load or create test session data (ephemeral).
+if [[ -f "${scriptDirectory}/test-session.env" ]]; then
+  echo "Loading test session..."
+  source "${scriptDirectory}/test-session.env"
+else
+  echo "Starting new test session..."
+  DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
+  cat > "${scriptDirectory}/test-session.env" <<EOF
+DOMAIN_TEST_PREFIX="${DOMAIN_TEST_PREFIX}"
+EOF
 fi
 
 # Export variables for Ansible.

@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 ##
 # Provisions temporary systems in EC2, runs the `site.yml` Ansible playbook

@@ -30,7 +30,7 @@
       ec2_instance:
         state: absent
         instance_ids: "{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         wait: true
       delegate_to: localhost
  

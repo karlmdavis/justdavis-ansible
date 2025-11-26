@@ -45,7 +45,7 @@
         region: "{{ lookup('env', 'AWS_REGION') }}"
         key_material: "{{ lookup('file', lookup('env', 'SSH_KEY_PATH')) }}"
         state: present
-      when: ec2_key_check is failed
+      when: ec2_key_check is changed
       register: ec2_key_upload
 
     - name: Display key pair registration result

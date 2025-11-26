@@ -69,6 +69,59 @@ In nu shell:
 
     $ ssh $"ubuntu@((open test/hosts-test | lines | where {|l| $l | str starts-with 'eddings.justdavis.com'} | parse --regex '^.*?\bansible_host=(?P<h>\S+)' | get h | first))"
 
+### Running Tests (Multiple Contributors)
+
+The test infrastructure automatically detects and configures user-specific settings on first run.
+
+#### First Run
+
+When you run `./test/test.sh` for the first time:
+
+1. The script auto-detects your SSH public key from standard locations:
+   - `~/.ssh/id_ed25519.pub` (preferred)
+   - `~/.ssh/id_ecdsa.pub`
+   - `~/.ssh/id_rsa.pub`
+
+2. It detects your username and applies AWS defaults.
+
+3. All settings are saved to `test/test.env` (gitignored).
+
+4. An EC2 key pair is automatically registered in AWS as `ansible-test-<username>`.
+
+#### Subsequent Runs
+
+The script loads configuration from `test/test.env` and reuses your settings.
+
+#### Overriding Settings
+
+You can override any setting via environment variables:
+
+```bash
+# Use a different SSH key
+export SSH_KEY_PATH=~/.ssh/my-other-key.pub
+./test/test.sh
+
+# Use a different AWS region
+export AWS_REGION=us-west-2
+export AWS_VPC_SUBNET=subnet-xxxxxxxx
+./test/test.sh
+```
+
+#### Resetting Configuration
+
+To regenerate your test configuration:
+
+```bash
+rm test/test.env
+./test/test.sh
+```
+
+#### Requirements
+
+- SSH key pair (generate with `ssh-keygen -t ed25519` if you don't have one).
+- AWS credentials configured with the `justdavis` profile or your own profile.
+- IAM permissions for `ec2:ImportKeyPair`, `ec2:RunInstances`, and related EC2 operations.
+
 ### Production
 
 #### Bootstrapping Hosts

@@ -150,42 +150,51 @@ DOMAIN_TEST_PREFIX="${DOMAIN_TEST_PREFIX}"
 EOF
 fi
 
-# Export variables for Ansible.
+# Export only AWS SDK requirements.
 export AWS_PROFILE
 export AWS_REGION
-export AWS_VPC_SUBNET
-export SSH_KEY_PATH
-export AWS_EC2_KEY_NAME="ansible-test-${USERNAME}"
-export DOMAIN_TEST_PREFIX
+
+# Build extra-vars for Ansible.
+EXTRA_VARS=$(cat <<EOF
+{
+  "ssh_key_path": "${SSH_KEY_PATH}",
+  "username": "${USERNAME}",
+  "aws_vpc_subnet": "${AWS_VPC_SUBNET}",
+  "aws_ec2_key_name": "ansible-test-${USERNAME}",
+  "domain_test_prefix": "${DOMAIN_TEST_PREFIX}"
+}
+EOF
+)
 
 echo ""
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/provision.yml --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/provision.yml --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Run our Ansible plays against the test systems.
 if [ $errorCode -eq 0 ] && [ "${configure}" = true ]; then
-  echo "$ ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars "{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' --extra-vars \"{is_test: true}\" ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" --extra-vars "{is_test: true}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 
-  # If everything tore down okay, remove the test env file.
+  # If everything tore down okay, remove the test session file.
+  # User configuration is preserved for future test runs.
   if [ $errorCode -eq 0 ]; then
-    rm "${scriptDirectory}/test.env"
+    rm "${scriptDirectory}/test-session.env"
   fi
 fi
 

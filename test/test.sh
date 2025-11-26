@@ -71,11 +71,6 @@ if [[ "${verbosity}" -eq 2 ]]; then verboseArg="-vv"; fi
 if [[ "${verbosity}" -eq 3 ]]; then verboseArg="-vvv"; fi
 if [[ "${verbosity}" -eq 4 ]]; then verboseArg="-vvvv"; fi
 
-# Set default environment variables. These can be overridden on the command line.
-if [[ -z "$AWS_PROFILE" ]]; then
-  export AWS_PROFILE=justdavis
-fi
-
 # Doesn't work well with throwaway EC2 instances.
 export ANSIBLE_HOST_KEY_CHECKING=False
 

@@ -15,6 +15,35 @@
 
 set -e
 
+# Function to detect SSH public key from standard locations.
+detect_ssh_key() {
+  # Check for environment variable override first.
+  if [[ -n "$SSH_KEY_PATH" ]]; then
+    if [[ -f "$SSH_KEY_PATH" ]]; then
+      echo "$SSH_KEY_PATH"
+      return 0
+    else
+      echo "ERROR: SSH_KEY_PATH is set but file does not exist: $SSH_KEY_PATH" >&2
+      exit 1
+    fi
+  fi
+
+  # Try standard locations in order of preference.
+  for key in ~/.ssh/id_ed25519.pub ~/.ssh/id_ecdsa.pub ~/.ssh/id_rsa.pub; do
+    if [[ -f "$key" ]]; then
+      echo "$key"
+      return 0
+    fi
+  done
+
+  # No key found.
+  echo "ERROR: No SSH public key found." >&2
+  echo "Searched: ~/.ssh/id_ed25519.pub, ~/.ssh/id_ecdsa.pub, ~/.ssh/id_rsa.pub" >&2
+  echo "Create a key with: ssh-keygen -t ed25519" >&2
+  echo "Or set SSH_KEY_PATH=/path/to/your/key.pub" >&2
+  exit 1
+}
+
 # Calculate the directory that this script is in.
 scriptDirectory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

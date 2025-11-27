@@ -158,7 +158,6 @@ export AWS_REGION
 EXTRA_VARS=$(cat <<EOF
 {
   "ssh_key_path": "${SSH_KEY_PATH}",
-  "username": "${USERNAME}",
   "aws_vpc_subnet": "${AWS_VPC_SUBNET}",
   "aws_ec2_key_name": "ansible-test-${USERNAME}",
   "domain_test_prefix": "${DOMAIN_TEST_PREFIX}"

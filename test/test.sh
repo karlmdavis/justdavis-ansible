@@ -169,24 +169,24 @@ echo ""
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/provision.yml --extra-vars "${EXTRA_VARS}" ${verboseArg}
+  echo "$ uv run ansible-playbook test/provision.yml --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  uv run ansible-playbook test/provision.yml --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Run our Ansible plays against the test systems.
 if [ $errorCode -eq 0 ] && [ "${configure}" = true ]; then
-  echo "$ ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' --extra-vars \"{is_test: true}\" ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" --extra-vars "{is_test: true}" ${verboseArg}
+  echo "$ uv run ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' --extra-vars \"{is_test: true}\" ${verboseArg}" | tee -a "${originalLog}"
+  uv run ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" --extra-vars "{is_test: true}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
-  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" ${verboseArg}
+  echo "$ uv run ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  uv run ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 

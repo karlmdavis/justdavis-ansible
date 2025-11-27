@@ -12,11 +12,21 @@ In order to use and/or modify this repository, a number of tools need to be inst
 
 ### Python Dependencies
 
-This project requires Python 3 and uses `pipx` to manage Ansible and related tools:
+This project requires Python 3 and uses `uv` to manage Ansible and related tools:
 
-    $ pipx install --include-deps ansible passlib awscli black yamllint
+```bash
+# Install uv (one-time setup)
+brew install uv  # macOS
+# For Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-This will install Ansible along with all its dependencies including the AWS CLI, linting tools, and other utilities needed for this project.
+# Sync all Python dependencies from lockfile
+uv sync
+
+# Install external Ansible roles
+uv run ansible-galaxy install -r install_roles.yml
+```
+
+This synchronizes all project dependencies from the lockfile, including Ansible, AWS CLI, linting tools, and related utilities.
 
 The following system packages will also be required by some of the Ansible tasks:
 
@@ -24,9 +34,7 @@ The following system packages will also be required by some of the Ansible tasks
 
 ### Ansible Roles
 
-This project also makes use of a number of Ansible roles, which are reusable pieces of Ansible logic. Run the following command to download and install the roles required by this project into the project-specific `roles_external` directory:
-
-    $ ansible-galaxy install -r install_roles.yml
+This project uses external Ansible roles (reusable pieces of Ansible logic). The `uv run ansible-galaxy install` command above downloads these roles into the project-specific `roles_external` directory.
 
 ### AWS Credentials
 
@@ -60,6 +68,61 @@ In Bash/ZSH:
 In nu shell:
 
     $ ssh $"ubuntu@((open test/hosts-test | lines | where {|l| $l | str starts-with 'eddings.justdavis.com'} | parse --regex '^.*?\bansible_host=(?P<h>\S+)' | get h | first))"
+
+### Running Tests (Multiple Contributors)
+
+The test infrastructure automatically detects and configures user-specific settings on first run.
+
+#### First Run
+
+When you run `./test/test.sh` for the first time:
+
+1. The script auto-detects your SSH public key from standard locations:
+   - `~/.ssh/id_ed25519.pub` (preferred).
+   - `~/.ssh/id_ecdsa.pub`.
+   - `~/.ssh/id_rsa.pub`.
+
+
+2. It detects your username and applies AWS defaults.
+
+3. All settings are saved to `test/test.env` (gitignored).
+
+4. An EC2 key pair is automatically registered in AWS as `ansible-test-<username>`.
+
+#### Subsequent Runs
+
+The script loads configuration from `test/test.env` and reuses your settings.
+
+#### Overriding Settings
+
+You can override any setting via environment variables:
+
+```bash
+# Use a different SSH key
+export SSH_KEY_PATH=~/.ssh/my-other-key.pub
+./test/test.sh
+
+# Use a different AWS region
+export AWS_REGION=us-west-2
+export AWS_VPC_SUBNET=subnet-xxxxxxxx
+./test/test.sh
+```
+
+#### Resetting Configuration
+
+To regenerate your test configuration:
+
+```bash
+rm test/test.env
+./test/test.sh
+```
+
+#### Requirements
+
+- SSH key pair (generate with `ssh-keygen -t ed25519` if you don't have one).
+- AWS credentials configured with the `justdavis` profile or your own profile.
+- IAM permissions for `ec2:ImportKeyPair`, `ec2:RunInstances`, and related EC2 operations.
+
 
 ### Production
 

@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 ##
 # Provisions temporary systems in EC2, runs the `site.yml` Ansible playbook
@@ -14,6 +14,35 @@
 ##
 
 set -e
+
+# Function to detect SSH public key from standard locations.
+detect_ssh_key() {
+  # Check for environment variable override first.
+  if [[ -n "$SSH_KEY_PATH" ]]; then
+    if [[ -f "$SSH_KEY_PATH" ]]; then
+      echo "$SSH_KEY_PATH"
+      return 0
+    else
+      echo "ERROR: SSH_KEY_PATH is set but file does not exist: $SSH_KEY_PATH" >&2
+      exit 1
+    fi
+  fi
+
+  # Try standard locations in order of preference.
+  for key in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ecdsa.pub" "$HOME/.ssh/id_rsa.pub"; do
+    if [[ -f "$key" ]]; then
+      echo "$key"
+      return 0
+    fi
+  done
+
+  # No key found.
+  echo "ERROR: No SSH public key found." >&2
+  echo "Searched: $HOME/.ssh/id_ed25519.pub, $HOME/.ssh/id_ecdsa.pub, $HOME/.ssh/id_rsa.pub" >&2
+  echo "Create a key with: ssh-keygen -t ed25519" >&2
+  echo "Or set SSH_KEY_PATH=/path/to/your/key.pub" >&2
+  exit 1
+}
 
 # Calculate the directory that this script is in.
 scriptDirectory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -41,14 +70,6 @@ if [[ "${verbosity}" -eq 1 ]]; then verboseArg="-v"; fi
 if [[ "${verbosity}" -eq 2 ]]; then verboseArg="-vv"; fi
 if [[ "${verbosity}" -eq 3 ]]; then verboseArg="-vvv"; fi
 if [[ "${verbosity}" -eq 4 ]]; then verboseArg="-vvvv"; fi
-
-# Set default environment variables. These can be overridden on the command line.
-if [[ -z "$AWS_PROFILE" ]]; then
-  export AWS_PROFILE=justdavis
-fi
-if [[ -z "$AWS_PROVISIONING_VARS_FILE" ]]; then
-  AWS_PROVISIONING_VARS_FILE="${scriptDirectory}/vars_aws_provisioning_karlmdavis.yml"
-fi
 
 # Doesn't work well with throwaway EC2 instances.
 export ANSIBLE_HOST_KEY_CHECKING=False
@@ -85,41 +106,94 @@ errorCode=0
 
 cd "${scriptDirectory}/.."
 
-# Generate a random domain prefix for use in tests, to play nice with Let's
-# Encrypt's rate limits.
-if [[ -f "${scriptDirectory}/test.env" ]]; then
-  source "${scriptDirectory}/test.env"
+# Load or create user configuration (durable).
+if [[ -f "${scriptDirectory}/user-config.env" ]]; then
+  echo "Loading user configuration..."
+  source "${scriptDirectory}/user-config.env"
 else
-  DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
-  echo "DOMAIN_TEST_PREFIX=\"${DOMAIN_TEST_PREFIX}\"" > "${scriptDirectory}/test.env"
+  echo "Initializing user configuration..."
+
+  # Detect SSH public key.
+  SSH_KEY_PATH=$(detect_ssh_key)
+  echo "✓ SSH key detected: ${SSH_KEY_PATH}"
+
+  # Detect username.
+  USERNAME="${USERNAME:-$(whoami)}"
+  echo "✓ Username: ${USERNAME}"
+
+  # Set AWS defaults (can be overridden via environment variables).
+  AWS_PROFILE="${AWS_PROFILE:-justdavis}"
+  AWS_REGION="${AWS_REGION:-us-east-1}"
+  AWS_VPC_SUBNET="${AWS_VPC_SUBNET:-subnet-9a1dfeb0}"
+  echo "✓ AWS settings: ${AWS_REGION}, ${AWS_VPC_SUBNET}"
+
+  # Write configuration to user-config.env.
+  cat > "${scriptDirectory}/user-config.env" <<EOF
+SSH_KEY_PATH="${SSH_KEY_PATH}"
+USERNAME="${USERNAME}"
+AWS_PROFILE="${AWS_PROFILE}"
+AWS_REGION="${AWS_REGION}"
+AWS_VPC_SUBNET="${AWS_VPC_SUBNET}"
+EOF
+  echo "User configuration saved to test/user-config.env"
 fi
+
+# Load or create test session data (ephemeral).
+if [[ -f "${scriptDirectory}/test-session.env" ]]; then
+  echo "Loading test session..."
+  source "${scriptDirectory}/test-session.env"
+else
+  echo "Starting new test session..."
+  DOMAIN_TEST_PREFIX="tests$[RANDOM%100].tests."
+  cat > "${scriptDirectory}/test-session.env" <<EOF
+DOMAIN_TEST_PREFIX="${DOMAIN_TEST_PREFIX}"
+EOF
+fi
+
+# Export only AWS SDK requirements.
+export AWS_PROFILE
+export AWS_REGION
+
+# Build extra-vars for Ansible.
+EXTRA_VARS=$(cat <<EOF
+{
+  "ssh_key_path": "${SSH_KEY_PATH}",
+  "aws_vpc_subnet": "${AWS_VPC_SUBNET}",
+  "aws_ec2_key_name": "ansible-test-${USERNAME}",
+  "domain_test_prefix": "${DOMAIN_TEST_PREFIX}"
+}
+EOF
+)
+
+echo ""
 
 # If there is no test inventory, provision the test systems.
 if [[ ! -e ./test/hosts-test ]]; then
-  echo "$ ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ansible-playbook test/provision.yml --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/provision.yml --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/provision.yml --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Run our Ansible plays against the test systems.
 if [ $errorCode -eq 0 ] && [ "${configure}" = true ]; then
-  echo "$ ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars \""{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ansible-playbook site.yml --inventory-file=test/hosts-test --extra-vars "{is_test: true, domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' --extra-vars \"{is_test: true}\" ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper site.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" --extra-vars "{is_test: true}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 fi
 
 # Tear down the test systems.
 if [ $errorCode -eq 0 ] && [ "${teardown}" = true ]; then
-  echo "$ ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars \""{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}"\" ${verboseArg}" | tee -a "${originalLog}"
-  ansible-playbook test/teardown.yml --inventory-file=test/hosts-test --extra-vars "@${AWS_PROVISIONING_VARS_FILE}" --extra-vars "{domain_test_prefix: ${DOMAIN_TEST_PREFIX}}" ${verboseArg}
+  echo "$ ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars '${EXTRA_VARS}' ${verboseArg}" | tee -a "${originalLog}"
+  ./ansible-playbook-wrapper test/teardown.yml --inventory-file=test/hosts-test --extra-vars "${EXTRA_VARS}" ${verboseArg}
   errorCode=$?
   echo -e "\n" | tee -a "${originalLog}"
 
-  # If everything tore down okay, remove the test env file.
+  # If everything tore down okay, remove the test session file.
+  # User configuration is preserved for future test runs.
   if [ $errorCode -eq 0 ]; then
-    rm "${scriptDirectory}/test.env"
+    rm "${scriptDirectory}/test-session.env"
   fi
 fi
 

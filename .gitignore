@@ -14,7 +14,8 @@ vault.password
 
 # Ignore the test data and host inventory.
 test/hosts-test
-test/test.env
+test/user-config.env
+test/test-session.env
 
 # Ignore the saved Ansible logs. (No way to reasonably version control them; hopefully backups catch them, if needed.)
 logs/
@@ -24,4 +25,10 @@ logs/
 
 # Ignore Claude AI local settings
 .claude/settings.local.json
+
+# Ignore Python build artifacts.
+*.egg-info/
+
+# Python virtual environment (uv-managed)
+/.venv/
 

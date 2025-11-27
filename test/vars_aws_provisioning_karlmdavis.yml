@@ -1,9 +1,0 @@
----
-##
-# The Ansible variables to include for tests/provisioning when those are being
-# run using Karl's AWS account.
-##
-
-aws_region: 'us-east-1'
-aws_vpc_subnet: 'subnet-9a1dfeb0'
-aws_ec2_key_name: 'karlmdavis-mantis'

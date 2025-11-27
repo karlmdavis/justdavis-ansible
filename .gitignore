@@ -14,7 +14,8 @@ vault.password
 
 # Ignore the test data and host inventory.
 test/hosts-test
-test/test.env
+test/user-config.env
+test/test-session.env
 
 # Ignore the saved Ansible logs. (No way to reasonably version control them; hopefully backups catch them, if needed.)
 logs/

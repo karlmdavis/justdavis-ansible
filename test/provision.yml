@@ -25,12 +25,39 @@
     - name: Local - whoami
       local_action: command whoami
       register: whoami
-    
+
+    - name: Check if EC2 key pair exists
+      amazon.aws.ec2_key:
+        name: "{{ aws_ec2_key_name }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
+        state: present
+      check_mode: true
+      register: ec2_key_check
+      ignore_errors: true
+
+    - name: Display EC2 key pair status
+      debug:
+        msg: "EC2 key pair '{{ aws_ec2_key_name }}' {{ 'exists' if ec2_key_check is succeeded else 'does not exist, will be created' }}"
+
+    - name: Upload SSH public key if key pair doesn't exist
+      amazon.aws.ec2_key:
+        name: "{{ aws_ec2_key_name }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
+        key_material: "{{ lookup('file', ssh_key_path) }}"
+        state: present
+      when: ec2_key_check is changed
+      register: ec2_key_upload
+
+    - name: Display key pair registration result
+      debug:
+        msg: "Registering EC2 key pair '{{ aws_ec2_key_name }}'..."
+      when: ec2_key_upload is changed
+
     - name: EC2 - Provision Security Group 'ssh-all'
       ec2_group:
         name: ssh-all
         description: Allows incoming traffic on port 22 (from all IPs).
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         rules:
           - proto: tcp
             from_port: 22
@@ -40,13 +67,13 @@
           - proto: all
             cidr_ip: 0.0.0.0/0
     
-    # This would normally be a bad idea. But in this case, we want to mimic the 
+    # This would normally be a bad idea. But in this case, we want to mimic the
     # setup of the production systems, which don't have a separate firewall.
     - name: EC2 - Provision Security Group 'all'
       ec2_group:
         name: all
         description: Allows all incoming traffic (from all IPs).
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         rules:
           - proto: all
             cidr_ip: 0.0.0.0/0
@@ -83,7 +110,7 @@
                    # database creation failures due to collation mismatches
                    sudo locale-gen en_US.UTF-8
                    sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         network:
           vpc_subnet_id: "{{ aws_vpc_subnet }}"
           assign_public_ip: true
@@ -116,7 +143,7 @@
                    # Also: run `apt-get upgrade`, to grab the latest SSL root certs, which are
                    # needed.
                    sudo apt-get update -qq && sudo apt-get install -y -qq haveged && sudo apt-get upgrade -y
-        region: "{{ aws_region }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
         network:
           vpc_subnet_id: "{{ aws_vpc_subnet }}"
           assign_public_ip: true

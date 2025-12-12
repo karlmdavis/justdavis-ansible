@@ -23,8 +23,8 @@
 
     # Grab the current username, to log in EC2.
     - name: Local - whoami
-      local_action: command whoami
-      register: whoami
+      ansible.builtin.set_fact:
+        whoami: "{{ lookup('env', 'USER') }}"
 
     - name: Check if EC2 key pair exists
       amazon.aws.ec2_key:
@@ -125,7 +125,7 @@
           'tag:Name': eddings
         tags:
           Name: eddings
-          CreatedBy: "{{ whoami.stdout }}"
+          CreatedBy: "{{ whoami }}"
       register: ec2_eddings
     
     - name: EC2 - Provision 'jordan-u'
@@ -158,7 +158,7 @@
           'tag:Name': jordan-u
         tags:
           Name: jordan-u
-          CreatedBy: "{{ whoami.stdout }}"
+          CreatedBy: "{{ whoami }}"
       register: ec2_jordan_u
 
     - name: Delegate test subdomains to temporary BIND server

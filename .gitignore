@@ -16,6 +16,7 @@ vault.password
 test/hosts-test
 test/user-config.env
 test/test-session.env
+test/test-session.json
 
 # Ignore the saved Ansible logs. (No way to reasonably version control them; hopefully backups catch them, if needed.)
 logs/

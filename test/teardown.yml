@@ -13,6 +13,8 @@
   # Have to disable this, as the machine may not have Python 2 installed yet 
   # (which Ansible requires).
   gather_facts: false
+  vars_files:
+    - test-session.json
 
   tasks:
     
@@ -26,10 +28,19 @@
     #- name: Instances to Terminate - List
     #  debug: msg="EC2 Public DNS Name - {{ hostvars[inventory_hostname]['ansible_host'] }}"
     
+    - name: Gather instances with specific TestID
+      amazon.aws.ec2_instance_info:
+        filters:
+          instance-state-name: running
+          'tag:TestID': "{{ test_id }}"
+        region: "{{ lookup('env', 'AWS_REGION') }}"
+      register: instances_to_terminate
+      delegate_to: localhost
+    
     - name: Instances to Terminate - Die Die Die
       ec2_instance:
         state: absent
-        instance_ids: "{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
+        instance_ids: "{{ instances_to_terminate.instances | map(attribute='instance_id') | list }}"
         region: "{{ lookup('env', 'AWS_REGION') }}"
         wait: true
       delegate_to: localhost

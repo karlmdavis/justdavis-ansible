@@ -26,6 +26,35 @@
       ansible.builtin.set_fact:
         whoami: "{{ lookup('env', 'USER') }}"
 
+    - name: Compute Deterministic Test ID
+      block:
+        - name: Find git root
+          ansible.builtin.command: git rev-parse --show-toplevel
+          args:
+            chdir: "{{ playbook_dir }}"
+          register: git_root
+          changed_when: false
+
+        - name: Get current branch name
+          ansible.builtin.command: git symbolic-ref --short HEAD
+          args:
+            chdir: "{{ git_root.stdout }}"
+          register: git_branch
+          changed_when: false
+
+        - name: Set Test ID (whoami + git-branch)
+          ansible.builtin.set_fact:
+            test_id: "{{ whoami }}:{{ git_branch.stdout }}"
+
+      rescue:
+        - name: Rescuing... Set fallback Test ID (whoami + UUID)
+          ansible.builtin.set_fact:
+            test_id: "{{ whoami }}:{{ whoami | ansible.builtin.to_uuid }}"
+
+    - name: Show the resulting Test ID
+      ansible.builtin.debug:
+        msg: Test ID is {{ test_id }}
+
     - name: Check if EC2 key pair exists
       amazon.aws.ec2_key:
         name: "{{ aws_ec2_key_name }}"
@@ -123,9 +152,11 @@
         filters:
           instance-state-name: running
           'tag:Name': eddings
+          'tag:TestID': "{{ test_id }}"
         tags:
           Name: eddings
           CreatedBy: "{{ whoami }}"
+          TestID: "{{ test_id }}"
       register: ec2_eddings
     
     - name: EC2 - Provision 'jordan-u'
@@ -156,9 +187,11 @@
         filters:
           instance-state-name: running
           'tag:Name': jordan-u
+          'tag:TestID': "{{ test_id }}"
         tags:
           Name: jordan-u
           CreatedBy: "{{ whoami }}"
+          TestID: "{{ test_id }}"
       register: ec2_jordan_u
 
     - name: Delegate test subdomains to temporary BIND server
@@ -226,3 +259,7 @@
         src: hosts-test
         dest: ./hosts-test
 
+    - name: Write Test ID
+      ansible.builtin.copy:
+        dest: test-session.json
+        content: "{{ { 'test_id': test_id } | to_nice_json }}"

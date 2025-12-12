@@ -5,16 +5,14 @@
 #
 #     $ ansible-playbook test-provision.yml
 #
-# Remember: AWS hosts cost money to run, so be sure to terminate them afterwards 
+# Remember: AWS hosts cost money to run, so be sure to terminate them afterwards
 # with `test-teardown.yml`.
 
 - hosts: localhost
   name: AWS - Provision Test Hosts
   connection: local
   gather_facts: false
-  
   tasks:
-
     # Go boom if the test inventory is already present.
     - stat: path=./hosts-test
       register: stat_inventory
@@ -95,7 +93,7 @@
         rules_egress:
           - proto: all
             cidr_ip: 0.0.0.0/0
-    
+
     # This would normally be a bad idea. But in this case, we want to mimic the
     # setup of the production systems, which don't have a separate firewall.
     - name: EC2 - Provision Security Group 'all'
@@ -109,7 +107,7 @@
         rules_egress:
           - proto: all
             cidr_ip: 0.0.0.0/0
-    
+
     - name: EC2 - Provision 'eddings'
       ec2_instance:
         key_name: "{{ aws_ec2_key_name }}"
@@ -158,7 +156,7 @@
           CreatedBy: "{{ whoami }}"
           TestID: "{{ test_id }}"
       register: ec2_eddings
-    
+
     - name: EC2 - Provision 'jordan-u'
       ec2_instance:
         key_name: "{{ aws_ec2_key_name }}"
@@ -249,7 +247,7 @@
       until: route53_records_status.finished
       delay: 10
       retries: 60
- 
+
     - name: EC2 - Wait for SSH
       wait_for: host={{ item.public_dns_name }} search_regex=OpenSSH port=22 state=started
       with_items: "{{ ec2_eddings.instances + ec2_jordan_u.instances }}"

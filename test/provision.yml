@@ -1,12 +1,13 @@
 ---
 # This playbook provisions AWS hosts that `site.yml` can be tested against.
 #
-# Usage:
+# Usage (from project root):
 #
-#     $ ansible-playbook test-provision.yml
+#     $ uv run ansible-playbook test/provision.yml
 #
-# Remember: AWS hosts cost money to run, so be sure to terminate them afterwards
-# with `test-teardown.yml`.
+# Remember: AWS hosts cost money to run, so be sure to terminate them afterwards by running:
+#
+#     $ uv run ansible-playbook test/teardown.yml
 
 - hosts: localhost
   name: AWS - Provision Test Hosts

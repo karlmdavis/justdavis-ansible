@@ -1,11 +1,10 @@
 ---
-# PERMANENTLY DESTROYS all AWS resources listed in the `hosts-test` inventory
-# file. Completely, 100% non-recoverable.
-# Use only with caution!
+# PERMANENTLY DESTROYS all AWS resources listed in the `hosts-test` inventory file.
+# This is completely, 100% non-recoverable. Use only with caution!
 #
-# Usage:
+# Usage (from project root):
 #
-#     $ ansible-playbook --inventory-file=hosts-test site-teardown.yml
+#     $ uv run ansible-playbook teardown.yml
 
 - hosts: all
   name: AWS - Terminate EC2 Instances

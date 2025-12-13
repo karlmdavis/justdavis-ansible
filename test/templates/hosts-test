@@ -1,7 +1,7 @@
 ##
-# This inventory file should contain the same hosts as the project's main 
-# `hosts` file. However, each host will be an AWS EC2 instance, with the 
-# instance's public DNS name used for the "local(-ish)" host's `ansible_host` 
+# This inventory file should contain the same hosts as the project's main
+# `hosts` file. However, each host will be an AWS EC2 instance, with the
+# instance's public DNS name used for the "local(-ish)" host's `ansible_host`
 # property.
 ##
 

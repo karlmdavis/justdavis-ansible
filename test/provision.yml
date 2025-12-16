@@ -123,9 +123,11 @@
         filters:
           instance-state-name: running
           'tag:Name': eddings
+          'tag:TestID': "{{ domain_test_prefix }}"
         tags:
           Name: eddings
           CreatedBy: "{{ whoami.stdout }}"
+          TestID: "{{ domain_test_prefix }}"
       register: ec2_eddings
     
     - name: EC2 - Provision 'jordan-u'
@@ -156,9 +158,11 @@
         filters:
           instance-state-name: running
           'tag:Name': jordan-u
+          'tag:TestID': "{{ domain_test_prefix }}"
         tags:
           Name: jordan-u
           CreatedBy: "{{ whoami.stdout }}"
+          TestID: "{{ domain_test_prefix }}"
       register: ec2_jordan_u
 
     - name: Delegate test subdomains to temporary BIND server

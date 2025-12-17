@@ -63,7 +63,7 @@ delete_record() {
 }
 EOF
 
-  if aws route53 change-resource-record-sets \
+  if uv run aws route53 change-resource-record-sets \
     --hosted-zone-id "$zone_id" \
     --change-batch file:///tmp/dns-change-batch.json \
     --profile "$PROFILE" > /dev/null 2>&1; then
@@ -81,7 +81,7 @@ cleanup_zone() {
   echo "Cleaning zone: $zone_name"
 
   # Get all records matching the pattern tests[0-9]+.
-  aws route53 list-resource-record-sets \
+  uv run aws route53 list-resource-record-sets \
     --hosted-zone-id "$zone_id" \
     --profile "$PROFILE" \
     --output json | \
@@ -107,25 +107,25 @@ cleanup_zone() {
 
 # Get zone IDs.
 echo "Looking up Route53 hosted zone IDs..."
-ZONE_JUSTDAVIS=$(aws route53 list-hosted-zones-by-name \
+ZONE_JUSTDAVIS=$(uv run aws route53 list-hosted-zones-by-name \
   --dns-name tests.justdavis.com \
   --profile $PROFILE \
   --query 'HostedZones[0].Id' \
   --output text)
 
-ZONE_DAVISONLINE=$(aws route53 list-hosted-zones-by-name \
+ZONE_DAVISONLINE=$(uv run aws route53 list-hosted-zones-by-name \
   --dns-name tests.davisonlinehome.name \
   --profile $PROFILE \
   --query 'HostedZones[0].Id' \
   --output text)
 
-ZONE_RPSTOURNEY=$(aws route53 list-hosted-zones-by-name \
+ZONE_RPSTOURNEY=$(uv run aws route53 list-hosted-zones-by-name \
   --dns-name tests.rpstourney.com \
   --profile $PROFILE \
   --query 'HostedZones[0].Id' \
   --output text)
 
-ZONE_STORYWYRM=$(aws route53 list-hosted-zones-by-name \
+ZONE_STORYWYRM=$(uv run aws route53 list-hosted-zones-by-name \
   --dns-name tests.storywyrm.com \
   --profile $PROFILE \
   --query 'HostedZones[0].Id' \

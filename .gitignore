@@ -32,3 +32,5 @@ logs/
 # Python virtual environment (uv-managed)
 /.venv/
 
+.worktrees/
+.worktrees/

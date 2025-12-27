@@ -83,10 +83,13 @@
     mode: u=rw,g=r,o=r
   become: true
 
+# Full path to `brew` is required for weird Ansible+sudo reasons,
+# see https://github.com/karlmdavis/justdavis-ansible/issues/66 for details.
 - name: Install chezmoi Using Homebrew
   community.general.homebrew:
     name: chezmoi
     state: present
+    path: "{{ brew_prefix }}/bin"
   become_user: "{{ user_karl_target_user }}"
   become: true
 

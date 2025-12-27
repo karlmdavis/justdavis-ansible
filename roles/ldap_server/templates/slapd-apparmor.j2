@@ -9,5 +9,5 @@
 /etc/letsencrypt/live/** r,
 /etc/letsencrypt/archive/** r,
 
-# Add read access to saslauthd.
-/run/saslauthd/mux rw,
+# Add read access to saslauthd (located in Postfix chroot for shared access).
+/var/spool/postfix/var/run/saslauthd/mux rw,

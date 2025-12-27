@@ -15,21 +15,18 @@
   gather_facts: false
 
   tasks:
-    
-    - name: Gather EC2 Facts
-      ec2_metadata_facts:
-    
-    # Disabled due to spam, but can be used to log all inventory data about 
+
+    # Disabled due to spam, but can be used to log all inventory data about
     # each instance being terminated:
     #- debug: var=hostvars[inventory_hostname]
-    
+
     #- name: Instances to Terminate - List
     #  debug: msg="EC2 Public DNS Name - {{ hostvars[inventory_hostname]['ansible_host'] }}"
-    
+
     - name: Instances to Terminate - Die Die Die
       ec2_instance:
         state: absent
-        instance_ids: "{{ hostvars[inventory_hostname]['ansible_ec2_instance_id'] }}"
+        instance_ids: "{{ hostvars[inventory_hostname]['ec2_instance_id'] }}"
         region: "{{ lookup('env', 'AWS_REGION') }}"
         wait: true
       delegate_to: localhost
@@ -40,6 +37,15 @@
         state: absent
       run_once: true
       delegate_to: localhost
+
+    - name: Clean Up EC2 Test Hosts from SSH Known Hosts
+      ansible.builtin.command:
+        cmd: "ssh-keygen -R {{ hostvars[item]['ansible_host'] }}"
+      loop: "{{ groups['all'] }}"
+      run_once: true
+      delegate_to: localhost
+      failed_when: false
+      changed_when: false
 
     - name: Calculate Test Zones and Domains
       set_fact:

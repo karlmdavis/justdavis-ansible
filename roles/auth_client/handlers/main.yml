@@ -7,6 +7,13 @@
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
+- name: "Restart 'nslcd'"
+  service:
+    name: nslcd
+    state: restarted
+  become: true
+  when: "'Microsoft' not in ansible_kernel"
+
 - name: "Restart 'sssd' Service"
   service:
     name: sssd

@@ -14,9 +14,9 @@
 - name: Add Fileshare Mounts for Users
   ansible.builtin.lineinfile:
     path: /etc/fstab
-    regexp: "^//eddings.*{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
+    regexp: "^//.*{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} .*$"
     # TODO: need to set options like this:
     # noauto,user,cruid=10000,uid=10000,gid=10000,credentials=/home/karl/.credentials-justdavis.com,x-systemd.automount,x-systemd.idle-timeout=30,x-systemd.mount-timeout=10
-    line: "//eddings.karlanderica.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
+    line: "//intranet.{{ domain }}/{{ domain }} /home/{{ item.key }}/{{ domain }} cifs noauto,user,sec=krb5,cruid={{ item.value.uidAndGidNumber }},uid={{ item.value.uidAndGidNumber }},gid={{ item.value.uidAndGidNumber }} 0 0"
   become: true
   with_dict: "{{ people }}"

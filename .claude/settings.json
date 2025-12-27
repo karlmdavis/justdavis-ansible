@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:immich.app)",
+      "WebFetch(domain:docs.vectorchord.ai)"
+    ]
+  }
+}

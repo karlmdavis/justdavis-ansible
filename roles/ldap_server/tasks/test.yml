@@ -13,14 +13,14 @@
 
 - name: 'Test LDAP Search (SSL)'
   ansible.builtin.command:
-    cmd: "/usr/bin/ldapsearch -H ldaps://{{ domain }} -x -b dc=justdavis,dc=com"
+    cmd: "/usr/bin/ldapsearch -H ldaps://intranet.{{ domain }} -x -b dc=justdavis,dc=com"
   register: ldap_search_ssl_result
   failed_when: ldap_search_ssl_result.rc != 0 or test_user_dn not in ldap_search_ssl_result.stdout
   changed_when: false
 
 - name: 'Test saslauthd'
   ansible.builtin.command:
-    cmd: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }}"
+    cmd: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }} -f /var/spool/postfix/var/run/saslauthd/mux"
   become: true
   no_log: true
   register: testsaslauthd_result

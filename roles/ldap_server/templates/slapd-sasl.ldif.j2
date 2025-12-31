@@ -1,8 +1,12 @@
 dn: cn=config
 changetype: modify
-# The FQDN of the Kerberos KDC.
+# The hostname to use for SASL/GSSAPI authentication. This must match the hostname
+# clients use to connect. Since clients connect to ldaps://intranet.{{ domain }}, this
+# must be set to intranet.{{ domain }} (not eddings.{{ domain }}, the server's actual
+# hostname). When omitted, slapd uses gethostname() which returns "eddings", causing
+# GSSAPI authentication failures.
 replace: olcSaslHost
-olcSaslHost: eddings.{{ domain }}
+olcSaslHost: intranet.{{ domain }}
 -
 # The Kerberos realm name.
 replace: olcSaslRealm

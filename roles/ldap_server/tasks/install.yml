@@ -85,6 +85,17 @@
   loop:
     - "{{ network_home_private_cidr }}"
     - '100.64.0.0/10'
+  when: "not is_test | default(false)"
+
+- name: Firewall - Allow LDAP from AWS VPC (test mode only)
+  community.general.ufw:
+    rule: allow
+    port: '389'
+    proto: tcp
+    from_ip: '172.31.0.0/16'
+    comment: "OpenLDAP LDAP - AWS VPC"
+  become: true
+  when: "is_test | default(false)"
 
 - name: Firewall - Allow LDAPS from LAN and Tailscale
   community.general.ufw:
@@ -97,3 +108,14 @@
   loop:
     - "{{ network_home_private_cidr }}"
     - '100.64.0.0/10'
+  when: "not is_test | default(false)"
+
+- name: Firewall - Allow LDAPS from AWS VPC (test mode only)
+  community.general.ufw:
+    rule: allow
+    port: '636'
+    proto: tcp
+    from_ip: '172.31.0.0/16'
+    comment: "OpenLDAP LDAPS - AWS VPC"
+  become: true
+  when: "is_test | default(false)"

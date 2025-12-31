@@ -20,6 +20,17 @@
   register: install_ldapnss_result
   become: true
 
+- name: Configure nslcd LDAP Connection
+  ansible.builtin.lineinfile:
+    dest: /etc/nslcd.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^uri ', line: "uri ldaps://intranet.{{ domain }}" }
+    - { regexp: '^base ', line: "base dc=justdavis,dc=com" }
+  notify: "Restart 'nslcd'"
+  become: true
+
 # TODO Horrible hacky partial workaround for https://github.com/karlmdavis/justdavis-ansible/issues/6
 - name: Get Kerberos Ticket for nss_updatedb (Hacky)
   ansible.builtin.expect:

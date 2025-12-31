@@ -1,12 +1,22 @@
 ---
 
-- name: Configure Hosts Entry for Eddings
+- name: Configure Hosts Entry for Eddings (Public IP)
   ansible.builtin.lineinfile:
     dest: /etc/hosts
     regexp: "^{{ hostvars['eddings.justdavis.com']['public_ip_address'] }} .*$"
     line: "{{ hostvars['eddings.justdavis.com']['public_ip_address'] }} eddings.{{ domain }}"
   become: true
   # This is only needed in AWS, as it allows us to fake a working reverse DNS entry for eddings.
+  when: is_test
+
+- name: Configure Hosts Entry for Intranet Hostname (Private IP)
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ hostvars['eddings.justdavis.com']['private_ip_address'] }} .*$"
+    line: "{{ hostvars['eddings.justdavis.com']['private_ip_address'] }} intranet.{{ domain }}"
+  become: true
+  # Maps private IP to intranet hostname so Kerberos GSSAPI can resolve realm correctly
+  # when connecting via VPC internal IP.
   when: is_test
 
 # This MUST NOT be done in production, but is required for the tests to work.
@@ -35,7 +45,7 @@
     line: "{{ item.line }}"
   with_items:
     - { regexp: '^BASE', line: "BASE\tdc=justdavis,dc=com" }
-    - { regexp: '^URI', line: "URI\tldaps://{{ domain }}" }
+    - { regexp: '^URI', line: "URI\tldaps://intranet.{{ domain }}" }
     - { regexp: '^TLS_CACERT', line: "TLS_CACERT\t/etc/ssl/certs/ca-certificates.crt" }
   become: true
 

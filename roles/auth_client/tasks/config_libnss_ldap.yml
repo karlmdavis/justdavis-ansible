@@ -26,7 +26,7 @@
     line: "{{ item.line }}"
   with_items:
     - { regexp: '^base', line: "base dc=justdavis,dc=com" }
-    - { regexp: '^uri', line: "uri ldaps://{{ domain }}" }
+    - { regexp: '^uri', line: "uri ldaps://intranet.{{ domain }}" }
     - { regexp: '^tls_cacertfile', line: "tls_cacertfile /etc/ssl/certs/ca-certificates.crt" }
   become: true
 

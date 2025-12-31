@@ -228,7 +228,7 @@
     'virtual_mailbox_base': '/var/vmail'
     'virtual_uid_maps': "static:{{ uid_vmail.stdout }}"
     'virtual_gid_maps': "static:{{ gid_vmail.stdout }}"
-    'virtual_mailbox_domains': "{{ domains | join(' ') }}"
+    'virtual_mailbox_domains': "{{ domains | difference(domains_mail_exclude) | join(' ') }}"
     'virtual_alias_maps': 'regexp:/etc/postfix/virtual_alias_maps'
     # Use Dovecot's LMTP service for delivery of virtual mail. This allows the
     # use of Dovecot's sieve to ensure that incoming mail flagged as spam is
@@ -293,7 +293,7 @@
     line: "{{ item.key }} = {{ item.value }};"
   with_dict:
     # Ensure that all valid email domains are filtered.
-    '@local_domains_acl': "( \".{{ domain }}\", \".{{ domain_doh }}\" )"
+    '@local_domains_acl': "( {{ domains | difference(domains_mail_exclude) | map('regex_replace', '^(.*)$', '\".\\1\"') | join(', ') }} )"
     # Always tag mail with spam score headers.
     '$sa_tag_level_deflt': '-9999'
     # Anything above this score will get an `X-Spam-Flag: YES` header, which

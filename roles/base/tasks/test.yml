@@ -7,5 +7,5 @@
   ansible.builtin.command:
     cmd: /bin/hostname --fqdn
   register: fqdn_result
-  failed_when: (hostname_prefix + '.' + domain) != fqdn_result.stdout
+  failed_when: (inventory_hostname_short + '.' + domain) != fqdn_result.stdout
   changed_when: false

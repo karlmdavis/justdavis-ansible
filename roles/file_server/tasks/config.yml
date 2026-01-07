@@ -44,6 +44,8 @@
   with_items:
     - eddings
     - intranet
+  notify:
+    - "Restart 'samba'"
 
 - name: Configure smb.conf
   ansible.builtin.template:

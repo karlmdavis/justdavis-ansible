@@ -1,7 +1,6 @@
 <VirtualHost *:80>
   ServerName {{ domain }}
   ServerAlias www.{{ domain }}
-  ServerAlias mail.{{ domain }}
   
   DocumentRoot /var/apache2/{{ domain }}/www/
   <Directory /var/apache2/{{ domain }}/www/>
@@ -26,7 +25,6 @@
 <VirtualHost *:443>
   ServerName {{ domain }}
   ServerAlias www.{{ domain }}
-  ServerAlias mail.{{ domain }}
   
   DocumentRoot /var/apache2/{{ domain }}/www/
   <Directory /var/apache2/{{ domain }}/www/>

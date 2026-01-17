@@ -32,16 +32,20 @@
   with_dict: "{{ people }}"
   become: true
 
+# Both CIFS service principals are required because:
+# - Clients connect to //intranet.{{ domain }}/share (private IP, no hairpin NAT)
+# - Kerberos canonicalizes intranet.* to eddings.* (the server's actual hostname)
+# - The keytab must contain both to handle canonicalization correctly
 - name: Create Service Principals for Samba Server
   krb_principal:
     name: "cifs/{{ item }}.{{ domain }}"
     policy: services
   become: true
   with_items:
-    # Not sure this is needed, since Samba isn't listening on that IP. Doesn't hurt, though.
     - eddings
-    # Samba listens on the LAN/VPN-only IP that this resolves to.
-    - eddings.karlanderica
+    - intranet
+  notify:
+    - "Restart 'samba'"
 
 - name: Configure smb.conf
   ansible.builtin.template:

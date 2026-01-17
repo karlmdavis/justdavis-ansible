@@ -103,6 +103,20 @@
     - { source: "{{ network_home_private_cidr }}", proto: 'udp', name: 'LAN' }
     - { source: '100.64.0.0/10', proto: 'tcp', name: 'Tailscale' }
     - { source: '100.64.0.0/10', proto: 'udp', name: 'Tailscale' }
+  when: "not is_test | default(false)"
+
+- name: Firewall - Allow Kerberos KDC from AWS VPC (test mode only)
+  community.general.ufw:
+    rule: allow
+    port: '88'
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.source }}"
+    comment: "Kerberos KDC - {{ item.name }}"
+  become: true
+  loop:
+    - { source: '172.31.0.0/16', proto: 'tcp', name: 'AWS VPC' }
+    - { source: '172.31.0.0/16', proto: 'udp', name: 'AWS VPC' }
+  when: "is_test | default(false)"
 
 - name: Firewall - Allow Kerberos Password Change from LAN and Tailscale
   community.general.ufw:
@@ -117,6 +131,20 @@
     - { source: "{{ network_home_private_cidr }}", proto: 'udp', name: 'LAN' }
     - { source: '100.64.0.0/10', proto: 'tcp', name: 'Tailscale' }
     - { source: '100.64.0.0/10', proto: 'udp', name: 'Tailscale' }
+  when: "not is_test | default(false)"
+
+- name: Firewall - Allow Kerberos Password Change from AWS VPC (test mode only)
+  community.general.ufw:
+    rule: allow
+    port: '464'
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.source }}"
+    comment: "Kerberos password change - {{ item.name }}"
+  become: true
+  loop:
+    - { source: '172.31.0.0/16', proto: 'tcp', name: 'AWS VPC' }
+    - { source: '172.31.0.0/16', proto: 'udp', name: 'AWS VPC' }
+  when: "is_test | default(false)"
 
 - name: Firewall - Allow Kerberos Admin from Localhost Only
   community.general.ufw:

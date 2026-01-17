@@ -17,11 +17,15 @@
 # site for details:
 # <https://debian-administration.org/article/726/Performing_IMAP_queries_via_curl>
 
+# UFW rate limiting blocks connections exceeding 6 per 30-second window. With multiple IMAP
+# verification tasks running sequentially, a 10-second retry interval ensures we stay well under
+# this limit (~3 connections per 30 seconds) while allowing sufficient retries for mail delivery
+# testing.
 - name: Set curl_imap fact
   ansible.builtin.set_fact:
     curl_imap:
-      retries: 60
-      delay: 1
+      retries: 6
+      delay: 10
 
 # Note: Not sure why, but both dovecot and postfix seem to need an extra restart to pick up correct certs.
 # Many of the tests below fail until they've been restarted, and also possibly `postfix@-.service`.

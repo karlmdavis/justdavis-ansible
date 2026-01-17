@@ -27,18 +27,33 @@
 - name: Create Host Keytab for LDAP Server
   ansible.builtin.script: "add-keytab.sh --principal host/eddings.{{ domain }}"
   become: true
+  notify:
+    - "Restart 'slapd'"
 
-- name: Create Service Principal for LDAP Server
+# Both LDAP service principals are required because:
+# - Clients connect to ldaps://intranet.{{ domain }} (private IP, no hairpin NAT)
+# - Kerberos canonicalizes intranet.* to eddings.* (the server's actual hostname)
+# - The keytab must contain both to handle canonicalization correctly
+- name: Create Service Principals for LDAP Server
   krb_principal:
     name: "{{ item }}"
     policy: services
   with_items:
     - "ldap/eddings.{{ domain }}"
+    - "ldap/intranet.{{ domain }}"
   become: true
 
-- name: Create Service Keytab for LDAP Server
+- name: Create Service Keytab for LDAP Server (eddings)
   ansible.builtin.script: "add-keytab.sh --principal ldap/eddings.{{ domain }} --keytab /etc/ldap/ldap.keytab"
   become: true
+  notify:
+    - "Restart 'slapd'"
+
+- name: Create Service Keytab for LDAP Server (intranet)
+  ansible.builtin.script: "add-keytab.sh --principal ldap/intranet.{{ domain }} --keytab /etc/ldap/ldap.keytab"
+  become: true
+  notify:
+    - "Restart 'slapd'"
 
 - name: Ensure /etc/ldap/ldap.keytab exists with correct permissions
   ansible.builtin.file:
@@ -59,8 +74,11 @@
     dest: /etc/ldap/slapd-sasl.ldif
   become: true
   register: slapd_sasl_ldif
+
 - name: Apply LDIF - slapd-sasl.ldif
   ansible.builtin.command:
     cmd: 'ldapmodify -Y EXTERNAL -H "ldapi:///" -f /etc/ldap/slapd-sasl.ldif'
   become: true
   when: slapd_sasl_ldif.changed
+  notify:
+    - "Restart 'slapd'"

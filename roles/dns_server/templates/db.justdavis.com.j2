@@ -11,7 +11,7 @@ $TTL 15M ; sets the default time-to-live for this zone
 
 ; Nameserver Records
 ; name                   ttl    class   rr                name
-intranet                        IN      NS                ns1.intranet.justdavis.com.
+intranet                        IN      NS                ns1.intranet.{{ domain }}.
 ns1.intranet                    IN      A                 {{ eddings_public_ip }}
 {% if not is_test %}
 ; name                   ttl    class   rr                name
@@ -77,7 +77,10 @@ $INCLUDE /etc/bind/dkim-{{ domain }}.record
 
 ; SRV Records
 ; name                   ttl    class   rr                name
-_kerberos._udp                  IN      SRV               0 0 88 eddings
-_kerberos-master._udp           IN      SRV               0 0 88 eddings
-_kerberos-adm._tcp              IN      SRV               0 0 749 eddings
-_kpasswd._udp                   IN      SRV               0 0 464 eddings
+; Kerberos services use intranet hostname (private IP) since the KDC firewall only allows LAN and
+; Tailscale access. This avoids hairpin NAT issues and matches the access pattern for other
+; internal services (LDAP, mail).
+_kerberos._udp                  IN      SRV               0 0 88 intranet.{{ domain }}.
+_kerberos-master._udp           IN      SRV               0 0 88 intranet.{{ domain }}.
+_kerberos-adm._tcp              IN      SRV               0 0 749 intranet.{{ domain }}.
+_kpasswd._udp                   IN      SRV               0 0 464 intranet.{{ domain }}.

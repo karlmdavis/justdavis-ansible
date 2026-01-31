@@ -16,6 +16,35 @@
     - sasl2-bin
   become: true
 
+- name: Ensure sasl Group Exists
+  ansible.builtin.group:
+    name: sasl
+    state: present
+    system: true
+  become: true
+
+- name: Create Parent Directories for saslauthd Socket
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  with_items:
+    - /var/spool/postfix
+    - /var/spool/postfix/var
+    - /var/spool/postfix/var/run
+  become: true
+
+- name: Create saslauthd Socket Directory in Postfix Chroot
+  ansible.builtin.file:
+    path: /var/spool/postfix/var/run/saslauthd
+    state: directory
+    owner: root
+    group: sasl
+    mode: u=rwx,g=rwx,o=
+  become: true
+
 - name: Configure saslauthd Defaults
   ansible.builtin.lineinfile:
     dest: /etc/default/saslauthd
@@ -24,6 +53,29 @@
   with_dict:
     '.*START=.*': 'START=yes'
     '.*MECHANISMS=.*': 'MECHANISMS="kerberos5"'
+    '.*OPTIONS=.*': 'OPTIONS="-c -m /var/spool/postfix/var/run/saslauthd"'
+  become: true
+  notify:
+    - "Restart 'saslauthd'"
+
+- name: Create systemd Override Directory for saslauthd
+  ansible.builtin.file:
+    path: /etc/systemd/system/saslauthd.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Configure systemd PID File Override for saslauthd
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/saslauthd.service.d/pidfile.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    content: |
+      [Service]
+      PIDFile=/var/spool/postfix/var/run/saslauthd/saslauthd.pid
   become: true
   notify:
     - "Restart 'saslauthd'"
@@ -36,7 +88,7 @@
     daemon_reload: true
   become: true
 
-- name: Configure OpenLDAP for saslauthd
+- name: Configure OpenLDAP for saslauthd - Method
   ansible.builtin.lineinfile:
     dest: /etc/ldap/sasl2/slapd.conf
     owner: root
@@ -45,6 +97,18 @@
     create: true
     regexp: '^pwcheck_method: .*'
     line: 'pwcheck_method: saslauthd'
+  become: true
+  notify:
+    - "Restart 'slapd'"
+
+- name: Configure OpenLDAP for saslauthd - Socket Path
+  ansible.builtin.lineinfile:
+    dest: /etc/ldap/sasl2/slapd.conf
+    owner: root
+    group: root
+    mode: u=rw,g=rw,o=r
+    regexp: '^saslauthd_path: .*'
+    line: 'saslauthd_path: /var/spool/postfix/var/run/saslauthd/mux'
   become: true
   notify:
     - "Restart 'slapd'"

@@ -1,0 +1,3 @@
+# This directory needs to be here, per ansible.cfg, so this .gitignore is mostly just a placeholder for the dir.
+# Ignore the saved Ansible logs: they're build logs and sometimes contain sensitive info.
+*

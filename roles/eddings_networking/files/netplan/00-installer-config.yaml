@@ -1,9 +1,9 @@
 ##
 # This server has the following network interfaces:
 #
-# * eno1: The 1.0 GB port.
-# * enp4s0: The 2.5 GB port.
-# * wlp3s0: The wifi interface.
+# * eno1 (altname enp131s0): The lower 2.5 GB port (WAN).
+# * eno2 (altname enp132s0): The upper 2.5 GB port (LAN).
+# * enx8a2fdd39918c: The BMC/IPMI management port (not managed here).
 #
 # Run `sudo netplan apply` to apply any changes made in this file.
 ##
@@ -15,7 +15,7 @@ network:
       # Nothing set here, as it's only directly used to host the br-wan bridge.
       dhcp4: false # This is the default, just including it so we have valid YAML.
     # The ethernet connection for LAN connectivity.
-    enp4s0:
+    eno2:
       # Nothing set here, as it's only directly used to host the br-lan bridge.
       dhcp4: false # This is the default, just including it so we have valid YAML.
   bridges:
@@ -33,6 +33,6 @@ network:
         - to: default
           via: 96.86.32.142
     br-lan:
-      interfaces: [enp4s0]
+      interfaces: [eno2]
       # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.
       dhcp4: true

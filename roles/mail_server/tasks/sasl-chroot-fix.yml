@@ -5,10 +5,12 @@
 # service is (by default) run inside a chroot environment at
 # `/var/spool/postfix/`, which doesn't have access to the SASL socket file.
 #
-# This config adds that file (and friends) back into the chroot environment
-# using a mount bind. This fix is taken from here:
-# <https://github.com/webmin/webmin/issues/58>, which is the only halfway
-# decent solution to this problem I managed to come across.
+# The standard Debian solution is to configure saslauthd to create its socket
+# directly inside the Postfix chroot at `/var/spool/postfix/var/run/saslauthd`.
+# This requires creating the directory structure and setting proper permissions
+# so both Postfix and saslauthd can access it.
+#
+# Reference: /etc/default/saslauthd comments on Debian/Ubuntu systems.
 ##
 
 - name: Add 'postfix' User to 'sasl' Group
@@ -30,7 +32,7 @@
     - /var/spool/postfix/var/run
   become: true
 
-- name: Create Mount Point for SASL in Postfix chroot
+- name: Create SASL Directory in Postfix chroot
   ansible.builtin.file:
     state: directory
     path: /var/spool/postfix/var/run/saslauthd
@@ -39,24 +41,15 @@
     mode: u=rwx,g=rwx,o=
   become: true
 
-- name: Verify dpkg Override for SASL Mount Point
+- name: Verify dpkg Override for SASL Directory
   ansible.builtin.command:
     cmd: dpkg-statoverride --list /var/spool/postfix/var
   register: dpkg_override_postfix_var
   changed_when: false
   failed_when: false
 
-- name: Configure dpkg to Handle SASL Mount Point Correctly
+- name: Configure dpkg to Handle SASL Directory Correctly
   ansible.builtin.command:
     cmd: dpkg-statoverride --add root root 755 /var/spool/postfix/var
   become: true
   when: dpkg_override_postfix_var.rc != 0
-
-- name: Mount SASL in Postfix chroot
-  ansible.posix.mount:
-    name: /var/spool/postfix/var/run/saslauthd
-    src: /var/run/saslauthd
-    fstype: bind
-    opts: defaults,nodev,bind
-    state: mounted
-  become: true

@@ -20,7 +20,7 @@
 
 - name: 'Test saslauthd'
   ansible.builtin.command:
-    cmd: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }}"
+    cmd: "/usr/sbin/testsaslauthd -u {{ test_username }} -p {{ test_password }} -f /var/spool/postfix/var/run/saslauthd/mux"
   become: true
   no_log: true
   register: testsaslauthd_result

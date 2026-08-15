@@ -3,6 +3,10 @@
 - name: Import tasks - certbot.yml
   ansible.builtin.import_tasks: certbot.yml
 
+- name: Import tasks - certbot-hooks.yml
+  ansible.builtin.import_tasks: certbot-hooks.yml
+  tags: certbot_hooks
+
 - name: Import tasks - apache.yml
   ansible.builtin.import_tasks: apache.yml
 

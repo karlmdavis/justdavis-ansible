@@ -6,6 +6,9 @@
   ansible.builtin.import_tasks: sasl-chroot-fix.yml
 - name: Import tasks - opendkim-chroot-fix.yml
   ansible.builtin.import_tasks: opendkim-chroot-fix.yml
+- name: Import tasks - certbot-hooks.yml
+  ansible.builtin.import_tasks: certbot-hooks.yml
+  tags: certbot_hooks
 - name: Import tasks - test.yml
   ansible.builtin.import_tasks: test.yml
   tags: test

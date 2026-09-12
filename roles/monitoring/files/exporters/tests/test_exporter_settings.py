@@ -58,23 +58,23 @@ def test_gateway_settings() -> None:
             "MONITORING_GATEWAY_HOST": "10.1.10.1",
             "GATEWAY_USERNAME": "admin",
             "GATEWAY_PASSWORD": "pw",
-            "MONITORING_GATEWAY_CA_FILE": "/secrets/gateway_ca.pem",
+            "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256": "AB:CD:EF",
         }
     )
     assert settings.base_url == "https://10.1.10.1"
-    assert settings.verify == "/secrets/gateway_ca.pem"
+    assert settings.tls_fingerprint_sha256 == "AB:CD:EF"
     assert settings.interval_seconds == 60
     assert settings.relogin_min_seconds == 300
     assert settings.port == 9802
     assert "pw" not in repr(settings)
 
 
-def test_gateway_settings_without_ca_file_uses_plain_http() -> None:
+def test_gateway_settings_without_fingerprint_uses_plain_http() -> None:
     settings = GatewaySettings.from_env(
         {"MONITORING_GATEWAY_HOST": "10.1.10.1", "GATEWAY_USERNAME": "admin", "GATEWAY_PASSWORD": "pw"}
     )
     assert settings.base_url == "http://10.1.10.1"
-    assert settings.verify is True
+    assert settings.tls_fingerprint_sha256 is None
 
 
 def test_airplay_settings() -> None:

@@ -94,3 +94,12 @@ def test_verify_option_is_passed_through() -> None:
     client = RequestsHttpClient("https://10.1.10.1", session=session, verify="/secrets/gateway_ca.pem")
     client.get("/")
     assert session.calls[0]["verify"] == "/secrets/gateway_ca.pem"
+
+
+def test_fingerprint_pinning_mounts_an_https_adapter_that_asserts_the_fingerprint() -> None:
+    from justdavis_monitoring_exporters.common.http import FingerprintAdapter, pinned_session
+
+    session = pinned_session("ab:cd:ef")
+    adapter = session.get_adapter("https://10.1.10.1/")
+    assert isinstance(adapter, FingerprintAdapter)
+    assert adapter.fingerprint == "ab:cd:ef"

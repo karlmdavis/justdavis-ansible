@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from prometheus_client import Counter
 
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
-from justdavis_monitoring_exporters.common.http import RequestsHttpClient
+from justdavis_monitoring_exporters.common.http import RequestsHttpClient, pinned_session
 from justdavis_monitoring_exporters.common.loop import run_scrape_loop
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
@@ -36,7 +36,7 @@ class GatewaySettings:
     host: str | None
     username: str
     password: str = field(repr=False)
-    ca_file: str | None
+    tls_fingerprint_sha256: str | None
     port: int
     listen_addr: str
     interval_seconds: int
@@ -44,12 +44,8 @@ class GatewaySettings:
 
     @property
     def base_url(self) -> str:
-        scheme = "https" if self.ca_file else "http"
+        scheme = "https" if self.tls_fingerprint_sha256 else "http"
         return f"{scheme}://{self.host}"
-
-    @property
-    def verify(self) -> bool | str:
-        return self.ca_file if self.ca_file else True
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "GatewaySettings":
@@ -64,7 +60,7 @@ class GatewaySettings:
             host=host,
             username=username,
             password=password,
-            ca_file=env_host(env, "MONITORING_GATEWAY_CA_FILE"),
+            tls_fingerprint_sha256=env_host(env, "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256"),
             port=env_int(env, "MONITORING_GATEWAY_PORT", 9802),
             listen_addr=env_str(env, "MONITORING_LISTEN_ADDR", "0.0.0.0"),
             interval_seconds=env_int(env, "MONITORING_GATEWAY_INTERVAL", 60),
@@ -119,7 +115,13 @@ def main() -> None:
     if settings.host is None:
         log.warning("MONITORING_GATEWAY_HOST is not set; serving gateway_up 0 and idling")
     else:
-        http = RequestsHttpClient(settings.base_url, verify=settings.verify)
+        if settings.tls_fingerprint_sha256 is not None:
+            # Chain/hostname checks are replaced by the fingerprint assertion in the pinned adapter.
+            http = RequestsHttpClient(
+                settings.base_url, session=pinned_session(settings.tls_fingerprint_sha256), verify=False
+            )
+        else:
+            http = RequestsHttpClient(settings.base_url)
         client = GatewayClient(
             http,
             username=settings.username,

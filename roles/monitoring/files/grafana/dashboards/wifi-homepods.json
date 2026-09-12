@@ -1,0 +1,147 @@
+{
+  "id": null,
+  "uid": "wifi-homepods",
+  "title": "WiFi & HomePods",
+  "tags": ["home-network"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "state-timeline",
+      "title": "HomePod mesh point and band (each row is one association; a row going dark means it moved)",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "amplifi_client_info{kind=\"homepod\"}",
+          "legendFormat": "{{name}} on {{ap_name}} ({{band}})"
+        }
+      ],
+      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "green"}}, "overrides": []}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HomePod signal quality (router-reported, 0-100)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "amplifi_client_signal_quality{kind=\"homepod\"}", "legendFormat": "{{name}}"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0, "max": 100, "unit": "none"}, "overrides": []}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HomePod ping: mean round trip",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_rtt_mean_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HomePod ping: packet loss",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HomePod ping: jitter (standard deviation)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 6,
+      "type": "state-timeline",
+      "title": "AirPlay reachability: mDNS resolves (active query) and TCP port 7000 accepts",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 25},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "airplay_service_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS"},
+        {"refId": "B", "expr": "probe_success{job=\"airplay_tcp\"}", "legendFormat": "{{name}}: port 7000"}
+      ],
+      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Mesh point backhaul minimum RSSI",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "amplifi_mesh_point_rssi_min_dbm", "legendFormat": "{{name}}"}],
+      "fieldConfig": {"defaults": {"unit": "dBm"}, "overrides": []}
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Mesh points",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "amplifi_mesh_point_info", "format": "table", "instant": true},
+        {"refId": "B", "expr": "amplifi_mesh_point_uptime_seconds", "format": "table", "instant": true}
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "Value #A": true},
+            "renameByName": {"Value #B": "uptime (s)"}
+          }
+        }
+      ],
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Every WiFi client: signal quality (untracked devices shown by MAC)",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 42},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "amplifi_client_signal_quality{kind!=\"backhaul\"}", "legendFormat": "{{name}} {{mac}} ({{kind}})"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0, "max": 100}, "overrides": []}
+    }
+  ]
+}

@@ -29,5 +29,13 @@ test/test-session.env
 # Python virtual environment (uv-managed)
 /.venv/
 
+# Git worktrees.
 .worktrees/
 .claude/worktrees/
+
+# Ignore Python tooling caches anywhere (e.g. the exporter package under roles/monitoring).
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

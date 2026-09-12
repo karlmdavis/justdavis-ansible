@@ -1,0 +1,173 @@
+"""Tests for the AmpliFi Prometheus collector (snapshot -> metric families)."""
+
+from pathlib import Path
+
+from prometheus_client import CollectorRegistry
+
+from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector
+from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
+from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
+from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
+from justdavis_monitoring_exporters.common.counters import Unwrapper32
+from justdavis_monitoring_exporters.common.settings import TrackedClient
+from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
+
+FIXTURES = Path(__file__).parent / "fixtures"
+SNAPSHOT = parse_info_async((FIXTURES / "amplifi_info_async.json").read_bytes())
+TRACKED = (
+    TrackedClient(mac="02:00:00:00:00:10", name="Speaker A", kind="homepod", airplay_name="Speaker A"),
+    TrackedClient(mac="02:00:00:00:00:11", name="Speaker B", kind="homepod", airplay_name="Speaker B"),
+)
+SPEAKER_A = {"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}
+TABLET = {"mac": "02:00:00:00:00:20", "name": "", "kind": "other"}
+
+
+def registry_with(
+    snapshot: AmplifiSnapshot | None, status: ScrapeStatus | None = None
+) -> tuple[CollectorRegistry, AmplifiCollector]:
+    snapshots: SnapshotHolder[AmplifiSnapshot] = SnapshotHolder()
+    if snapshot is not None:
+        snapshots.set(snapshot)
+    statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
+    statuses.set(status or ScrapeStatus.initial())
+    targets: SnapshotHolder[tuple[TargetInfo, ...]] = SnapshotHolder()
+    targets.set((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
+    collector = AmplifiCollector(snapshots, statuses, targets, TRACKED, Unwrapper32())
+    registry = CollectorRegistry()
+    registry.register(collector)
+    return registry, collector
+
+
+def test_status_metrics_present_without_a_snapshot() -> None:
+    registry, _ = registry_with(None)
+    assert registry.get_sample_value("amplifi_up") == 0.0
+    assert registry.get_sample_value("amplifi_last_success_timestamp_seconds") == 0.0
+    assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) is None
+
+
+def test_status_metrics_reflect_a_successful_scrape() -> None:
+    status = ScrapeStatus.initial().succeeded(timestamp=1700000000.0, duration_seconds=0.25)
+    registry, _ = registry_with(SNAPSHOT, status)
+    assert registry.get_sample_value("amplifi_up") == 1.0
+    assert registry.get_sample_value("amplifi_last_success_timestamp_seconds") == 1700000000.0
+    assert registry.get_sample_value("amplifi_scrape_duration_seconds") == 0.25
+
+
+def test_tracked_client_gauges_carry_configured_name_and_kind() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) == 74.0
+    assert registry.get_sample_value("amplifi_client_happiness_score", SPEAKER_A) == 75.0
+    assert registry.get_sample_value("amplifi_client_rx_bits_per_second", SPEAKER_A) == 52_000_000.0
+    assert registry.get_sample_value("amplifi_client_tx_bits_per_second", SPEAKER_A) == 11_000_000.0
+    assert registry.get_sample_value("amplifi_client_inactive_seconds", SPEAKER_A) == 30.0
+
+
+def test_untracked_client_is_exported_as_other_with_blank_name() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    assert registry.get_sample_value("amplifi_client_signal_quality", TABLET) == 89.0
+
+
+def test_client_info_describes_association() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    labels = {
+        **SPEAKER_A,
+        "ap": "02:00:00:00:00:01",
+        "ap_name": "test-router",
+        "band": "2.4 GHz",
+        "network": "User network",
+        "mode": "802.11n",
+    }
+    assert registry.get_sample_value("amplifi_client_info", labels) == 1.0
+
+
+def test_client_on_mesh_point_has_that_ap_name() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    labels = {
+        "mac": "02:00:00:00:00:11",
+        "name": "Speaker B",
+        "kind": "homepod",
+        "ap": "02:00:00:00:00:02",
+        "ap_name": "Kitchen",
+        "band": "5 GHz",
+        "network": "User network",
+        "mode": "802.11n",
+    }
+    assert registry.get_sample_value("amplifi_client_info", labels) == 1.0
+
+
+def test_backhaul_links_are_labelled_as_backhaul() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    labels = {"mac": "02:00:00:00:00:f2", "name": "", "kind": "backhaul"}
+    assert registry.get_sample_value("amplifi_client_signal_quality", labels) == 97.0
+
+
+def test_byte_counters_are_unwrapped_across_snapshots() -> None:
+    registry, collector = registry_with(SNAPSHOT)
+    first = registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A)
+    assert first == 4294967200.0
+    wrapped = _with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50)
+    collector.snapshots.set(wrapped)
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0 + 96 + 50
+
+
+def test_mesh_point_and_router_metrics() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    kitchen = {"mac": "02:00:00:00:00:02", "name": "Kitchen"}
+    assert registry.get_sample_value("amplifi_mesh_point_rssi_min_dbm", kitchen) == -44.0
+    assert registry.get_sample_value("amplifi_mesh_point_uptime_seconds", kitchen) == 2008337.0
+    assert (
+        registry.get_sample_value(
+            "amplifi_mesh_point_info", {**kitchen, "backhaul_band": "2.4 GHz", "platform": "AFi-P-HD"}
+        )
+        == 1.0
+    )
+    assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
+
+
+def test_wan_port_metrics() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    assert registry.get_sample_value("amplifi_wan_link") == 1.0
+    assert registry.get_sample_value("amplifi_wan_rx_bits_per_second") == 21_931_000.0
+    assert registry.get_sample_value("amplifi_wan_tx_bits_per_second") == 542_000.0
+
+
+def test_airplay_advertised_from_router_view_for_tracked_homepods() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    assert (
+        registry.get_sample_value(
+            "amplifi_client_airplay_advertised", {**SPEAKER_A, "service": "_airplay._tcp"}
+        )
+        == 1.0
+    )
+    assert (
+        registry.get_sample_value(
+            "amplifi_client_airplay_advertised",
+            {"mac": "02:00:00:00:00:11", "name": "Speaker B", "kind": "homepod", "service": "_airplay._tcp"},
+        )
+        == 0.0
+    )
+
+
+def test_target_info_is_exported_from_the_targets_holder() -> None:
+    registry, _ = registry_with(SNAPSHOT)
+    assert (
+        registry.get_sample_value(
+            "monitoring_target_info", {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static"}
+        )
+        == 1.0
+    )
+
+
+def test_network_sourced_labels_are_sanitised() -> None:
+    from justdavis_monitoring_exporters.common.labels import sanitise_label
+
+    assert sanitise_label("Karl’s iPad\n") == "Karl's iPad"  # noqa: RUF001
+    assert sanitise_label("x" * 100) == "x" * 64
+    assert sanitise_label("") == ""
+
+
+def _with_rx_bytes(snapshot: AmplifiSnapshot, mac: str, rx_bytes: int) -> AmplifiSnapshot:
+    from dataclasses import replace
+
+    clients = tuple(replace(c, rx_bytes=rx_bytes) if c.mac == mac else c for c in snapshot.clients)
+    return replace(snapshot, clients=clients)

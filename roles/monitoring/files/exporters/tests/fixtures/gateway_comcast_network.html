@@ -1,0 +1,781 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+
+
+
+<head>
+	<!--CSS-->
+	<link rel="stylesheet" type="text/css" media="screen" href="./cmn/css/common-min.css" />
+	<!--[if IE 6]>
+	<link rel="stylesheet" type="text/css" href="./cmn/css/ie6-min.css" />
+	<![endif]-->
+	<!--[if IE 7]>
+	<link rel="stylesheet" type="text/css" href="./cmn/css/ie7-min.css" />
+	<![endif]-->
+	<link rel="stylesheet" type="text/css" media="print" href="./cmn/css/print.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./cmn/css/lib/jquery.radioswitch.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./cmn/css/lib/progressBar.css" />
+	<!--Character Encoding-->
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<meta name="robots" content="noindex,nofollow">
+    <script type="text/javascript" src="./cmn/js/lib/jquery-3.7.1.js"></script>
+    <script type="text/javascript" src="./cmn/js/lib/jquery-migrate-1.2.1.js"></script>
+    <script type="text/javascript" src="./cmn/js/lib/jquery.validate.js"></script>
+    <script type="text/javascript" src="./cmn/js/lib/jquery.alerts.js"></script>
+	<script type="text/javascript" src="./cmn/js/lib/jquery.ciscoExt.js"></script>
+	<script type="text/javascript" src="./cmn/js/lib/jquery.highContrastDetect.js"></script>
+	<script type="text/javascript" src="./cmn/js/lib/jquery.radioswitch.js"></script>
+	<script type="text/javascript" src="./cmn/js/lib/jquery.virtualDialog.js"></script>
+	<script type="text/javascript" src="./cmn/js/lib/bootstrap.min.js"></script>
+    <script type="text/javascript" src="./cmn/js/lib/bootstrap-waitingfor.js"></script>
+    <!-- update the version of utilityFunctions.js if any changes is made to this js file otherwise browser will take the old js file from the cache memory -->
+	<script type="text/javascript" src="./cmn/js/utilityFunctions.js?v=1"></script>
+    <script type="text/javascript" src="./cmn/js/comcast.js"></script>
+    
+</head>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("table.data td").each(function() {
+			if($(this).text().split("\n")[0].length > 25)
+			{
+				$(this).closest('table').css("table-layout", "fixed");
+				$(this).css("word-wrap", "break-word");
+			}
+		});
+	});
+</script>
+
+<body>
+    <!--Main Container - Centers Everything-->
+	<div id="container">
+
+		<!--Header-->
+		<div id="header">
+			<h2 id="logo" class="logo_title"><img src="./cmn/img/logo_xfinity.png" alt="Company logo" title="Company logo" /></h2>
+			<p class="bridmar">
+				<strong>
+				
+				</strong>
+			</p>
+		</div> <!-- end #header -->
+
+		<div id='div-skip-to' class="acs-hide">
+			<a id="skip-link" name="skip-link" href="#content">Skip to content</a>
+		</div>
+		
+		<!--Main Content-->
+		<div id="main-content">
+
+
+<div id="sub-header">
+	
+<!--dynamic generate user bar icon and tips-->
+
+
+
+<script type="text/javascript">
+setTimeout(function() {
+	/*
+	* get status when hover or tab focused one by one
+	* but for screen reader we have to load all status once
+	* below code can easily rollback
+	*/
+	//update user bar
+	//var sessionCsrf= "1wub2t76zx";
+	//if(document.cookie==""){
+	//	sessionStorage.setItem("Csrfp_token",sessionCsrf);
+	//}
+	$.ajax({
+		type: "GET",
+		url: "actionHandler/ajaxSet_userbar.jst",
+		data: { configInfo: "noData" },
+		dataType: "json",
+		success: function(msg) {
+			// theObj.find(".tooltip").html(msg.tips);
+			for (var i=0; i<msg.tags.length; i++){
+				$("#"+msg.tags[i]).find(".tooltip").html(msg.tips[i].replace(/-/g, "<br/>"));
+				$("#"+msg.tags[i]).removeClass("off");
+				if(msg.mainStatus[i]=="false")$("#"+msg.tags[i]).addClass("off");
+				if(msg.tags[i] === "sta_fire")
+				{
+					if (!(("High"== msg.mainStatus[i]) || ("Medium"==msg.mainStatus[i]))) 
+					{
+						$("#"+msg.tags[i]).addClass("off");
+					}
+					$("#sta_fire a>span").text(msg.mainStatus[i] + " Security")
+				}
+			}
+			//$sta_batt,$battery_class
+			$("#sta_batt a").text(msg.mainStatus[4]+"%");
+			$("#sta_batt > div > span").removeClass().addClass(msg.mainStatus[5]);
+		},
+		error: function(){
+			// does something
+		}
+	});
+
+	//when clicked on this page, restart timer
+	var jsInactTimeout = parseInt("840") * 1000;
+	// if ("") jsInactTimeout = 5000;	// 5 seconds debug
+	
+	// var h_timer = setTimeout('alert("You are being logged out due to inactivity."); location.href="home_loggedout.jst";', jsInactTimeout);
+	var h_timer = null;
+	$(document).click(function() {
+		// do not handle click if no-login for GA
+		// if ("" == "") {
+			// return;
+		// }			
+	
+		// do not handle click event when count-down show up
+		if ($("#count_down").length > 0) {
+			return;
+		}
+		// console.log(h_timer);
+		
+		clearTimeout(h_timer);
+		h_timer = setTimeout(function(){
+			var cnt		= 60;
+			var h_cntd  = setInterval(function(){
+				$("#count_down").text(--cnt);
+				// (1)stop counter when less than 0, (2)hide warning when achieved 0, (3)add another alert to block user action if network unreachable
+				if (cnt<=0) {
+					clearInterval(h_cntd);	
+					jAlert("You have been logged out due to inactivity!");
+					location.href="home_loggedout.jst";
+				}
+			}, 1000);
+			// use jAlert instead of alert, or it will not auto log out untill OK pressed!
+			jAlert('Press <b>OK</b> to continue session. Otherwise you will be logged out in <span id="count_down" class="count_down_style" color: red;">'+cnt+'</span> seconds!'
+			, 'You are being logged out due to inactivity!'
+			, function(){
+				clearInterval(h_cntd);
+			});
+		}
+		, jsInactTimeout);
+	}).trigger("click");
+	
+	// show pop-up info when focus
+	$("#status a").focus(function() {
+		$(this).mouseenter();
+	});
+	
+	// disappear previous pop-up
+	$("#status a").blur(function() {
+		$(".tooltip").hide();
+	});
+
+}, 100);
+
+</script>
+
+
+<ul id="userToolbar" class="on">
+	<li class="first-child"> Hi admin</li>
+	<li class="toolbar_style">&nbsp;&nbsp;&#8226;&nbsp;&nbsp;<a href="home_loggedout.jst" tabindex="0">Logout</a></li>
+	<li class="toolbar_style">&nbsp;&nbsp;&#8226;&nbsp;&nbsp;<a href="password_change.jst" tabindex="0">Change Password</a></li>
+</ul>
+
+<ul id="status">
+	<li id="sta_batt" class="battery first-child"><div class="sprite_cont"><span class="bat-0" ><img src="./cmn/img/icn_battery.png"  alt="Battery icon" title="Battery icon" /></span></div><a role="toolbar" href="javascript: void(0);" tabindex="0">0%</a>	 <!-- NOTE: When this value changes JS will set the battery icon -->	</li><li id="sta_inet" class="internet"><span class="value on-off sprite_cont"><img src="./cmn/img/icn_on_off.png" alt="Internet Online" /></span><a href="javascript: void(0);" tabindex="0">Internet<div class="tooltip">Loading...</div></a></li><li id="sta_wifi" class="wifi off"><span class="value on-off sprite_cont"><img src="./cmn/img/icn_on_off.png" alt="WiFi Offline" /></span><a href="javascript: void(0);" tabindex="0">Wi-Fi<div class="tooltip">Loading...</div></a></li><li id="sta_fire" class="security last off"><span class="value on-off sprite_cont"><img src="./cmn/img/icn_on_off.png" alt="Security Off" /></span><a href="javascript: void(0);" tabindex="0"><span>Low Security</span><div class="tooltip">Loading...</div></a></li>
+</ul>
+
+
+</div><!-- end #sub-header -->
+
+
+<!-- $Id: nav.dory.jst 3155 2010-01-06 19:36:01Z slemoine $ -->
+
+<!--Nav-->
+<div id="nav"><ul><li class="nav-gateway"><a role="menuitem"  title="click to toggle sub menu" class="top-level" href="at_a_glance.jst">Gateway</a><ul><li class="nav-at-a-glance"><a role="menuitem"  href="at_a_glance.jst">At a Glance</a></li><li class="nav-initial-setup"><a role="menuitem"  href="initial_setup.jst">Initial Setup</a></li><li class="nav-connection"><a role="menuitem"  title="click to toggle sub menu"  href="javascript:;">Connection</a><ul><li class="nav-connection-status"><a role="menuitem"  href="connection_status.jst">Status</a></li><li class="nav-comcast-network"><a role="menuitem"  href="comcast_network.jst">Comcast Network</a></li><li class="nav-local-ip-network"><a role="menuitem"  href="local_ip_configuration.jst">Local IP Network</a></li><li class="nav-wan"><a role="menuitem"  href="wan.jst">WAN</a></li><li class="nav-wifi-config"><a role="menuitem"  href="wireless_network_configuration.jst">Wi-Fi</a></li><li class="nav-mta"><a role="menuitem"  title="click to toggle sub menu"  href="javascript:;">MTA</a><ul class="nav_style"><li class="nav-line-status"><a role="menuitem"  href="mta_Line_Status.jst">Status</a></li></ul></li></ul></li><li class="nav-firewall"><a role="menuitem"  title="click to toggle sub menu"  href="javascript:;">Firewall</a>			<ul>				<li class="nav-firewall-ipv4"><a role="menuitem"  href="firewall_settings_ipv4.jst">IPv4</a></li>				<li class="nav-firewall-ipv6"><a role="menuitem"  href="firewall_settings_ipv6.jst">IPv6</a></li>			</ul>			</li><li class="nav-software"><a role="menuitem"  href="software.jst">Software</a></li><li class="nav-hardware"><a role="menuitem"  title="click to toggle sub menu"  href="javascript:;">Hardware</a><ul><li class="nav-system-hardware"><a role="menuitem"  href="hardware.jst">System Hardware</a></li><li class="nav-battery"><a role="menuitem"  href="battery.jst">Battery</a></li><li class="nav-lan"><a role="menuitem"  href="lan.jst">LAN</a></li><li class="nav-wifi"><a role="menuitem"  href="wifi.jst">Wireless</a></li></ul></li></ul></li><li class="nav-connected-devices"><a role="menuitem"  title="click to toggle sub menu"  class="top-level" href="connected_devices_computers.jst">Connected Devices</a><ul><li class="nav-cdevices"><a role="menuitem"  href="connected_devices_computers.jst">Devices</a></li></ul></li><li class="nav-content-control"><a role="menuitem"  title="click to toggle sub menu"  class="top-level" href="managed_sites.jst">Content Filtering</a><ul><li class="nav-sites"><a role="menuitem"  href="managed_sites.jst">Managed Sites</a></li><li class="nav-services"><a role="menuitem"  href="managed_services.jst">Managed Services</a></li><li class="nav-devices"><a role="menuitem"  href="managed_devices.jst">Managed Devices</a></li><li class="nav-parental-reports"><a role="menuitem"  href="parental_reports.jst">Reports</a></li></ul></li><li class="nav-advanced"><a role="menuitem"  title="click to toggle sub menu"  class="top-level" href="port_forwarding.jst">Advanced</a><ul><li class="nav-port-forwarding"><a role="menuitem"  href="port_forwarding.jst">Port Forwarding</a></li><li class="nav-port-triggering"><a role="menuitem"  href="port_triggering.jst">Port Triggering</a></li><li class="nav-port-management"><a role="menuitem"  href="port_management.jst">Port Management</a></li><li class="nav-remote-management"><a role="menuitem"  href="remote_management.jst">Remote Management</a></li><!--li class="nav-qos1"><a role="menuitem"  href="qos1.jst">QoS</a></li--><li class="nav-dmz"><a role="menuitem"  href="dmz.jst">DMZ</a></li><li class="nav-nat"><a role="menuitem"  href="nat.jst">NAT</a></li><li class="nav-staticrouting"><a role="menuitem"  href="staticrouting.jst">Static Routing</a></li><li class="nav-device-discovery"><a role="menuitem"  href="device_discovery.jst">Device Discovery</a></li></ul></li><li class="nav-troubleshooting"><a role="menuitem"  title="click to toggle sub menu"  class="top-level" href="troubleshooting_logs.jst">Troubleshooting</a><ul><li class="nav-logs"><a role="menuitem"  href="troubleshooting_logs.jst">Logs</a></li><li class="nav-diagnostic-tools"><a role="menuitem"  href="network_diagnostic_tools.jst">Diagnostic Tools</a></li><li class="nav-restore-reboot"><a role="menuitem"  href="restore_reboot.jst">Reset/Restore Gateway</a></li><li class="nav-password"><a role="menuitem"  href="password_change.jst">Change Password</a></li></ul></li></ul></div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    comcast.page.init("Gateway > Connection > Comcast Network", "nav-comcast-network");
+
+	if ("admin" == "admin"){
+		$(".div_cm").remove();
+		$(".div_mta").remove();
+	}
+	else if ("admin" == "admin"){
+		$(".div_cm").remove();
+		$(".div_mta").remove();
+	}
+	
+	// now we can show target content
+	$("#content_network").css('display', 'inline-block');
+
+});
+</script>
+
+
+
+<div id="content_network">
+<h1>Gateway > Connection > Comcast Network</h1>
+
+<div id="educational-tip">
+	<p class="tip">View technical information related to your Comcast network connection.</p>
+	<p class="hidden">You may need this information if you contact Comcast for troubleshooting assistance.</p>
+</div>
+
+<div class="module forms">
+	<h2>Comcast Network</h2>
+	<div class="form-row">
+		<span class="readonlyLabel">Internet:</span>
+		<span class="value">Active</span>
+	</div>
+        
+                <div class="form-row odd">
+                        <span class="readonlyLabel">WAN Mode:</span>
+                        <span class="value">DOCSIS</span>
+		</div>
+	
+	<div class="form-row odd">
+		<span class="readonlyLabel">Local time:</span>
+		<span class="value">
+                2026-09-10 21:08:19
+                </span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">System Uptime:</span>
+		<span class="value">
+		0 days 1h: 42m: 29s
+		</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">WAN IP Address (IPv4):</span>
+		<span class="value">198.51.100.10</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">WAN Static IP Address (IPv4):</span>
+		<span class="value">203.0.113.2</span>		
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">WAN Default Gateway Address (IPv4):</span> <span class="value">
+		198.51.100.1
+		</span>
+	</div>		
+	<div class="form-row ">
+		<span class="readonlyLabel">WAN IP Address (IPv6):</span> <span class="value">
+		2001:db8:1::10
+		</span>
+	</div>	
+	<div class="form-row odd">
+		<span class="readonlyLabel">WAN Default Gateway Address (IPv6):</span> <span class="value">
+		fe80::1		
+		</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">Delegated prefix (IPv6):</span> <span class="value">
+		2001:db8:2::/56		
+		</span>
+	</div>			
+	<div class="form-row odd">
+		<span class="readonlyLabel">Primary DNS Server (IPv4):</span> <span class="value">
+		75.75.75.75
+		</span>
+	</div>	
+	<div class="form-row ">
+		<span class="readonlyLabel">Secondary DNS Server (IPv4):</span> <span class="value">75.75.76.76</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Primary DNS Server (IPv6):</span> <span class="value">2001:db8::53</span>
+	</div>	
+	<div class="form-row ">
+		<span class="readonlyLabel">Secondary DNS Server (IPv6):</span> <span class="value">2001:db8::54</span>
+	</div>		
+	<div class="form-row odd">
+		<span class="readonlyLabel">WAN Link Local Address (IPv6):</span>
+		<span class="value">
+		fe80::211:22ff:fe33:4452
+		</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Client (IPv4):</span>
+		<span class="value">Enabled</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">DHCP Client (IPv6):</span> <span class="value">
+		Enabled
+		</span>
+	</div>	
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Lease Expire Time (IPv4):</span>
+		<span class="value">
+		0d:1h:2m
+		</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">DHCP Lease Expire Time (IPv6):</span> <span class="value">
+		49710d:6h:28m		
+		</span>
+	</div>
+	
+</div>
+<div class="module forms dev_label">
+	<h2>Device Label Information</h2>
+	
+	<div class="form-row ">
+		<span class="readonlyLabel">Default Network Name (SSID):</span>
+		<span class="value">CBCI-0000</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Default Password:</span>
+		<span class="value">REDACTED-DEFAULT-PASSWORD</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">WPS PIN:</span>
+		<span class="value">00000000</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Serial Number:</span>
+		<span class="value">000000000000000000</span>
+        </div>
+	<div class="form-row ">
+		<span class="readonlyLabel">CM MAC:</span>
+                <span class="value">00:11:22:33:44:50</span>
+        </div>
+	<div class="form-row odd">
+                <span class="readonlyLabel">eMTA MAC:</span>
+                <span class="value">00:11:22:33:44:51</span>
+        </div>
+	<div class="form-row ">
+                <span class="readonlyLabel">WAN MAC:</span>
+                <span class="value">
+                        00:11:22:33:44:52
+                </span>
+        </div>
+</div>
+
+
+
+<div class="module forms">
+	<h2>Initialization Procedure</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">Initialize Hardware:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Acquire Downstream Channel:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">Upstream Ranging:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">DHCP bound:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">Set Time-of-Day:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Configuration File Download:</span>
+		<span class="value">Complete</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">Registration:</span>
+		<span class="value">Complete</span>
+	</div>
+</div>
+
+
+
+<div class="module forms div_cm">
+	<h2>CM DHCP Parameters</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">CM IP Address:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">CM Subnet Mask:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">CM IP Gateway:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">CM TFTP Server:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">CM Time Server:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">CM Time Offset:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">CM Boot File:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">MDD IP Mode Override:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row">
+		<span class="readonlyLabel">Learned IP Mode:</span>
+		<span class="value"></span>
+	</div>
+</div>
+
+<div class="module forms div_cm">
+	<h2>CM IP Time Remaining</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Lease Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">DHCP Rebind Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Renew Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+</div>
+
+<!--
+<div class="module forms div_cm">
+	<h2>CM PacketCable Options</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">Sub-option 1 Service Provider's Primary DHCP:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Sub-option 1 Service Provider's Secondary DHCP:</span>
+		<span class="value"></span>
+	</div>
+</div>
+-->
+
+
+<div class="module forms div_cm">
+	<h2>CM PacketCable Options</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">Sub-option 1 Service Provider's Primary DHCP:</span>
+		<span class="value">203.0.113.201</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Sub-option 1 Service Provider's Secondary DHCP:</span>
+		<span class="value">203.0.113.146</span>
+	</div>
+</div>
+
+<div class="module forms div_mta">
+	<h2>MTA DHCP Parameters</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">MTA FQDN:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">MTA IP Address:</span>
+		<span class="value">0.0.0.0</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">MTA IP Subnet Mask:</span>
+		<span class="value">255.0.0.0</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">MTA IP Gateway:</span>
+		<span class="value">0.0.0.0</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">MTA Bootfile:</span>
+		<span class="value"></span>
+	</div>
+</div>
+
+<div class="module forms div_mta">
+	<h2>MTA IP Time Remaining</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Lease Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">DHCP Rebind Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">DHCP Renew Time:</span>
+		<span class="value">D: 0 H: 0 M: 0 S: 0</span>
+	</div>
+</div>
+
+<div class="module forms div_mta">
+	<h2>MTA DHCP Option 6</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">Network Primary DNS:</span>
+		<span class="value">0.0.0.0</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Network Secondary DNS:</span>
+		<span class="value">0.0.0.0</span>
+	</div>
+</div>
+
+<div class="module forms div_mta">
+	<h2>MTA PacketCable Options(Option 122)</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel">Sub-option 3:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Sub-option 6:</span>
+		<span class="value"></span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel">Sub-option 7:</span>
+		<span class="value">false</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel">Sub-option 8:</span>
+		<span class="value">10</span>
+	</div>
+</div>
+
+
+
+<div class="module forms">
+	<h2>Cable Modem</h2>
+	<div class="form-row ">
+		<span class="readonlyLabel networkColor">HW Version:</span>
+		<span class="value">2.3</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel networkColor">Vendor:</span>
+		<span class="value">Broadcom.</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel networkColor">BOOT Version:</span>
+		<span class="value">S1TC-3.77.21.67</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel networkColor">Core Version:</span>
+		<span class="value">1.0</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel networkColor">Model:</span>
+		<span class="value">CGA4332COM</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel networkColor">Product Type:</span>
+		<span class="value">CBR</span>
+	</div>
+	<div class="form-row ">
+		<span class="readonlyLabel networkColor">Flash Part:</span>
+		<span class="value">4096 MB</span>
+	</div>
+	<div class="form-row odd">
+		<span class="readonlyLabel networkColor">Download Version:</span>
+		<span class="value">CM DOCSIS Application - Prod_23.2_231009 & MTA Application - Prod_23.2_231009</span>
+	</div>
+</div>
+
+
+
+<div class="module netFlow">
+	<table class="data" cellspacing="0" cellpadding="0">
+	<thead>
+		<tr>
+			<td class="row-label acs-th"><div class="netWidth">Downstream</div></td>
+			<td class="row-label acs-th" colspan="35">Channel Bonding Value</td>
+		</tr>
+	</thead>
+	<tbody>
+		<tr class="">
+			<th class="row-label ">Index</td>
+			<td><div class="netWidth">1</div></td><td><div class="netWidth">2</div></td><td><div class="netWidth">3</div></td><td><div class="netWidth">4</div></td><td><div class="netWidth">5</div></td><td><div class="netWidth">6</div></td><td><div class="netWidth">7</div></td><td><div class="netWidth">8</div></td><td><div class="netWidth">9</div></td><td><div class="netWidth">10</div></td><td><div class="netWidth">11</div></td><td><div class="netWidth">12</div></td><td><div class="netWidth">13</div></td><td><div class="netWidth">14</div></td><td><div class="netWidth">15</div></td><td><div class="netWidth">16</div></td><td><div class="netWidth">17</div></td><td><div class="netWidth">18</div></td><td><div class="netWidth">19</div></td><td><div class="netWidth">20</div></td><td><div class="netWidth">21</div></td><td><div class="netWidth">22</div></td><td><div class="netWidth">23</div></td><td><div class="netWidth">24</div></td><td><div class="netWidth">25</div></td><td><div class="netWidth">26</div></td><td><div class="netWidth">27</div></td><td><div class="netWidth">28</div></td><td><div class="netWidth">29</div></td><td><div class="netWidth">30</div></td><td><div class="netWidth">31</div></td><td><div class="netWidth">32</div></td><td><div class="netWidth">33</div></td><td><div class="netWidth">34</div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Lock Status</td>
+			<td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td><td><div class="netWidth">Locked</div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Frequency</td>
+			<td><div class="netWidth">495 MHz</div></td><td><div class="netWidth">453 MHz</div></td><td><div class="netWidth">459 MHz</div></td><td><div class="netWidth">465 MHz</div></td><td><div class="netWidth">471 MHz</div></td><td><div class="netWidth">477 MHz</div></td><td><div class="netWidth">483 MHz</div></td><td><div class="netWidth">489 MHz</div></td><td><div class="netWidth">501 MHz</div></td><td><div class="netWidth">507 MHz</div></td><td><div class="netWidth">513 MHz</div></td><td><div class="netWidth">519 MHz</div></td><td><div class="netWidth">525 MHz</div></td><td><div class="netWidth">531 MHz</div></td><td><div class="netWidth">537 MHz</div></td><td><div class="netWidth">543 MHz</div></td><td><div class="netWidth">549 MHz</div></td><td><div class="netWidth">555 MHz</div></td><td><div class="netWidth">561 MHz</div></td><td><div class="netWidth">567 MHz</div></td><td><div class="netWidth">573 MHz</div></td><td><div class="netWidth">579 MHz</div></td><td><div class="netWidth">585 MHz</div></td><td><div class="netWidth">591 MHz</div></td><td><div class="netWidth">597 MHz</div></td><td><div class="netWidth">603 MHz</div></td><td><div class="netWidth">609 MHz</div></td><td><div class="netWidth">615 MHz</div></td><td><div class="netWidth">621 MHz</div></td><td><div class="netWidth">627 MHz</div></td><td><div class="netWidth">633 MHz</div></td><td><div class="netWidth">639 MHz</div></td><td><div class="netWidth">690 MHz</div></td><td><div class="netWidth">957 MHz</div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">SNR</td>
+			<td><div class="netWidth">44.0 dB</div></td><td><div class="netWidth">43.5 dB</div></td><td><div class="netWidth">43.0 dB</div></td><td><div class="netWidth">43.0 dB</div></td><td><div class="netWidth">43.0 dB</div></td><td><div class="netWidth">43.8 dB</div></td><td><div class="netWidth">44.2 dB</div></td><td><div class="netWidth">44.5 dB</div></td><td><div class="netWidth">43.6 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">44.1 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">43.8 dB</div></td><td><div class="netWidth">43.8 dB</div></td><td><div class="netWidth">44.4 dB</div></td><td><div class="netWidth">44.5 dB</div></td><td><div class="netWidth">44.3 dB</div></td><td><div class="netWidth">44.1 dB</div></td><td><div class="netWidth">43.2 dB</div></td><td><div class="netWidth">43.2 dB</div></td><td><div class="netWidth">44.0 dB</div></td><td><div class="netWidth">44.2 dB</div></td><td><div class="netWidth">44.0 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">43.3 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">44.0 dB</div></td><td><div class="netWidth">43.8 dB</div></td><td><div class="netWidth">43.7 dB</div></td><td><div class="netWidth">43.1 dB</div></td><td><div class="netWidth">43.0 dB</div></td><td><div class="netWidth">43.0 dB</div></td><td><div class="netWidth">39.6 dB</div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Power Level</td>
+			<td><div class="netWidth">10.6 dBmV</div></td><td><div class="netWidth">9.8 dBmV</div></td><td><div class="netWidth">9.3 dBmV</div></td><td><div class="netWidth">9.4 dBmV</div></td><td><div class="netWidth">9.2 dBmV</div></td><td><div class="netWidth">10.4 dBmV</div></td><td><div class="netWidth">10.8 dBmV</div></td><td><div class="netWidth">11.2 dBmV</div></td><td><div class="netWidth">9.9 dBmV</div></td><td><div class="netWidth">10.0 dBmV</div></td><td><div class="netWidth">9.9 dBmV</div></td><td><div class="netWidth">10.5 dBmV</div></td><td><div class="netWidth">10.0 dBmV</div></td><td><div class="netWidth">10.1 dBmV</div></td><td><div class="netWidth">10.3 dBmV</div></td><td><div class="netWidth">11.1 dBmV</div></td><td><div class="netWidth">11.5 dBmV</div></td><td><div class="netWidth">11.0 dBmV</div></td><td><div class="netWidth">10.7 dBmV</div></td><td><div class="netWidth">9.5 dBmV</div></td><td><div class="netWidth">9.8 dBmV</div></td><td><div class="netWidth">10.6 dBmV</div></td><td><div class="netWidth">11.0 dBmV</div></td><td><div class="netWidth">10.5 dBmV</div></td><td><div class="netWidth">10.3 dBmV</div></td><td><div class="netWidth">9.8 dBmV</div></td><td><div class="netWidth">10.3 dBmV</div></td><td><div class="netWidth">11.1 dBmV</div></td><td><div class="netWidth">10.8 dBmV</div></td><td><div class="netWidth">10.6 dBmV</div></td><td><div class="netWidth">9.9 dBmV</div></td><td><div class="netWidth">10.0 dBmV</div></td><td><div class="netWidth">11.1 dBmV</div></td><td><div class="netWidth">5.2 dBmV</div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Modulation</td>
+			<td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">256 QAM</div></td><td><div class="netWidth">OFDM</div></td><td><div class="netWidth">OFDM</div></td>
+		</tr>
+	</tbody>
+	</table>
+</div>
+
+
+
+<div class="module netFlow">
+	<table class="data" cellspacing="0" cellpadding="0">
+	<thead>
+		<tr>
+			<td class="row-label acs-th"><div class="netWidth">Upstream</div></td>
+			<td class="row-label acs-th" colspan="6">Channel Bonding Value</td>
+		</tr>
+	</thead>
+	<tbody>
+		<tr class="">
+			<th class="row-label ">Index</td>
+			<td><div class="netWidth">1</div></td><td><div class="netWidth">2</div></td><td><div class="netWidth">3</div></td><td><div class="netWidth">4</div></td><td><div class="netWidth">5</div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Lock Status</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Frequency</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Symbol Rate</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Power Level</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Modulation</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Channel Type</td>
+			<td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td><td><div class="netWidth"></div></td>
+		</tr>
+	</tbody>
+	</table>
+</div>
+
+
+
+<div class="module netFlow">
+	<table class="data" cellspacing="0" cellpadding="0">
+	<thead>
+		<tr>
+			<td class="row-label acs-th" colspan="35">CM Error Codewords</td>
+		</tr>
+	</thead>
+	<tbody>
+		<tr class="">
+			<th class="row-label ">Unerrored Codewords</td>
+			<td><div class="netWidth">209921024</div></td><td><div class="netWidth">275852012</div></td><td><div class="netWidth">275853447</div></td><td><div class="netWidth">275855354</div></td><td><div class="netWidth">275856396</div></td><td><div class="netWidth">275857690</div></td><td><div class="netWidth">275858991</div></td><td><div class="netWidth">275860569</div></td><td><div class="netWidth">275861936</div></td><td><div class="netWidth">275863366</div></td><td><div class="netWidth">275864511</div></td><td><div class="netWidth">275866016</div></td><td><div class="netWidth">275867693</div></td><td><div class="netWidth">275869137</div></td><td><div class="netWidth">275870340</div></td><td><div class="netWidth">275922634</div></td><td><div class="netWidth">275873647</div></td><td><div class="netWidth">275874772</div></td><td><div class="netWidth">275876330</div></td><td><div class="netWidth">275878102</div></td><td><div class="netWidth">275879272</div></td><td><div class="netWidth">275880424</div></td><td><div class="netWidth">275881831</div></td><td><div class="netWidth">275936672</div></td><td><div class="netWidth">275885129</div></td><td><div class="netWidth">275774111</div></td><td><div class="netWidth">275779446</div></td><td><div class="netWidth">275784512</div></td><td><div class="netWidth">275789489</div></td><td><div class="netWidth">275791203</div></td><td><div class="netWidth">275791746</div></td><td><div class="netWidth">275860520</div></td><td><div class="netWidth">155460845</div></td><td><div class="netWidth">209921024</div></td>
+		</tr>
+		<tr class="odd">
+			<th class="row-label ">Correctable Codewords</td>
+			<td><div class="netWidth">182816061</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">127395399</div></td><td><div class="netWidth">182816061</div></td>
+		</tr>
+		<tr class="">
+			<th class="row-label ">Uncorrectable Codewords</td>
+			<td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td><td><div class="netWidth">0</div></td>
+		</tr>
+	</tbody>
+	</table>
+</div>
+</div> <!-- end #container -->
+
+
+<!-- $Id: footer.jst 2976 2009-09-02 21:42:51Z cporto $ -->
+		</div> <!-- end #main-content-->
+		
+		<!--Footer-->
+		<div id="footer">
+			<ul id="footer-links" class="hidden">
+				<li class="first-child"><a href="http://www.xfinity.com" target="_blank">Xfinity.com</a></li>
+				<li class="footer_style">&#8226;&nbsp;&nbsp;<a href="https://customer.comcast.com/" target="_blank">customerCentral</a></li>
+				<li class="footer_style">&#8226;&nbsp;&nbsp;<a href="http://customer.comcast.com/userguides" target="_blank">User Guide</a></li>
+			</ul>
+		</div> <!-- end #footer -->
+	</div> <!-- end #container -->
+<script type="text/javascript">
+$(document).ready(function() {
+	// focus current page link, must after page.init()
+	//$('#nav [href="'+location.href.replace(/^.*\//g, '')+'"]').focus();		// need a "skip nav" function
+	$("#skip-link").click(function () {
+        $('#content').attr('tabIndex', -1).focus();  //this is to fix skip-link doesn't work on webkit-based Chrome
+    });
+
+	// change radio-btn status and do ajax when press "enter"
+	//$(".radio-btns a").keydown(function(event){
+	$(".radio-btns a").keypress(function(event){
+		var keycode = (event.keyCode ? event.keyCode : event.which);
+		if(13 == keycode){
+			if (!$(this).parent(".radio-btns").find("li").hasClass("selected")){
+				return;		// do nothing if has disabled class, don't detect disabled attr for radio-btn
+			}
+			// console.log($(this).find(":radio").hasClass("disabled"));
+			$(this).find(":radio").trigger('click');
+			$(this).find(":radio").trigger('change');
+			$(this).parent(".radio-btns").radioToButton();
+		}
+	});
+	
+	// press Esc to skip menu and goto first control of content
+	// Esc:keypress:which is zero in FF, Esc:keypress is not work in Chrome
+	$("#nav").keydown(function(event){
+		var keycode = (event.keyCode ? event.keyCode : event.which);
+		if(27 == keycode){
+			$("#content textarea:eq(0)").focus();
+			$("#content input:eq(0)").focus();
+			$("#content a:eq(0)").focus();			// high priority element to focus			
+		}
+		// alert(event.keyCode+"---"+event.which+"---"+event.charCode);		
+	});
+	
+	/* changes for high contrast mode */
+	$.highContrastDetect({useExtraCss: true, debugInNormalMode: false});
+	if ($.__isHighContrast) {
+		/* change plus/minus tree indicator of nav menu */
+		$("#nav a.top-level").prepend('<span class="hi_nav_top_indi">[+]</span>');
+		$("#nav a.folder").prepend('<span class="hi_nav_folder_indi">[+]</span>');
+		$("#nav a.top-level-active span.hi_nav_top_indi").text("[-]");
+		$("#nav a.folder").click(function() {
+			/* this should be called after nav state changed */
+			var $link = $(this);
+			if ($link.hasClass("folder-open")) {
+				$link.children("span.hi_nav_folder_indi").text("[-]");
+			}
+			else {
+				$link.children("span.hi_nav_folder_indi").text("[+]");
+			}
+		});
+	}
+
+	/*
+	*	these 3 sections for radio-btn accessibility, as a workaround, maybe should put at the front of .ready().
+	*/
+	// add "role" and "title" for ARIA, attr may need to be embedded into html
+	$(".radio-btns a").each(function(){
+		$(this).attr("role", "radio").attr("title", $(this).closest("ul").prev().text() + $(this).find("label").text());
+	});
+	
+	// monitor "aria-checked" status for JAWS, NOTE: better depends on input element
+	$(".radio-btns").change(function(){
+		$(this).find("a").each(function(){
+			$(this).attr("aria-checked", $(this).find("input").attr("checked") ? "true" : "false");
+		});
+	});
+	
+	//give the initial status, do not trigger change above
+	$(".radio-btns").find("a").each(function(){
+		$(this).attr("aria-checked", $(this).find("input").attr("checked") ? "true" : "false");
+	});
+
+});
+</script>	
+</body>
+</html>
+
+

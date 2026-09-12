@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Welcome to AmpliFi</title></head>
+<body>
+<div id="devices"></div>
+<script type="text/javascript">
+  var refresh = function() {
+    $.post('info-async.php', {do: 'full', token='QrStUvWxYz012345'}, function(data) { render(data); }, 'json');
+  };
+</script>
+</body>
+</html>

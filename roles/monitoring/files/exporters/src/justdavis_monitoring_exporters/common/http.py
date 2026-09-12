@@ -12,6 +12,7 @@ from typing import Protocol, cast
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from requests.adapters import HTTPAdapter
 
 from justdavis_monitoring_exporters.common.errors import ResponseTooLarge
 
@@ -75,13 +76,13 @@ class RequestsHttpClient:
         self,
         base_url: str,
         *,
-        session: _Session | None = None,
+        session: _Session | requests.Session | None = None,
         timeout: tuple[float, float] = DEFAULT_TIMEOUT,
         max_body_bytes: int = DEFAULT_MAX_BODY_BYTES,
         verify: bool | str = True,
     ) -> None:
         self._base_url = base_url.rstrip("/")
-        self._session: _Session = session if session is not None else cast(_Session, requests.Session())
+        self._session = cast(_Session, session if session is not None else requests.Session())
         self._timeout = timeout
         self._max_body_bytes = max_body_bytes
         self._verify = verify
@@ -122,3 +123,26 @@ class RequestsHttpClient:
                 raise ResponseTooLarge(f"response exceeded {self._max_body_bytes} bytes")
             chunks.append(chunk)
         return b"".join(chunks)
+
+
+class FingerprintAdapter(HTTPAdapter):
+    """HTTPS adapter that pins the server certificate by SHA-256 fingerprint.
+
+    Used for the gateway, whose self-signed certificate does not name its address: chain and hostname
+    verification cannot pass, but pinning the exact certificate still authenticates the peer.
+    """
+
+    def __init__(self, fingerprint: str) -> None:
+        self.fingerprint = fingerprint
+        super().__init__()
+
+    def init_poolmanager(self, *args: object, **kwargs: object) -> None:
+        kwargs["assert_fingerprint"] = self.fingerprint
+        super().init_poolmanager(*args, **kwargs)  # type: ignore[arg-type]
+
+
+def pinned_session(fingerprint_sha256: str) -> requests.Session:
+    """A `requests.Session` whose HTTPS connections must present the pinned certificate."""
+    session = requests.Session()
+    session.mount("https://", FingerprintAdapter(fingerprint_sha256))
+    return session

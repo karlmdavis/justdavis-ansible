@@ -165,7 +165,8 @@ services:
       retries: 3
 
   # ICMP from the host's own network stack; the binary carries the cap_net_raw file capability, which
-  # `no-new-privileges` would block, so this service does not use the hardened anchor.
+  # `no-new-privileges` would block, so this service does not use the hardened anchor. The image has no
+  # entrypoint (its CMD runs the binary through a shell), hence the explicit entrypoint here.
   ping_exporter:
     image: {{ monitoring_ping_exporter_image }}
     network_mode: host
@@ -176,6 +177,8 @@ services:
     cap_add:
       - NET_RAW
     restart: unless-stopped
+    entrypoint:
+      - /app/ping_exporter
     command:
       - --config.path=/shared/ping-targets.yml
       - --web.listen-address={{ monitoring_docker_gateway }}:{{ monitoring_ping_exporter_port }}

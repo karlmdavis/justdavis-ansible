@@ -93,7 +93,7 @@ services:
       - --web.listen-address=0.0.0.0:{{ monitoring_alertmanager_port }}
     volumes:
       - {{ monitoring_base_dir }}/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - {{ monitoring_base_dir }}/secrets/slack_webhook_url:/secrets/slack_webhook_url:ro
+      - {{ monitoring_base_dir }}/secrets/slack_bot_token:/secrets/slack_bot_token:ro
       - {{ monitoring_base_dir }}/secrets/discord_webhook_url:/secrets/discord_webhook_url:ro
       - {{ monitoring_base_dir }}/data/alertmanager:/alertmanager
     ports:

@@ -14,7 +14,8 @@ unit:
 - **Prometheus** stores the metrics (as much history as fits in the configured disk budget).
 - **Grafana** serves the dashboards at `https://grafana.intranet.justdavis.com/` (through the Apache
   proxy; Grafana itself only listens on localhost).
-- **Alertmanager** delivers alerts to Slack and Discord webhooks.
+- **Alertmanager** delivers alerts to Slack (as the "Home Monitoring" bot, via the Web API) and to a
+  Discord channel webhook.
 - **ping_exporter** pings every target continuously (one packet per second) and reports latency,
   jitter, and loss over a rolling window.
 - **blackbox_exporter** connects to each HomePod's AirPlay port to tell "wedged AirPlay service" from
@@ -62,9 +63,9 @@ simply "as much as fits". It is deliberately not backed up.
 
 - The repository is public, so the list of tracked devices (names and MAC addresses) is kept in the
   vault, and no dashboard, rule, fixture, or document in git names a real household device.
-- Passwords and webhook URLs are written to root-only or service-user-only files under
-  `/opt/monitoring`; no Compose or config file contains a secret. The AWS test environment receives
-  dummy values.
+- Passwords, the Slack bot token, and the Discord webhook URL are written to root-only or
+  service-user-only files under `/opt/monitoring`; no Compose or config file contains a secret. The
+  AWS test environment receives dummy values.
 - Containers run as the unprivileged `monitoring` user with read-only root filesystems and dropped
   capabilities (`ping_exporter` keeps `NET_RAW`; `node_exporter` uses its image's `nobody` user).
 - The AmpliFi password is the router's only admin credential; compromise of `/opt/monitoring/.env`
@@ -89,7 +90,7 @@ vault_amplifi_password: <AmpliFi router web UI password>
 vault_gateway_username: <Comcast gateway admin username>
 vault_gateway_password: <Comcast gateway admin password>
 vault_grafana_admin_password: <Grafana admin password; applied on first start only>
-vault_alertmanager_slack_webhook_url: <Slack incoming-webhook URL>
+vault_alertmanager_slack_bot_token: <Bot User OAuth Token of the "Home Monitoring" Slack app, xoxb-...>
 vault_alertmanager_discord_webhook_url: <Discord channel webhook URL>
 vault_monitoring_tracked_clients:
   - mac: "aa:bb:cc:dd:ee:ff"
@@ -111,7 +112,13 @@ get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never
 
 ## Alerts
 
-Alerts go to the Slack and Discord webhooks in the vault. Thresholds are role variables; the defaults
+Alerts go to Slack and Discord. The Slack side is the "Home Monitoring" Slack app (app ID
+`A0C1LFW5N9X` in the Davis Family workspace, created and installed with the Slack CLI from a manifest
+requesting `chat:write`, `chat:write.public`, and `incoming-webhook`); Alertmanager posts through the
+Web API with the app's bot token into `monitoring_slack_channel` (default `#home-alerts`, a private
+channel the bot was invited to). The bot token is on the app's settings page under OAuth &
+Permissions; regenerate it there and update the vault to rotate it. The Discord side is a channel
+webhook URL from Discord's channel integration settings. Thresholds are role variables; the defaults
 follow common guidance: packet loss above 5%, round trip above 100 ms, or jitter above 30 ms to the
 internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside -8 to +12 dBmV; any
 uncorrectable codewords; HomePods not answering ping, not accepting AirPlay connections, or not

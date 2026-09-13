@@ -86,3 +86,6 @@ monitoring_alert_docsis_uncorrectable_increase_15m: 1000
 monitoring_alert_reboot_uptime_seconds: 600
 
 monitoring_grafana_root_url: "https://grafana.intranet.{{ domain }}/"
+
+# Slack channel that alerts are posted to by the "Home Monitoring" bot (see README).
+monitoring_slack_channel: '#home-alerts'

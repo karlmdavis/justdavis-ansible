@@ -144,8 +144,8 @@
   loop:
     - name: grafana_admin_password
       content: "{{ 'test-not-a-secret' if is_test else vault_grafana_admin_password }}"
-    - name: slack_webhook_url
-      content: "{{ monitoring_test_webhook_url if is_test else vault_alertmanager_slack_webhook_url }}"
+    - name: slack_bot_token
+      content: "{{ 'xoxb-test-not-a-secret' if is_test else vault_alertmanager_slack_bot_token }}"
     - name: discord_webhook_url
       content: "{{ monitoring_test_webhook_url if is_test else vault_alertmanager_discord_webhook_url }}"
   loop_control:

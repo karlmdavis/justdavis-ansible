@@ -114,7 +114,8 @@ get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never
 
 Alerts go to Slack and Discord. The Slack side is the "Home Monitoring" Slack app (app ID
 `A0C1LFW5N9X` in the Davis Family workspace, created and installed with the Slack CLI from a manifest
-requesting `chat:write`, `chat:write.public`, and `incoming-webhook`); Alertmanager posts through the
+requesting `chat:write`, `chat:write.public`, and `incoming-webhook`; the manifest is kept in
+`files/slack-app/manifest.json` so the app can be recreated); Alertmanager posts through the
 Web API with the app's bot token into `monitoring_slack_channel` (default `#home-alerts`, a private
 channel the bot was invited to). The bot token is on the app's settings page under OAuth &
 Permissions; regenerate it there and update the vault to rotate it. The Discord side is a channel

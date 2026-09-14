@@ -123,12 +123,16 @@
   ansible.builtin.command:
     cmd: id --user vmail
   register: uid_vmail
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
 
 - name: Lookup 'vmail' GID
   ansible.builtin.command:
     cmd: id --group vmail
   register: gid_vmail
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
 
 - name: Create Mail Directory

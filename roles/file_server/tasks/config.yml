@@ -66,6 +66,8 @@
   ansible.builtin.command:
     cmd: net groupmap list
   register: command_groupmap_list
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
 - name: Map Guest Group
   ansible.builtin.command:
@@ -81,6 +83,8 @@
   changed_when: false
   with_dict: "{{ people }}"
   register: user_lookups
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   # This utility returns 0 for successful lookups and 255 for failed ones.
   failed_when: user_lookups.rc not in [0, 255]
 
@@ -102,6 +106,8 @@
   become: true
   changed_when: false
   register: test_user_lookup
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   # This utility seems to always return 255 for some reason.
   failed_when: test_user_lookup.rc not in [0, 255]
   tags: test

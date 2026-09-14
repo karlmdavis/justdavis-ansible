@@ -5,3 +5,5 @@ Description=Run tarsnap-backups.service daily.
 OnCalendar=daily
 Persistent=true
 
+[Install]
+WantedBy=timers.target

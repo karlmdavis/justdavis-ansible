@@ -3,9 +3,9 @@
 ##
 # Configures the system's networking correctly:
 #
-# * Create a network bridge on the WAN connection, eno1, for use by VMs.
+# * Create a network bridge on the WAN connection, eno1 (lower 2.5 GB port), for use by VMs.
 # * Configure static public IPs on bridge.
-# * Configure the LAN connection, enp4s0, for DHCP.
+# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP.
 ##
 
 - name: Install Network Bridging Utilities

@@ -34,5 +34,5 @@ network:
           via: 96.86.32.142
     br-lan:
       interfaces: [eno2]
-      # On the Netgear R6400 router, this interface has a static assignment of 10.0.0.2.
+      # On the AmpliFi HD router, this interface has a DHCP-reserved assignment of 10.0.0.2.
       dhcp4: true

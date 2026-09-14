@@ -36,4 +36,4 @@ offsite_backups_check_read_data_subset: "5%"
 offsite_backups_metrics_dir: /var/lib/node_exporter/textfile_collector
 
 # The paths to back up and the patterns to exclude come from the existing per-host `backup_includes`
-# and `backup_excludes` variables (shared with the `tarsnap` role).
+# and `backup_excludes` variables (inherited from the former `tarsnap` role).

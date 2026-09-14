@@ -1,0 +1,63 @@
+---
+
+##
+# Removes the Tarsnap client that preceded restic. The Tarsnap account was deleted in mid-2026 after
+# its prepaid balance ran out (the archives went with it), so the key, cache, and units are dead
+# weight, and the Tarsnap apt signing key expired on 2026-02-01, which makes `apt update` complain.
+# Every task here is a no-op on hosts that never had Tarsnap.
+##
+
+- name: Check Whether the Tarsnap Timer Exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/tarsnap-backups.timer
+  register: offsite_backups_tarsnap_timer
+
+- name: Stop the Tarsnap Timer and Service
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop:
+    - tarsnap-backups.timer
+    - tarsnap-backups.service
+  when: offsite_backups_tarsnap_timer.stat.exists
+  failed_when: false
+  become: true
+
+- name: Remove the Tarsnap Package
+  ansible.builtin.apt:
+    name: tarsnap
+    state: absent
+    purge: true
+  become: true
+
+- name: Remove the Tarsnap APT Repository
+  ansible.builtin.apt_repository:
+    repo: "deb http://pkg.tarsnap.com/deb/{{ ansible_facts['distribution_release'] }} ./"
+    state: absent
+  become: true
+
+- name: Remove the Tarsnap APT Signing Key
+  ansible.builtin.apt_key:
+    id: 3058D169CA1EF173
+    state: absent
+  become: true
+
+- name: Remove Tarsnap Units, Config, Key, Script, and Cache
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/tarsnap-backups.timer
+    - /etc/systemd/system/tarsnap-backups.service
+    - /usr/local/bin/tarsnap-backups.sh
+    - /etc/tarsnap.conf
+    - /root/tarsnap.key
+    - /usr/local/tarsnap-cache
+  become: true
+  register: offsite_backups_tarsnap_removed
+
+- name: Reload systemd After Removing the Tarsnap Units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: offsite_backups_tarsnap_removed.changed
+  become: true

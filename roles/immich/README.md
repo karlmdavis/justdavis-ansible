@@ -23,7 +23,7 @@ Rather than using Immich's containerized PostgreSQL, this role integrates with t
 ### Storage Location
 Photos are stored in `/var/fileshares/justdavis.com/groups/media/photos`, which:
 - Integrates with existing file share structure
-- Is already included in tarsnap backups
+- Is already included in the offsite backups (`offsite_backups` role)
 - Allows for easy access and management
 - Provides proper permissions through media_managers group
 
@@ -124,7 +124,7 @@ To upgrade to a new version:
 ## Backup Strategy
 
 - **Database**: Automatically backed up via existing PostgreSQL pg_dumpall
-- **Photos**: Stored in `/var/fileshares` which is included in tarsnap backups
+- **Photos**: Stored in `/var/fileshares` which is included in the offsite backups
 - **Configuration**: Minimal configuration in `/opt/immich` (can be recreated)
 
 ## Security Considerations

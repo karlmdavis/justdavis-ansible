@@ -89,9 +89,6 @@
     - name: Import role - user_karl
       ansible.builtin.import_role:
         name: user_karl
-    - name: Import role - tarsnap
-      ansible.builtin.import_role:
-        name: tarsnap
 
 - name: Configure Workstations
   hosts: workstations

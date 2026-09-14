@@ -1,7 +1,7 @@
 # Offsite Backups Ansible Role
 
 This role keeps an encrypted, deduplicated offsite copy of each host's important data using
-[restic](https://restic.net/) and Backblaze B2. It replaces the `tarsnap` role: same privacy model (the
+[restic](https://restic.net/) and Backblaze B2. It replaces the former `tarsnap` role: same privacy model (the
 provider only ever sees ciphertext, the key never leaves the house), but with predictable cost, automatic
 card payment, and snapshot retention that gives a rollback window for accidental deletions.
 
@@ -21,7 +21,7 @@ card payment, and snapshot retention that gives a rollback window for accidental
 | `offsite-backups-check.timer` | monthly, 1st at 06:00 UTC | `restic check --read-data-subset=5%`. |
 
 The three services share a `flock`, so they never run concurrently. Each one mails root on failure
-(`status-email-root@.service`, the same mechanism the tarsnap role used).
+(`status-email-root@.service`, carried over from the tarsnap role).
 
 ## Rollback window
 
@@ -119,12 +119,12 @@ and run the prune unit only from a workstation with the full key. Object lock on
 retention floor that even the full key cannot bypass. Not enabled by default; it doubles the number of
 credentials to manage.
 
-## Decommissioning Tarsnap
+## Tarsnap
 
-Keep the `tarsnap` role, the key file, and the old archives until this repository has at least 30 days
-of history and one successful restore drill. Then remove the `tarsnap` import from `site.yml`, stop and
-disable `tarsnap-backups.timer` on each host, and let the Tarsnap balance run out (it is prepaid and
-non-refundable).
+Tarsnap preceded this role. Its account was deleted in mid-2026 after the prepaid balance ran out (the
+archives went with it), so `tasks/remove_tarsnap.yml` uninstalls the client, its apt repository and
+expired signing key, the key file, the ~1 GB cache, and the systemd units from every host. The tasks are
+no-ops where Tarsnap was never installed.
 
 ## Testing
 

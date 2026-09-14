@@ -1,0 +1,9 @@
+[Unit]
+Description=Run offsite-backups-prune.service weekly.
+
+[Timer]
+OnCalendar={{ offsite_backups_schedule_prune }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+#!/bin/bash
+##
+# Runs restic against the offsite repository with the credentials from /etc/offsite-backups/restic.env,
+# e.g. `sudo offsite-restic snapshots` or `sudo offsite-restic restore latest --target /tmp/r --include /home/karl/x`.
+# Managed by Ansible (roles/offsite_backups).
+##
+set -euo pipefail
+set -a
+# shellcheck disable=SC1091
+. /etc/offsite-backups/restic.env
+set +a
+exec /usr/bin/restic "$@"

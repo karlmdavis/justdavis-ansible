@@ -1,0 +1,39 @@
+---
+
+##
+# Defaults for the `offsite_backups` role (restic to Backblaze B2). See the role README for the design
+# and for the one-time Backblaze setup.
+##
+
+# Where the encrypted repository lives. In production this is a per-host path inside one B2 bucket; in
+# the AWS tests it is a local directory, so tests need no credentials.
+offsite_backups_b2_bucket: justdavis-offsite-backups
+offsite_backups_repository: >-
+  {{ '/var/tmp/offsite-backups-test-repo' if is_test
+     else 'b2:' ~ offsite_backups_b2_bucket ~ ':' ~ inventory_hostname_short }}
+
+# Secrets. Production values come from the vault; tests use fixed throwaway values.
+offsite_backups_restic_password: >-
+  {{ 'offsite-backups-test-password' if is_test else vault_offsite_backups_restic_password }}
+offsite_backups_b2_key_id: "{{ '' if is_test else vault_offsite_backups_b2_key_id }}"
+offsite_backups_b2_key: "{{ '' if is_test else vault_offsite_backups_b2_key }}"
+
+# Retention: how many snapshots `restic forget` keeps per bucket. Deleted files stay restorable until
+# the last snapshot that contains them ages out, so this is also the rollback window.
+offsite_backups_keep_daily: 14
+offsite_backups_keep_weekly: 8
+offsite_backups_keep_monthly: 12
+
+# Schedules (systemd OnCalendar). Eddings runs on UTC, so 03:00 is late evening in the Eastern US.
+offsite_backups_schedule_backup: "*-*-* 03:00:00"
+offsite_backups_schedule_prune: "Sun *-*-* 05:00:00"
+offsite_backups_schedule_check: "*-*-01 06:00:00"
+
+# Fraction of pack data the monthly `restic check` actually downloads and verifies.
+offsite_backups_check_read_data_subset: "5%"
+
+# Where the last-success metric is written for node_exporter's textfile collector.
+offsite_backups_metrics_dir: /var/lib/node_exporter/textfile_collector
+
+# The paths to back up and the patterns to exclude come from the existing per-host `backup_includes`
+# and `backup_excludes` variables (shared with the `tarsnap` role).

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run offsite-backups.service daily.
+
+[Timer]
+OnCalendar={{ offsite_backups_schedule_backup }}
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

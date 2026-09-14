@@ -1,0 +1,8 @@
+# Paths and patterns excluded from offsite backups (restic --exclude-file syntax, one per line).
+# Managed by Ansible (roles/offsite_backups); edit `backup_excludes` in host_vars instead.
+{% for backup_exclude in backup_excludes %}
+{{ backup_exclude }}
+{% endfor %}
+/var/cache/restic
+/var/tmp/offsite-backups-test-repo
+/var/tmp/offsite-backups-restore-test

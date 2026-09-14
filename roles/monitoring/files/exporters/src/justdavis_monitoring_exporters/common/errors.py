@@ -1,4 +1,8 @@
-"""Exception types shared by all exporters."""
+"""Exception types shared by all exporters.
+
+`SettingsError` (common/settings.py) and `LoginThrottled` (gateway/client.py) also derive from
+`ExporterError` and live next to the code that raises them.
+"""
 
 
 class ExporterError(Exception):
@@ -20,3 +24,12 @@ class LoginError(ExporterError):
 
 class ResponseTooLarge(ExporterError):
     """A device response exceeded the configured body size cap."""
+
+
+class HttpStatusError(ExporterError):
+    """A device answered with an HTTP error status (4xx/5xx)."""
+
+    def __init__(self, status: int, path: str) -> None:
+        super().__init__(f"HTTP {status} from {path}")
+        self.status = status
+        self.path = path

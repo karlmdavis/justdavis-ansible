@@ -45,3 +45,10 @@ def test_status_failure_keeps_last_success_timestamp() -> None:
     assert status.up is False
     assert status.last_success_timestamp == 123.0
     assert status.consecutive_failures == 1
+
+
+def test_up_is_derived_from_success_and_failure_history() -> None:
+    assert ScrapeStatus.initial().up is False
+    ok = ScrapeStatus.initial().succeeded(timestamp=1.0, duration_seconds=0.1)
+    assert ok.up is True
+    assert ok.failed(duration_seconds=0.1).up is False

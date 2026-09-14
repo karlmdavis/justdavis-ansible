@@ -12,7 +12,7 @@
   },
   "oauth_config": {
     "scopes": {
-      "bot": ["chat:write", "chat:write.public", "incoming-webhook"]
+      "bot": ["chat:write", "chat:write.public"]
     }
   },
   "settings": {

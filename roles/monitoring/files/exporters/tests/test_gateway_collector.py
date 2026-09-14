@@ -59,3 +59,20 @@ def test_codeword_counters() -> None:
         registry.get_sample_value("gateway_docsis_downstream_correctable_codewords_total", ch1) == 182816061.0
     )
     assert registry.get_sample_value("gateway_docsis_downstream_uncorrectable_codewords_total", ch1) == 0.0
+
+
+def test_wan_addresses_are_exported_as_an_info_metric() -> None:
+    registry = registry_with(SNAPSHOT)
+    labels = {"wan_ip": "198.51.100.10", "wan_static_ip": "203.0.113.2", "isp_gateway": "198.51.100.1"}
+    assert registry.get_sample_value("gateway_wan_info", labels) == 1.0
+
+
+def test_missing_channel_numbers_are_omitted_not_zeroed() -> None:
+    from dataclasses import replace
+
+    first = replace(SNAPSHOT.downstream[0], locked=False, snr_db=None, power_dbmv=None)
+    snapshot = replace(SNAPSHOT, downstream=(first, *SNAPSHOT.downstream[1:]))
+    registry = registry_with(snapshot)
+    assert registry.get_sample_value("gateway_docsis_downstream_locked", {"channel": "1"}) == 0.0
+    assert registry.get_sample_value("gateway_docsis_downstream_snr_db", {"channel": "1"}) is None
+    assert registry.get_sample_value("gateway_docsis_downstream_snr_db", {"channel": "2"}) == 43.5

@@ -18,6 +18,28 @@ groups:
         annotations:
           summary: "Scrape target {{ L }} $labels.job {{ R }} ({{ L }} $labels.instance {{ R }}) is down"
 
+      # A scrape loop that stops returning keeps its last `_up 1`; catch that by staleness.
+      - alert: AmpliFiExporterStalled
+        expr: amplifi_up == 1 and time() - amplifi_last_success_timestamp_seconds > 600
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AmpliFi exporter has not completed a poll in 10 minutes"
+
+      - alert: GatewayExporterStalled
+        expr: gateway_up == 1 and time() - gateway_last_success_timestamp_seconds > 900
+        labels:
+          severity: warning
+        annotations:
+          summary: "The gateway exporter has not completed a poll in 15 minutes"
+
+      - alert: AirPlayProbeStalled
+        expr: airplay_up == 1 and time() - airplay_last_success_timestamp_seconds > 600
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AirPlay mDNS probe has not completed a poll in 10 minutes"
+
   - name: wan
     rules:
       - alert: WanPacketLoss
@@ -105,6 +127,14 @@ groups:
           severity: warning
         annotations:
           summary: "A mesh point has disappeared from the AmpliFi topology"
+
+      - alert: AirPlayProbeFailing
+        expr: airplay_up == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AirPlay mDNS probe is not running (check MONITORING_LAN_IP and host networking)"
 
       - alert: AmpliFiScrapeFailing
         expr: amplifi_up == 0

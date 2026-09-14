@@ -1,22 +1,29 @@
 """Rendering of the dynamic target files driven by the AmpliFi snapshot.
 
 * `ping-targets.yml`: the full ping_exporter config (global `ping:` block plus `targets:`), so that
-  ping targets follow DHCP address changes. ping_exporter hot-reloads it on change.
+  ping targets follow DHCP address changes. ping_exporter watches the file and applies target changes
+  live; changes to the `ping:` block only take effect when ping_exporter restarts (the role restarts
+  the stack when its environment file changes).
 * `airplay-targets.json`: Prometheus `file_sd` for blackbox_exporter's AirPlay TCP probe, one entry per
   HomePod currently associated with the WiFi.
 
 Both are rendered deterministically so that unchanged content produces byte-identical output and no
-spurious rewrites/reloads happen.
+spurious rewrites/reloads happen. The same IP can legitimately appear under two kinds (for example the
+router as a static target and as the topology's router); ping targets are de-duplicated by IP, while
+`monitoring_target_info` keeps both descriptions.
 """
 
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
-from justdavis_monitoring_exporters.common.settings import TrackedClient
+from justdavis_monitoring_exporters.common.settings import ClientKind, TrackedClient
 
 AIRPLAY_PORT = 7000
+
+type TargetKind = Literal["static", "router", "mesh_point"] | ClientKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,7 +37,7 @@ class PingConfig:
 class TargetInfo:
     ip: str
     name: str
-    kind: str
+    kind: TargetKind
 
 
 def target_infos(

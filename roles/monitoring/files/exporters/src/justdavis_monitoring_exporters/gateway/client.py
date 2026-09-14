@@ -7,7 +7,8 @@ form with HTTP 200, so "needs login" is detected by content (`gateway.parser.is_
 The gateway allows a single admin session and writes a system-log entry on every login, so this client
 keeps one session alive across polls and re-logs in only when the login form comes back. Re-logins are
 additionally rate limited (`relogin_min_seconds`) so that a person using the GUI is not logged out every
-poll; a throttled attempt raises `LoginThrottled`, which the exporter reports as a quiet `gateway_up 0`.
+poll; a throttled attempt raises `LoginThrottled`, which the exporter reports as `gateway_up 0` without
+counting a login error (the shared scrape loop still logs it and backs off).
 """
 
 import logging
@@ -56,6 +57,7 @@ class GatewayClient:
         page = self._http.get(_STATUS_PATH)
         if is_login_page(page.body):
             raise LoginError("gateway still shows the login form after logging in")
+        log.info("logged in to the gateway")
         return page.body
 
     def _login(self) -> None:
@@ -69,4 +71,3 @@ class GatewayClient:
         result = self._http.post(_LOGIN_PATH, data={"username": self._username, "password": self._password})
         if result.status == 200 and is_login_page(result.body):
             raise LoginError("gateway rejected the credentials")
-        log.info("logged in to the gateway")

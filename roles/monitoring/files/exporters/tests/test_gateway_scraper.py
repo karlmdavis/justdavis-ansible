@@ -1,0 +1,75 @@
+"""Tests for the gateway scraper glue: snapshot publication and error attribution."""
+
+from pathlib import Path
+
+import pytest
+
+from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.gateway.client import GatewayClient, LoginThrottled
+from justdavis_monitoring_exporters.gateway.main import GatewayScraper, build_registry
+from tests.fakes import FakeClock, FakeHttpClient, response
+
+FIXTURES = Path(__file__).parent / "fixtures"
+LOGIN_HTML = (FIXTURES / "gateway_login.html").read_text()
+STATUS_HTML = (FIXTURES / "gateway_comcast_network.html").read_text()
+
+
+def make(http: FakeHttpClient, clock: FakeClock | None = None) -> tuple[GatewayScraper, object]:
+    registry, collector, errors = build_registry()
+    client = GatewayClient(
+        http, username="admin", password="pw", relogin_min_seconds=300, clock=clock or FakeClock()
+    )
+    return GatewayScraper(client, collector, errors), registry
+
+
+def test_successful_poll_publishes_snapshot() -> None:
+    scraper, registry = make(FakeHttpClient({("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]}))
+    scraper()
+    assert registry.get_sample_value("gateway_uptime_seconds") == 6149.0  # type: ignore[attr-defined]
+
+
+def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
+    http = FakeHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+    )
+    scraper, registry = make(http)
+    scraper()
+    with pytest.raises(ParseError):
+        scraper()
+    assert registry.get_sample_value("gateway_uptime_seconds") is None  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "parse"}) == 1.0  # type: ignore[attr-defined]
+
+
+def test_rejected_login_counts_login_stage() -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/comcast_network.jst"): [response(200, LOGIN_HTML)],
+            ("POST", "/check.jst"): [response(200, LOGIN_HTML)],
+        }
+    )
+    scraper, registry = make(http)
+    with pytest.raises(LoginError):
+        scraper()
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) == 1.0  # type: ignore[attr-defined]
+
+
+def test_throttled_relogin_clears_snapshot_without_counting_an_error() -> None:
+    clock = FakeClock()
+    http = FakeHttpClient(
+        {
+            ("GET", "/comcast_network.jst"): [
+                response(200, LOGIN_HTML),
+                response(200, STATUS_HTML),
+                response(200, LOGIN_HTML),
+            ],
+            ("POST", "/check.jst"): [response(302, "", location="/at_a_glance.jst")],
+        }
+    )
+    scraper, registry = make(http, clock)
+    scraper()
+    # A human logged in to the GUI and took the single session; the next poll sees the login form and
+    # is inside the re-login window, so it must back off quietly.
+    with pytest.raises(LoginThrottled):
+        scraper()
+    assert registry.get_sample_value("gateway_uptime_seconds") is None  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None  # type: ignore[attr-defined]

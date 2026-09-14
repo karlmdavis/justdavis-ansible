@@ -9,8 +9,8 @@ from typing import Any
 
 import pytest
 
-from justdavis_monitoring_exporters.common.errors import ResponseTooLarge
-from justdavis_monitoring_exporters.common.http import RequestsHttpClient, same_host
+from justdavis_monitoring_exporters.common.errors import HttpStatusError, ResponseTooLarge
+from justdavis_monitoring_exporters.common.http import CaseInsensitiveHeaders, RequestsHttpClient
 
 
 @dataclass
@@ -35,18 +35,6 @@ class FakeSession:
     def request(self, method: str, url: str, **kwargs: Any) -> FakeRawResponse:  # noqa: ANN401
         self.calls.append({"method": method, "url": url, **kwargs})
         return self.responses.pop(0)
-
-
-def test_same_host_accepts_relative_and_same_host_absolute_locations() -> None:
-    assert same_host("http://10.1.10.1", "/at_a_glance.jst") is True
-    assert same_host("http://10.1.10.1", "at_a_glance.jst") is True
-    assert same_host("http://10.1.10.1", "http://10.1.10.1/at_a_glance.jst") is True
-    assert same_host("https://10.1.10.1", "https://10.1.10.1:443/x") is True
-
-
-def test_same_host_rejects_other_hosts() -> None:
-    assert same_host("http://10.1.10.1", "http://evil.example/x") is False
-    assert same_host("http://10.1.10.1", "//evil.example/x") is False
 
 
 def test_get_sets_timeout_disables_redirects_and_streams() -> None:
@@ -102,4 +90,24 @@ def test_fingerprint_pinning_mounts_an_https_adapter_that_asserts_the_fingerprin
     session = pinned_session("ab:cd:ef")
     adapter = session.get_adapter("https://10.1.10.1/")
     assert isinstance(adapter, FingerprintAdapter)
-    assert adapter.fingerprint == "ab:cd:ef"
+    assert adapter.poolmanager.connection_pool_kw["assert_fingerprint"] == "ab:cd:ef"
+
+
+def test_error_status_raises_http_status_error() -> None:
+    session = FakeSession([FakeRawResponse(503, {}, [b"busy"])])
+    client = RequestsHttpClient("http://10.1.10.1", session=session)
+    with pytest.raises(HttpStatusError) as excinfo:
+        client.get("/info.php")
+    assert excinfo.value.status == 503
+    assert "/info.php" in str(excinfo.value)
+
+
+def test_redirect_status_is_returned_not_raised() -> None:
+    session = FakeSession([FakeRawResponse(302, {"Location": "/x"}, [])])
+    assert RequestsHttpClient("http://10.1.10.1", session=session).get("/").status == 302
+
+
+def test_response_headers_are_the_case_insensitive_type() -> None:
+    session = FakeSession([FakeRawResponse(200, {"A": "b"}, [b""])])
+    response = RequestsHttpClient("http://10.1.10.1", session=session).get("/")
+    assert isinstance(response.headers, CaseInsensitiveHeaders)

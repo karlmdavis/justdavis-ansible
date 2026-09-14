@@ -72,7 +72,9 @@ simply "as much as fits". It is deliberately not backed up.
   equals control of the LAN. The AmpliFi UI is plain HTTP, so that password crosses the LAN in
   cleartext on each login (roughly once per session expiry).
 - The gateway is scraped over HTTPS with its self-signed certificate pinned by SHA-256 fingerprint,
-  computed at deploy time. After a gateway firmware change, re-run the role if `gateway_up` stays 0.
+  computed at deploy time and recorded in `/opt/monitoring/gateway_tls_fingerprint`; if the gateway is
+  unreachable during a deploy the previous fingerprint is kept. After a gateway firmware change,
+  re-run the role if `gateway_up` stays 0.
 
 ## Requirements
 
@@ -122,12 +124,14 @@ Permissions; regenerate it there and update the vault to rotate it. The Discord 
 webhook URL from Discord's channel integration settings. Thresholds are role variables; the defaults
 follow common guidance: packet loss above 5%, round trip above 100 ms, or jitter above 30 ms to the
 internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside -8 to +12 dBmV; any
-uncorrectable codewords; HomePods not answering ping, not accepting AirPlay connections, or not
-resolving over mDNS; router, mesh point, or gateway reboots; and collectors that stop working.
+uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the gateway reporting
+its Internet connection inactive for 2 minutes; HomePods not answering ping, not accepting AirPlay
+connections, or not resolving over mDNS; a mesh point missing from the topology; router, mesh point,
+or gateway reboots; collectors that stop working; and exporters whose scrape loop has stalled.
 
-The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling because the
-gateway currently reads around +10 to +11.5 dBmV with excellent SNR and zero uncorrectables. That is a
-data point for a Comcast conversation, not an alert.
+The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling because, as of
+September 2026, the gateway reads around +10 to +11.5 dBmV with excellent SNR and zero uncorrectables.
+That is a data point for a Comcast conversation, not an alert.
 
 There is intentionally no "HomePod on the wrong mesh point" alert yet: the data is recorded first, and a
 rule can be added once the dashboards show what normal looks like.
@@ -145,9 +149,11 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 Parsers are pure functions tested against sanitised fixtures of the real device responses; the module
 headers document the endpoints, login flows, and response schemas they depend on. Each exporter serves
 `<name>_up`, `<name>_last_success_timestamp_seconds`, `<name>_scrape_duration_seconds`, and
-`<name>_consecutive_failures` at all times, and only serves device metrics from its last successful
-poll, so nothing goes stale silently. An exporter whose device host variable is blank (as in the AWS
-test environment) serves `<name>_up 0` and idles.
+`<name>_consecutive_failures` at all times, plus `<name>_scrape_errors_total{stage}` to say which step
+failed, and only serves device metrics from its last successful poll, so nothing goes stale silently.
+An exporter whose device host variable is blank (as in the AWS test environment) serves `<name>_up 0`
+and idles; the gateway exporter does the same when no certificate fingerprint was recorded (it never
+falls back to plain HTTP), and the AirPlay probe when its LAN address is not local to the host.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.
@@ -157,10 +163,12 @@ the stack restarts cleanly during a WAN outage.
 - Deploy just this stack: `./ansible-playbook-wrapper site.yml --limit=eddings.justdavis.com --tags=monitoring`.
   A scoped run does not touch the Apache vhost or DNS record (those belong to the `apache` and
   `dns_server` roles); until they have been applied, reach Grafana with an SSH port forward:
-  `ssh -L 3000:127.0.0.1:3000 eddings.karlanderica.justdavis.com` then `http://localhost:3000/`.
+  `ssh -L 3000:127.0.0.1:3000 eddings.karlanderica.justdavis.com` then `http://localhost:3000/` (use
+  Chrome or Firefox; Safari rejects Grafana's secure-only cookie over plain `http://localhost`).
 - Upgrade an image: bump its tag in `defaults/main.yml` and deploy; the AWS test run is the gate.
 - Rotate the Grafana admin password: the password file only applies on first start, so run
-  `docker compose exec grafana grafana cli admin reset-admin-password <new>` in `/opt/monitoring`.
+  `sudo docker compose exec grafana grafana cli admin reset-admin-password <new>` from
+  `/opt/monitoring`.
 
 ## Known Limitations
 
@@ -171,7 +179,10 @@ the stack restarts cleanly during a WAN outage.
   entries, so upstream signal levels and T3/T4 timeouts are not available.
 - AmpliFi reports client signal as a 0-100 quality figure, not dBm.
 - The passive mDNS browser can lag a device's disappearance by up to the record TTL; the active
-  resolve is the signal alerts use.
+  resolve is the signal alerts use. The `_raop._tcp` instance name carries a device-id prefix that is
+  learned from passive discovery, so its resolved gauge stays 0 until the HomePod has announced once.
+- The ping and AirPlay target files keep their last contents across exporter restarts, so a HomePod
+  that moved while the stack was down is probed at its old address until the first successful poll.
 
 ## Troubleshooting
 

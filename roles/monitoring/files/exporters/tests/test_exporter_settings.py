@@ -58,23 +58,41 @@ def test_gateway_settings() -> None:
             "MONITORING_GATEWAY_HOST": "10.1.10.1",
             "GATEWAY_USERNAME": "admin",
             "GATEWAY_PASSWORD": "pw",
-            "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256": "AB:CD:EF",
+            "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256": "AB:" * 31 + "AB",
         }
     )
     assert settings.base_url == "https://10.1.10.1"
-    assert settings.tls_fingerprint_sha256 == "AB:CD:EF"
+    assert settings.tls_fingerprint_sha256 == "AB:" * 31 + "AB"
     assert settings.interval_seconds == 60
     assert settings.relogin_min_seconds == 300
     assert settings.port == 9802
     assert "pw" not in repr(settings)
 
 
-def test_gateway_settings_without_fingerprint_uses_plain_http() -> None:
+def test_gateway_settings_without_fingerprint_is_not_configured_and_never_plain_http() -> None:
     settings = GatewaySettings.from_env(
         {"MONITORING_GATEWAY_HOST": "10.1.10.1", "GATEWAY_USERNAME": "admin", "GATEWAY_PASSWORD": "pw"}
     )
-    assert settings.base_url == "http://10.1.10.1"
     assert settings.tls_fingerprint_sha256 is None
+    assert settings.configured is False
+    assert settings.base_url == "https://10.1.10.1"
+
+
+def test_gateway_settings_reject_malformed_fingerprint() -> None:
+    with pytest.raises(SettingsError):
+        GatewaySettings.from_env(
+            {
+                "MONITORING_GATEWAY_HOST": "10.1.10.1",
+                "GATEWAY_USERNAME": "admin",
+                "GATEWAY_PASSWORD": "pw",
+                "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256": "AB:CD",
+            }
+        )
+
+
+def test_zero_interval_is_rejected() -> None:
+    with pytest.raises(SettingsError):
+        AmplifiSettings.from_env({"AMPLIFI_PASSWORD": "pw", "MONITORING_AMPLIFI_INTERVAL": "0"})
 
 
 def test_airplay_settings() -> None:

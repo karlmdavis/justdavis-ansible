@@ -19,6 +19,12 @@ class GatewayCollector(Collector):
         self.snapshots = snapshots
         self.statuses = statuses
 
+    def publish(self, snapshot: GatewayStatus) -> None:
+        self.snapshots.set(snapshot)
+
+    def clear(self) -> None:
+        self.snapshots.clear()
+
     def collect(self) -> Iterator[Metric]:
         yield from status_families("gateway", self.statuses.get())
         snapshot = self.snapshots.get()
@@ -32,6 +38,16 @@ class GatewayCollector(Collector):
             "1 when the gateway reports Internet: Active.",
             value=float(snapshot.internet_active),
         )
+        wan = InfoMetricFamily("gateway_wan", "The gateway's WAN addresses as it reports them.")
+        wan.add_metric(
+            [],
+            {
+                "wan_ip": snapshot.wan_ip,
+                "wan_static_ip": snapshot.wan_static_ip,
+                "isp_gateway": snapshot.isp_gateway,
+            },
+        )
+        yield wan
         info = InfoMetricFamily(
             "gateway_docsis_downstream", "Downstream channel frequency and modulation.", labels=_CHANNEL
         )
@@ -60,14 +76,23 @@ class GatewayCollector(Collector):
         for channel in snapshot.downstream:
             labels = [str(channel.index)]
             info.add_metric(
-                labels, {"frequency_hz": str(channel.frequency_hz), "modulation": channel.modulation}
+                labels,
+                {
+                    "frequency_hz": "" if channel.frequency_hz is None else str(channel.frequency_hz),
+                    "modulation": channel.modulation,
+                },
             )
             locked.add_metric(labels, float(channel.locked))
-            snr.add_metric(labels, channel.snr_db)
-            power.add_metric(labels, channel.power_dbmv)
-            unerrored.add_metric(labels, float(channel.unerrored))
-            correctable.add_metric(labels, float(channel.correctable))
-            uncorrectable.add_metric(labels, float(channel.uncorrectable))
+            if channel.snr_db is not None:
+                snr.add_metric(labels, channel.snr_db)
+            if channel.power_dbmv is not None:
+                power.add_metric(labels, channel.power_dbmv)
+            if channel.unerrored is not None:
+                unerrored.add_metric(labels, float(channel.unerrored))
+            if channel.correctable is not None:
+                correctable.add_metric(labels, float(channel.correctable))
+            if channel.uncorrectable is not None:
+                uncorrectable.add_metric(labels, float(channel.uncorrectable))
         yield info
         yield locked
         yield snr

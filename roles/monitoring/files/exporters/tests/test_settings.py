@@ -84,3 +84,30 @@ def test_env_int_uses_default_and_rejects_garbage() -> None:
 def test_env_str_uses_default() -> None:
     assert env_str({}, "X", "d") == "d"
     assert env_str({"X": "v"}, "X", "d") == "v"
+
+
+def test_env_int_enforces_bounds() -> None:
+    assert env_int({"X": "1"}, "X", 30, minimum=1) == 1
+    with pytest.raises(SettingsError):
+        env_int({"X": "0"}, "X", 30, minimum=1)
+    with pytest.raises(SettingsError):
+        env_int({"X": "70000"}, "X", 9801, minimum=1, maximum=65535)
+
+
+def test_parse_tracked_clients_rejects_duplicate_macs() -> None:
+    raw = json.dumps(
+        [
+            {"mac": "aa:bb:cc:dd:ee:01", "name": "One", "kind": "homepod"},
+            {"mac": "AA:BB:CC:DD:EE:01", "name": "Two", "kind": "ipad"},
+        ]
+    )
+    with pytest.raises(SettingsError) as excinfo:
+        parse_tracked_clients(raw)
+    assert "duplicate" in str(excinfo.value)
+
+
+def test_tracked_client_rejects_blank_name_and_bad_mac_at_construction() -> None:
+    with pytest.raises(SettingsError):
+        TrackedClient(mac="aa:bb:cc:dd:ee:01", name="", kind="homepod", airplay_name="x")
+    with pytest.raises(SettingsError):
+        TrackedClient(mac="not-a-mac", name="x", kind="homepod", airplay_name="x")

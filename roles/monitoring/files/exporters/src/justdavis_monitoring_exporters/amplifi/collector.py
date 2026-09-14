@@ -1,12 +1,15 @@
 """Prometheus collector for the AmpliFi snapshot.
 
-Every metric family is rebuilt from the current snapshot on each scrape, so when the router cannot be
-reached the per-device series simply disappear instead of going stale, and label sets from rotating
-private MAC addresses never accumulate.
+The scrape thread hands each successful poll to `publish()`, which resolves duplicate associations,
+advances the byte-counter unwrapping (so every poll is observed, however often Prometheus scrapes), and
+stores an immutable published snapshot. `collect()` only reads it. When the router cannot be reached
+the scraper calls `clear()`, so per-device series disappear instead of going stale, and label sets from
+rotating private MAC addresses never accumulate.
 """
 
 import threading
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass
 
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, InfoMetricFamily, Metric
 from prometheus_client.registry import Collector
@@ -21,45 +24,89 @@ from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, Snapsho
 
 _CLIENT_LABELS = ["mac", "name", "kind"]
 _MESH_POINT_LABELS = ["mac", "name"]
-_BACKHAUL_NETWORK = "Internal network"
 _AIRPLAY_SERVICES = ("_airplay._tcp", "_raop._tcp")
 _KBPS = 1000.0
+
+
+@dataclass(frozen=True, slots=True)
+class PublishedSnapshot:
+    """A snapshot with duplicate associations resolved and byte counters unwrapped."""
+
+    snapshot: AmplifiSnapshot
+    clients: tuple[WifiClient, ...]
+    rx_bytes_total: Mapping[str, int]
+    tx_bytes_total: Mapping[str, int]
+
+
+def dedupe_clients(clients: Sequence[WifiClient]) -> tuple[WifiClient, ...]:
+    """Keep one association per MAC: the most recently active one (lowest `inactive_seconds`)."""
+    best: dict[str, WifiClient] = {}
+    for client in clients:
+        current = best.get(client.mac)
+        if current is None or client.inactive_seconds < current.inactive_seconds:
+            best[client.mac] = client
+    return tuple(best.values())
 
 
 class AmplifiCollector(Collector):
     def __init__(
         self,
-        snapshots: SnapshotHolder[AmplifiSnapshot],
         statuses: SnapshotHolder[ScrapeStatus],
-        targets: SnapshotHolder[tuple[TargetInfo, ...]],
         tracked: Sequence[TrackedClient],
         unwrapper: Unwrapper32,
     ) -> None:
-        self.snapshots = snapshots
         self.statuses = statuses
-        self.targets = targets
+        self._published: SnapshotHolder[PublishedSnapshot] = SnapshotHolder()
+        self._targets: SnapshotHolder[tuple[TargetInfo, ...]] = SnapshotHolder()
         self._tracked = {client.mac: client for client in tracked}
         self._unwrapper = unwrapper
-        self._unwrap_lock = threading.Lock()
+        self._publish_lock = threading.Lock()
+        self._target_files_ok: bool | None = None
+
+    def publish(self, snapshot: AmplifiSnapshot) -> None:
+        with self._publish_lock:
+            clients = dedupe_clients(snapshot.clients)
+            self._unwrapper.forget_missing({(c.mac, d) for c in clients for d in ("rx", "tx")})
+            rx = {c.mac: self._unwrapper.update((c.mac, "rx"), c.rx_bytes) for c in clients}
+            tx = {c.mac: self._unwrapper.update((c.mac, "tx"), c.tx_bytes) for c in clients}
+            self._published.set(PublishedSnapshot(snapshot, clients, rx, tx))
+
+    def clear(self) -> None:
+        """Drop the device metrics after a failed poll; counter baselines restart on the next one."""
+        with self._publish_lock:
+            self._published.clear()
+            self._unwrapper.forget_missing(())
+
+    def set_targets(self, targets: tuple[TargetInfo, ...]) -> None:
+        self._targets.set(targets)
+
+    def set_target_files_ok(self, ok: bool) -> None:
+        self._target_files_ok = ok
 
     def collect(self) -> Iterator[Metric]:
         yield from status_families("amplifi", self.statuses.get())
         yield from self._target_families()
-        snapshot = self.snapshots.get()
-        if snapshot is None:
+        published = self._published.get()
+        if published is None:
             return
-        yield from self._router_families(snapshot)
-        yield from self._mesh_point_families(snapshot)
-        yield from self._client_families(snapshot)
-        yield from self._airplay_families(snapshot)
+        yield from self._router_families(published.snapshot)
+        yield from self._mesh_point_families(published.snapshot)
+        yield from self._client_families(published)
+        yield from self._airplay_families(published.snapshot)
 
     def _target_families(self) -> Iterator[Metric]:
         info = InfoMetricFamily(
             "monitoring_target", "Friendly name and kind for every ping target.", labels=["ip"]
         )
-        for target in self.targets.get() or ():
+        for target in self._targets.get() or ():
             info.add_metric([target.ip], {"name": sanitise_label(target.name), "kind": target.kind})
         yield info
+        if self._target_files_ok is not None:
+            yield GaugeMetricFamily(
+                "amplifi_target_files_ok",
+                "1 when the ping/AirPlay target files were last written successfully.",
+                value=float(self._target_files_ok),
+            )
 
     @staticmethod
     def _router_families(snapshot: AmplifiSnapshot) -> Iterator[Metric]:
@@ -109,10 +156,10 @@ class AmplifiCollector(Collector):
         tracked = self._tracked.get(client.mac)
         if tracked is not None:
             return [client.mac, sanitise_label(tracked.name), tracked.kind]
-        kind = "backhaul" if client.network == _BACKHAUL_NETWORK else "other"
-        return [client.mac, "", kind]
+        return [client.mac, "", "backhaul" if client.is_backhaul else "other"]
 
-    def _client_families(self, snapshot: AmplifiSnapshot) -> Iterator[Metric]:
+    def _client_families(self, published: PublishedSnapshot) -> Iterator[Metric]:
+        snapshot = published.snapshot
         ap_names = {snapshot.router.mac: snapshot.router.name}
         ap_names.update({mp.mac: mp.name for mp in snapshot.mesh_points})
         info = InfoMetricFamily(
@@ -147,33 +194,25 @@ class AmplifiCollector(Collector):
             "Bytes transmitted by the client (32-bit wraps unwrapped).",
             labels=_CLIENT_LABELS,
         )
-        with self._unwrap_lock:
-            self._unwrapper.forget_missing(
-                {(client.mac, direction) for client in snapshot.clients for direction in ("rx", "tx")}
+        for client in published.clients:
+            labels = self._client_labels(client)
+            info.add_metric(
+                labels,
+                {
+                    "ap": client.ap_mac,
+                    "ap_name": sanitise_label(ap_names.get(client.ap_mac, "")),
+                    "band": client.band,
+                    "network": client.network,
+                    "mode": client.mode or "",
+                },
             )
-            for client in snapshot.clients:
-                labels = self._client_labels(client)
-                info.add_metric(
-                    labels,
-                    {
-                        "ap": client.ap_mac,
-                        "ap_name": sanitise_label(ap_names.get(client.ap_mac, "")),
-                        "band": client.band,
-                        "network": client.network,
-                        "mode": client.mode or "",
-                    },
-                )
-                signal.add_metric(labels, float(client.signal_quality))
-                happiness.add_metric(labels, float(client.happiness_score))
-                rx_rate.add_metric(labels, client.rx_bitrate_kbps * _KBPS)
-                tx_rate.add_metric(labels, client.tx_bitrate_kbps * _KBPS)
-                inactive.add_metric(labels, float(client.inactive_seconds))
-                rx_bytes.add_metric(
-                    labels, float(self._unwrapper.update((client.mac, "rx"), client.rx_bytes))
-                )
-                tx_bytes.add_metric(
-                    labels, float(self._unwrapper.update((client.mac, "tx"), client.tx_bytes))
-                )
+            signal.add_metric(labels, float(client.signal_quality))
+            happiness.add_metric(labels, float(client.happiness_score))
+            rx_rate.add_metric(labels, client.rx_bitrate_kbps * _KBPS)
+            tx_rate.add_metric(labels, client.tx_bitrate_kbps * _KBPS)
+            inactive.add_metric(labels, float(client.inactive_seconds))
+            rx_bytes.add_metric(labels, float(published.rx_bytes_total[client.mac]))
+            tx_bytes.add_metric(labels, float(published.tx_bytes_total[client.mac]))
         yield info
         yield signal
         yield happiness

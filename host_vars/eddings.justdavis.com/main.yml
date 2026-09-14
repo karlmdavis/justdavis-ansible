@@ -26,6 +26,8 @@ monitoring_amplifi_host: 10.0.0.1
 monitoring_amplifi_mesh_point_count: 2
 monitoring_gateway_host: 10.1.10.1
 monitoring_tracked_clients: "{{ vault_monitoring_tracked_clients }}"
+# The private #home-alerts channel, by ID (names are unreliable for private channels).
+monitoring_slack_channel: C0C1CB8DUE7
 # Layered ping targets, from the LAN outwards: AmpliFi router (LAN and WAN sides), Comcast gateway
 # (LAN and static-IP sides), the ISP's first hop, and two public anchors.
 monitoring_static_ping_targets:

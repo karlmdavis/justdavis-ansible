@@ -1,6 +1,7 @@
 ---
-# Verifies the monitoring stack after deployment. Runs in production too (the `test` tag is never
-# skipped), so every check here must hold on a healthy long-running system, not just a fresh one.
+# Verifies the monitoring stack after deployment. This file is imported unconditionally (the `test`
+# tag only allows opting in with `--tags`), so it runs in production too and every check must hold
+# on a healthy long-running system, not just a fresh one.
 
 - name: Meta - flush_handlers
   ansible.builtin.meta: flush_handlers
@@ -101,6 +102,8 @@
   retries: 30
   delay: 2
 
+# The `airplay_tcp` job is dynamic (it only has targets while a tracked HomePod is associated), so
+# it is deliberately not required here.
 - name: Test - Wait for All Prometheus Targets to be Up
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/targets?state=active"
@@ -108,11 +111,34 @@
   register: monitoring_targets
   until: >-
     (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and (monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique | sort | list)
-        == (['airplay', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
-            + (['airplay_tcp'] if not is_test else [])) | sort
+    and (['airplay', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
+         | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
+        == []
   retries: 30
   delay: 5
+
+# Informational in production: device scrapers depend on the devices being up, so their state is
+# reported rather than asserted.
+- name: Test - Report Device Scraper Status
+  ansible.builtin.uri:
+    url: >-
+      http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/query?query={{
+      '{__name__=~"amplifi_up|gateway_up|airplay_up"}' | urlencode }}
+    return_content: true
+  register: monitoring_device_status
+  when: not is_test
+
+- name: Test - Show Device Scraper Status
+  ansible.builtin.debug:
+    msg: >-
+      {{ monitoring_device_status.json.data.result
+         | map(attribute='metric.__name__') | zip(monitoring_device_status.json.data.result
+         | map(attribute='value') | map('last')) | map('join', '=') | list }}
+  when: not is_test
+
+- name: Test - Count Expected Containers
+  ansible.builtin.set_fact:
+    monitoring_container_count: 9
 
 - name: Test - List Monitoring Containers
   ansible.builtin.command:
@@ -142,11 +168,9 @@
 - name: Test - Verify Every Container is Running
   ansible.builtin.assert:
     that:
-      - monitoring_container_ids.stdout_lines | length == 9
-      - monitoring_container_states.results | map(attribute='stdout') | map('split') | map('last')
-        | list | length == 9
+      - monitoring_container_ids.stdout_lines | length == monitoring_container_count
       - monitoring_container_states.results | map(attribute='stdout') | select('search', ' running ')
-        | list | length == 9
+        | list | length == monitoring_container_count
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
 
 - name: Test - Verify Exporter Containers Use the Locally Built Image
@@ -162,6 +186,6 @@
   ansible.builtin.assert:
     that:
       - monitoring_container_states.results | map(attribute='stdout') | select('search', ' 0 ')
-        | list | length == 9
+        | list | length == monitoring_container_count
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
   when: is_test

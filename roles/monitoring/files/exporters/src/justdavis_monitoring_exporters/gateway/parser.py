@@ -8,8 +8,13 @@ in September 2026. The page is server-rendered (no AJAX) and uses two shapes:
 * Tables with a caption cell (`<td class="row-label acs-th">CM Error Codewords</td>`) and rows whose
   label is a `<th class="row-label">` that the firmware closes with `</td>`, followed by one `<td>` per
   channel. The downstream table's rows are Index, Lock Status, Frequency, SNR, Power Level, Modulation.
-  The upstream table has the same row labels but no cells on this firmware, so it is ignored.
+  The upstream table (Index, Lock Status, Frequency, Symbol Rate, Power Level, Modulation, Channel Type)
+  has a populated Index row but every other cell is empty on this firmware, so it is ignored: the
+  downstream table is recognised as the first table whose Lock Status row has values.
 
+Numeric cells that show a placeholder (blank, `----`, `N/A`) become `None` rather than failing the
+whole page, so a single unlocked channel cannot blank every gateway metric; wording changes in the
+Lock Status or Internet fields do raise `ParseError`, because silently misreading them would be worse.
 Unauthenticated requests get the login page (HTTP 200) instead, recognised by its `id="pageForm"`.
 This module is pure: stdlib only, no I/O, and it never returns partial results.
 """
@@ -23,6 +28,9 @@ from justdavis_monitoring_exporters.gateway.models import DocsisChannel, Gateway
 
 _LOGIN_FORM_MARKER = 'id="pageForm"'
 _UPTIME_RE = re.compile(r"(\d+)\s*days?\s+(\d+)h:\s*(\d+)m:\s*(\d+)s")
+_PLACEHOLDERS = frozenset({"", "-", "--", "---", "----", "n/a", "na", "none"})
+_LOCK_STATUS = {"Locked": True, "Not Locked": False, "Unlocked": False}
+_INTERNET_STATUS = {"Active": True, "Inactive": False}
 
 
 def is_login_page(html: bytes | str) -> bool:
@@ -67,6 +75,7 @@ class _PageParser(HTMLParser):
         elif tag == "span" and "value" in classes:
             self._start_capture("value")
         elif tag == "table":
+            self._finish_capture()
             self._table = _Table()
             self.tables.append(self._table)
         elif tag == "td" and "acs-th" in classes and self._table is not None:
@@ -76,33 +85,32 @@ class _PageParser(HTMLParser):
         elif tag == "td" and self._table is not None and self._row_label is not None:
             self._start_capture("cell")
         elif tag == "tr" and self._table is not None:
+            self._finish_capture()
             self._row_label = None
             self._row_cells = []
 
     def handle_endtag(self, tag: str) -> None:
-        if self._capture is None:
-            if tag == "tr":
-                self._finish_row()
-            elif tag == "table":
-                self._finish_row()
-                self._table = None
-            return
-        if tag in ("span", "td", "th"):
+        # The firmware closes some cells with the wrong tag, so any closing tag ends a capture.
+        if tag in ("span", "td", "th", "tr", "table"):
             self._finish_capture()
-            if tag == "tr":
-                self._finish_row()
+        if tag == "tr":
+            self._finish_row()
+        elif tag == "table":
+            self._finish_row()
+            self._table = None
 
     def handle_data(self, data: str) -> None:
         if self._capture is not None:
             self._buffer.append(data)
 
     def _start_capture(self, kind: str) -> None:
-        if self._capture is not None:
-            self._finish_capture()
+        self._finish_capture()
         self._capture = kind
         self._buffer = []
 
     def _finish_capture(self) -> None:
+        if self._capture is None:
+            return
         text = " ".join("".join(self._buffer).split())
         kind, self._capture = self._capture, None
         if kind == "label":
@@ -111,7 +119,7 @@ class _PageParser(HTMLParser):
             if self._pending_label is not None and self._pending_label not in self.fields:
                 self.fields[self._pending_label] = text
             self._pending_label = None
-        elif kind == "caption" and self._table is not None:
+        elif kind == "caption" and self._table is not None and not self._table.caption:
             self._table.caption = text
         elif kind == "row_label":
             self._row_label = text
@@ -140,9 +148,9 @@ def _table_with_caption(tables: Sequence[_Table], caption: str) -> _Table:
 
 
 def _downstream_table(tables: Sequence[_Table]) -> _Table:
-    """The downstream channel table is the first one whose Index row is populated."""
+    """The first table whose Lock Status row has values (the upstream table's is empty)."""
     for table in tables:
-        if table.rows.get("Index") and table.rows.get("Lock Status"):
+        if table.rows.get("Index") and any(table.rows.get("Lock Status", [])):
             return table
     raise ParseError("Downstream: channel table not found on page")
 
@@ -158,19 +166,33 @@ def _row(table: _Table, label: str, expected_len: int) -> list[str]:
     return cells
 
 
-def _number(text: str, unit: str, ctx: str) -> float:
-    value = text.removesuffix(unit).strip()
+def _is_placeholder(text: str) -> bool:
+    return text.strip().lower() in _PLACEHOLDERS
+
+
+def _number(text: str, unit: str, ctx: str) -> float | None:
+    if _is_placeholder(text):
+        return None
+    value = text.removesuffix(unit).strip().replace(",", "")
     try:
         return float(value)
     except ValueError as exc:
         raise ParseError(f"{ctx}: unrecognised number") from exc
 
 
-def _count(text: str, ctx: str) -> int:
+def _count(text: str, ctx: str) -> int | None:
+    if _is_placeholder(text):
+        return None
     try:
-        return int(text)
+        return int(text.strip().replace(",", ""))
     except ValueError as exc:
         raise ParseError(f"{ctx}: unrecognised count") from exc
+
+
+def _choice(text: str, choices: dict[str, bool], ctx: str) -> bool:
+    if text in choices:
+        return choices[text]
+    raise ParseError(f"{ctx}: unrecognised value")
 
 
 def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...]:
@@ -187,11 +209,15 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
     channels: list[DocsisChannel] = []
     for i in range(count):
         ctx = f"Downstream[{indexes[i]}]"
+        index = _count(indexes[i], f"{ctx}.Index")
+        if index is None:
+            raise ParseError(f"{ctx}.Index: missing")
+        frequency_mhz = _number(frequency[i], "MHz", f"{ctx}.Frequency")
         channels.append(
             DocsisChannel(
-                index=_count(indexes[i], f"{ctx}.Index"),
-                locked=locked[i] == "Locked",
-                frequency_hz=int(_number(frequency[i], "MHz", f"{ctx}.Frequency") * 1_000_000),
+                index=index,
+                locked=_choice(locked[i], _LOCK_STATUS, f"{ctx}.Lock Status"),
+                frequency_hz=None if frequency_mhz is None else int(frequency_mhz * 1_000_000),
                 snr_db=_number(snr[i], "dB", f"{ctx}.SNR"),
                 power_dbmv=_number(power[i], "dBmV", f"{ctx}.Power Level"),
                 modulation=modulation[i],
@@ -216,7 +242,7 @@ def parse_comcast_network(html: bytes | str) -> GatewayStatus:
     codewords = _table_with_caption(parser.tables, "CM Error Codewords")
     return GatewayStatus(
         uptime_seconds=parse_uptime(_field(fields, "System Uptime")),
-        internet_active=_field(fields, "Internet") == "Active",
+        internet_active=_choice(_field(fields, "Internet"), _INTERNET_STATUS, "Internet"),
         wan_ip=_field(fields, "WAN IP Address (IPv4)"),
         wan_static_ip=_field(fields, "WAN Static IP Address (IPv4)"),
         isp_gateway=_field(fields, "WAN Default Gateway Address (IPv4)"),

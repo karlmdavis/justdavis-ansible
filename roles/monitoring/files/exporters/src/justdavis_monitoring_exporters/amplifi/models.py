@@ -3,6 +3,8 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+BACKHAUL_NETWORK = "Internal network"
+
 
 @dataclass(frozen=True, slots=True)
 class Router:
@@ -27,7 +29,7 @@ class MeshPoint:
 @dataclass(frozen=True, slots=True)
 class WifiClient:
     """One WiFi association. Backhaul links between mesh points appear here with `network` set to
-    "Internal network" and no address/hostname/mode."""
+    `BACKHAUL_NETWORK` and no address/hostname/mode."""
 
     mac: str
     ap_mac: str
@@ -44,15 +46,9 @@ class WifiClient:
     tx_bytes: int
     inactive_seconds: int
 
-
-@dataclass(frozen=True, slots=True)
-class DirectoryEntry:
-    """The router's device directory entry (DHCP-derived): applies to wired and wireless devices."""
-
-    mac: str
-    display_name: str
-    connection: str
-    ip: str | None
+    @property
+    def is_backhaul(self) -> bool:
+        return self.network == BACKHAUL_NETWORK
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +64,5 @@ class AmplifiSnapshot:
     router: Router
     mesh_points: tuple[MeshPoint, ...]
     clients: tuple[WifiClient, ...]
-    directory: Mapping[str, DirectoryEntry]
     wan_port: WanPort
     bonjour: Mapping[str, frozenset[str]]

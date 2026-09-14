@@ -2,6 +2,19 @@
 # Installs and configures the home network monitoring stack (Prometheus, Grafana, Alertmanager,
 # ping_exporter, blackbox_exporter, node_exporter, and three custom exporters). See README.md.
 
+- name: Verify Vault Variables are Defined
+  ansible.builtin.assert:
+    that:
+      - vault_amplifi_password is defined
+      - vault_gateway_username is defined
+      - vault_gateway_password is defined
+      - vault_grafana_admin_password is defined
+      - vault_alertmanager_slack_bot_token is defined
+      - vault_alertmanager_discord_webhook_url is defined
+      - vault_monitoring_tracked_clients is defined
+    fail_msg: The monitoring role needs its vault_* variables (see roles/monitoring/README.md).
+  when: not is_test
+
 - name: Create System User
   ansible.builtin.user:
     name: "{{ monitoring_user }}"
@@ -109,19 +122,41 @@
     host: "{{ monitoring_gateway_host }}"
     port: 443
   register: monitoring_gateway_cert
-  when: not is_test and monitoring_gateway_host | length > 0
+  # A gateway that is rebooting must not abort the deploy; the previously recorded fingerprint
+  # (below) keeps the exporter working, and without one it idles rather than using plain HTTP.
+  failed_when: false
+  when: not is_test and monitoring_gateway_host | length > 0 and not ansible_check_mode
 
 - name: Inspect Gateway TLS Certificate
   community.crypto.x509_certificate_info:
     content: "{{ monitoring_gateway_cert.cert }}"
   register: monitoring_gateway_cert_info
-  when: not is_test and monitoring_gateway_host | length > 0
+  when: monitoring_gateway_cert.cert is defined
+
+- name: Read Previously Recorded Gateway TLS Fingerprint
+  ansible.builtin.slurp:
+    src: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+  register: monitoring_gateway_fingerprint_file
+  failed_when: false
+  become: true
 
 - name: Set Gateway TLS Fingerprint
   ansible.builtin.set_fact:
     monitoring_gateway_tls_fingerprint: >-
       {{ monitoring_gateway_cert_info.fingerprints.sha256
-         if monitoring_gateway_cert_info is not skipped else '' }}
+         if monitoring_gateway_cert_info is not skipped
+         else (monitoring_gateway_fingerprint_file.content | b64decode | trim
+               if monitoring_gateway_fingerprint_file.content is defined else '') }}
+
+- name: Record Gateway TLS Fingerprint
+  ansible.builtin.copy:
+    content: "{{ monitoring_gateway_tls_fingerprint }}\n"
+    dest: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  when: monitoring_gateway_tls_fingerprint | length > 0
 
 - name: Create Environment File
   ansible.builtin.template:
@@ -131,7 +166,7 @@
     group: root
     mode: 'u=rw,g=,o='
   become: true
-  no_log: true
+  no_log: "{{ not is_test }}"
   notify: Restart Monitoring
 
 - name: Create Secret Files
@@ -153,7 +188,7 @@
   vars:
     monitoring_test_webhook_url: https://example.invalid/test-not-a-secret
   become: true
-  no_log: true
+  no_log: "{{ not is_test }}"
   notify: Restart Monitoring
 
 - name: Create Prometheus Configuration
@@ -209,7 +244,8 @@
   notify: Restart Monitoring
 
 # Seed the dynamic target files with the static targets only; the AmpliFi exporter rewrites them
-# whenever the set of tracked devices' addresses changes, so never overwrite an existing file here.
+# whenever the set of tracked devices' addresses changes (and leaves them alone at start-up), so
+# never overwrite an existing file here.
 - name: Seed Dynamic Target Files
   ansible.builtin.template:
     src: "{{ item }}.j2"
@@ -248,18 +284,19 @@
     mode: 'u=rw,g=r,o=r'
   become: true
 
-# Exporter source tree: copy an explicit, filtered list so local tooling caches and tests never reach
-# the server, then remove anything on the server that no longer exists locally.
+# Exporter source tree: copy exactly the files the image build consumes (an allowlist, so local
+# tooling caches, tests, and stray files never reach the server), then remove anything on the
+# server that no longer exists locally.
 - name: Find Exporter Source Files
   ansible.builtin.set_fact:
     monitoring_exporter_files: >-
       {{ query('community.general.filetree', 'exporters/')
          | selectattr('state', 'equalto', 'file')
-         | rejectattr('path', 'search', monitoring_exporter_excludes)
+         | selectattr('path', 'match', monitoring_exporter_allowlist)
+         | rejectattr('path', 'search', '(^|/)__pycache__/')
          | map(attribute='path') | list }}
   vars:
-    monitoring_exporter_excludes: >-
-      (^|/)(\.venv|__pycache__|\.\w+_cache|tests)(/|$)
+    monitoring_exporter_allowlist: '^(Dockerfile|\.dockerignore|pyproject\.toml|uv\.lock|src/.+)$'
 
 - name: Create Exporter Source Directories
   ansible.builtin.file:
@@ -288,6 +325,7 @@
   ansible.builtin.find:
     paths: "{{ monitoring_base_dir }}/exporters"
     recurse: true
+    hidden: true
     file_type: file
   register: monitoring_deployed_exporter_files
   become: true
@@ -341,5 +379,4 @@
     name: monitoring
     state: started
     enabled: true
-    daemon_reload: true
   become: true

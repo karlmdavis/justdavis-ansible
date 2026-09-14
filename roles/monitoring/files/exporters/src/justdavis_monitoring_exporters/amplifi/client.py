@@ -9,8 +9,10 @@ Login flow:
 4. `POST /info-async.php` with form fields `do=full` and `token`; the body is the JSON feed parsed by
    `amplifi.parser`.
 
-The session expires after inactivity: `GET /info.php` then redirects to `/login.php`, which triggers a
-fresh login. The UI is plain HTTP, so the password crosses the LAN in cleartext on each login.
+The session expires after inactivity: `GET /info.php` then redirects to `/login.php` (or serves the
+login form directly), which triggers a fresh login. The redirect is only used as a signal; its
+`Location` is never fetched. The UI is plain HTTP, so the password crosses the LAN in cleartext on
+each login. HTTP error statuses surface as `HttpStatusError` from the HTTP client.
 """
 
 import logging
@@ -28,9 +30,11 @@ _INFO_PATH = "/info.php"
 _INFO_ASYNC_PATH = "/info-async.php"
 
 
-def _is_login_redirect(response: HttpResponse) -> bool:
+def _needs_login(response: HttpResponse) -> bool:
     location = response.headers.get("location", "")
-    return 300 <= response.status < 400 and "login.php" in location
+    if 300 <= response.status < 400 and "login.php" in location:
+        return True
+    return _looks_like_login_form(response.body)
 
 
 def _looks_like_login_form(body: bytes) -> bool:
@@ -48,11 +52,12 @@ class AmplifiClient:
     def fetch_info_async(self) -> bytes:
         """Return the raw `info-async.php` body, logging in first (or again) when needed."""
         info = self._http.get(_INFO_PATH)
-        if _is_login_redirect(info) or _looks_like_login_form(info.body):
+        if _needs_login(info):
             self._login()
             info = self._http.get(_INFO_PATH)
-            if _is_login_redirect(info) or _looks_like_login_form(info.body):
+            if _needs_login(info):
                 raise LoginError("router still requires login after a successful-looking login")
+            log.info("logged in to the AmpliFi router")
         token = self._extract(_INFO_TOKEN_RE, info.body, "info page token")
         return self._http.post(_INFO_ASYNC_PATH, data={"do": "full", "token": token}).body
 
@@ -62,7 +67,6 @@ class AmplifiClient:
         result = self._http.post(_LOGIN_PATH, data={"token": token, "password": self._password})
         if result.status == 200 and _looks_like_login_form(result.body):
             raise LoginError("router rejected the password")
-        log.info("logged in to the AmpliFi router")
 
     @staticmethod
     def _extract(pattern: re.Pattern[str], body: bytes, what: str) -> str:

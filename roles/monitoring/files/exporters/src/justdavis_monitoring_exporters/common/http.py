@@ -1,20 +1,21 @@
 """A small, hardened HTTP client used to talk to the router and gateway.
 
-All requests carry a timeout, never follow redirects (callers inspect 3xx responses themselves and only
-accept on-host `Location`s), and stream the body with a size cap so a hung or misbehaving device
-cannot block the scrape thread forever or exhaust memory. The `HttpClient` protocol lets tests drive the
-device clients with scripted responses.
+All requests carry a timeout and never follow redirects (the device clients only use a redirect as a
+"session expired" signal and never fetch its `Location`). Bodies are streamed with a size cap so a hung
+or misbehaving device cannot block the scrape thread forever or exhaust memory, and 4xx/5xx statuses
+raise `HttpStatusError` so an outage is reported as such rather than as a parse failure. The
+`HttpClient` protocol lets tests drive the device clients with scripted responses.
 """
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin
 
 import requests
 from requests.adapters import HTTPAdapter
 
-from justdavis_monitoring_exporters.common.errors import ResponseTooLarge
+from justdavis_monitoring_exporters.common.errors import HttpStatusError, ResponseTooLarge
 
 _CHUNK = 65536
 DEFAULT_TIMEOUT: tuple[float, float] = (5.0, 15.0)
@@ -34,11 +35,14 @@ class CaseInsensitiveHeaders(Mapping[str, str]):
     def __len__(self) -> int:
         return len(self._items)
 
+    def __repr__(self) -> str:
+        return f"CaseInsensitiveHeaders({self._items!r})"
+
 
 @dataclass(frozen=True, slots=True)
 class HttpResponse:
     status: int
-    headers: Mapping[str, str]
+    headers: CaseInsensitiveHeaders
     body: bytes
 
 
@@ -46,13 +50,6 @@ class HttpClient(Protocol):
     def get(self, path: str, *, params: Mapping[str, str] | None = None) -> HttpResponse: ...
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse: ...
-
-
-def same_host(base_url: str, location: str) -> bool:
-    """True when `location` (relative or absolute) stays on `base_url`'s scheme and host."""
-    base = urlsplit(base_url)
-    target = urlsplit(urljoin(base_url, location))
-    return (target.scheme, target.hostname) == (base.scheme, base.hostname)
 
 
 class _RawResponse(Protocol):
@@ -112,6 +109,8 @@ class RequestsHttpClient:
             body = self._read_capped(raw)
         finally:
             raw.close()
+        if raw.status_code >= 400:
+            raise HttpStatusError(raw.status_code, path)
         return HttpResponse(status=raw.status_code, headers=CaseInsensitiveHeaders(raw.headers), body=body)
 
     def _read_capped(self, raw: _RawResponse) -> bytes:
@@ -133,6 +132,7 @@ class FingerprintAdapter(HTTPAdapter):
     """
 
     def __init__(self, fingerprint: str) -> None:
+        # Must be set before super().__init__(), which calls init_poolmanager().
         self.fingerprint = fingerprint
         super().__init__()
 

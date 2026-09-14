@@ -25,14 +25,12 @@ TABLET = {"mac": "02:00:00:00:00:20", "name": "", "kind": "other"}
 def registry_with(
     snapshot: AmplifiSnapshot | None, status: ScrapeStatus | None = None
 ) -> tuple[CollectorRegistry, AmplifiCollector]:
-    snapshots: SnapshotHolder[AmplifiSnapshot] = SnapshotHolder()
-    if snapshot is not None:
-        snapshots.set(snapshot)
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(status or ScrapeStatus.initial())
-    targets: SnapshotHolder[tuple[TargetInfo, ...]] = SnapshotHolder()
-    targets.set((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
-    collector = AmplifiCollector(snapshots, statuses, targets, TRACKED, Unwrapper32())
+    collector = AmplifiCollector(statuses, TRACKED, Unwrapper32())
+    collector.set_targets((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
+    if snapshot is not None:
+        collector.publish(snapshot)
     registry = CollectorRegistry()
     registry.register(collector)
     return registry, collector
@@ -106,8 +104,34 @@ def test_byte_counters_are_unwrapped_across_snapshots() -> None:
     first = registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A)
     assert first == 4294967200.0
     wrapped = _with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50)
-    collector.snapshots.set(wrapped)
+    collector.publish(wrapped)
     assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0 + 96 + 50
+
+
+def test_clearing_the_snapshot_restarts_counter_baselines() -> None:
+    registry, collector = registry_with(SNAPSHOT)
+    collector.clear()
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) is None
+    collector.publish(_with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50))
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 50.0
+
+
+def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:
+    from dataclasses import replace
+
+    stale = replace(
+        next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10"),
+        ap_mac="02:00:00:00:00:02",
+        inactive_seconds=900,
+        signal_quality=10,
+    )
+    snapshot = replace(SNAPSHOT, clients=(*SNAPSHOT.clients, stale))
+    registry, _ = registry_with(snapshot)
+    assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) == 74.0
+    from prometheus_client import generate_latest
+
+    exposition = generate_latest(registry).decode()
+    assert exposition.count('amplifi_client_signal_quality{kind="homepod",mac="02:00:00:00:00:10"') == 1
 
 
 def test_mesh_point_and_router_metrics() -> None:

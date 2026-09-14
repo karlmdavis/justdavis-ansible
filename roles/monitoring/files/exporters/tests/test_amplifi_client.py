@@ -82,3 +82,27 @@ def test_missing_login_token_raises_login_error() -> None:
 def test_password_never_appears_in_repr() -> None:
     client = AmplifiClient(logged_out_then_in(), password="hunter2")
     assert "hunter2" not in repr(client)
+
+
+def test_login_form_returned_with_200_from_info_page_triggers_login() -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/login.php"): [response(200, LOGIN_HTML)],
+            ("POST", "/login.php"): [response(302, "", location="/index.php")],
+            ("GET", "/info.php"): [response(200, LOGIN_HTML), response(200, INFO_HTML)],
+            ("POST", "/info-async.php"): [response(200, INFO_JSON)],
+        }
+    )
+    assert AmplifiClient(http, password="secret").fetch_info_async() == INFO_JSON
+
+
+def test_login_that_does_not_stick_raises_login_error() -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/login.php"): [response(200, LOGIN_HTML)],
+            ("POST", "/login.php"): [response(302, "", location="/index.php")],
+            ("GET", "/info.php"): [response(302, "", location="/login.php")],
+        }
+    )
+    with pytest.raises(LoginError):
+        AmplifiClient(http, password="secret").fetch_info_async()

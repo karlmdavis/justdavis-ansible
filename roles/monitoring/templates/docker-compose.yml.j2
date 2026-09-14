@@ -51,13 +51,13 @@ services:
       - "127.0.0.1:{{ monitoring_prometheus_port }}:{{ monitoring_prometheus_port }}"
     mem_limit: {{ monitoring_prometheus_mem_limit }}
 
+  # Grafana gets only its own settings, never the shared .env with the device credentials.
   grafana:
     <<: *hardened
     image: {{ monitoring_grafana_image }}
     user: "{{ monitoring_uid }}:{{ monitoring_gid }}"
-    env_file:
-      - .env
     environment:
+      GF_SERVER_ROOT_URL: {{ monitoring_grafana_root_url }}
       GF_SECURITY_ADMIN_PASSWORD__FILE: /secrets/grafana_admin_password
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
       GF_LOG_MODE: console
@@ -120,10 +120,10 @@ services:
       - {{ monitoring_base_dir }}/shared:/shared
     healthcheck:
       test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request as u; u.urlopen('http://127.0.0.1:{{ monitoring_amplifi_exporter_port }}/metrics', timeout=3)"
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request as u;
+          u.urlopen('http://127.0.0.1:{{ monitoring_amplifi_exporter_port }}/metrics', timeout=3)"
       interval: 60s
       timeout: 5s
       retries: 3
@@ -137,10 +137,10 @@ services:
       MONITORING_GATEWAY_PORT: "{{ monitoring_gateway_exporter_port }}"
     healthcheck:
       test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request as u; u.urlopen('http://127.0.0.1:{{ monitoring_gateway_exporter_port }}/metrics', timeout=3)"
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request as u;
+          u.urlopen('http://127.0.0.1:{{ monitoring_gateway_exporter_port }}/metrics', timeout=3)"
       interval: 60s
       timeout: 5s
       retries: 3
@@ -156,10 +156,11 @@ services:
       MONITORING_AIRPLAY_PORT: "{{ monitoring_airplay_exporter_port }}"
     healthcheck:
       test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request as u; u.urlopen('http://{{ monitoring_docker_gateway }}:{{ monitoring_airplay_exporter_port }}/metrics', timeout=3)"
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request as u;
+          u.urlopen('http://{{ monitoring_docker_gateway }}:{{ monitoring_airplay_exporter_port
+          }}/metrics', timeout=3)"
       interval: 60s
       timeout: 5s
       retries: 3
@@ -202,6 +203,5 @@ services:
       - --collector.filesystem
       - --collector.netdev
       - --collector.netdev.device-exclude=^(veth.*|docker.*|br-[0-9a-f]{12}|vnet.*|tailscale.*|lo)$
-      - --collector.filesystem.mount-points-exclude=^/(dev|proc|run|sys|var/lib/docker/.+|host/(dev|proc|run|sys|var/lib/docker/.+))($|/)
     volumes:
       - /:/host:ro,rslave

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Prometheus exporters for the justdavis.com home network: AmpliFi router, Comcast gateway, AirPlay mDNS."
 requires-python = ">=3.13"
 dependencies = [
+    "ifaddr==0.2.0",
     "prometheus-client==0.26.0",
     "requests==2.34.2",
     "zeroconf==0.151.3",

@@ -90,15 +90,6 @@ def test_mac_addresses_are_normalised_to_lowercase(info_async_bytes: bytes) -> N
     assert all(c.mac == c.mac.lower() for c in snapshot.clients)
 
 
-def test_parses_device_directory(info_async_bytes: bytes) -> None:
-    snapshot = parse_info_async(info_async_bytes)
-    assert snapshot.directory[SPEAKER_A_MAC].display_name == "Speaker A"
-    assert snapshot.directory[SPEAKER_B_MAC].display_name == "Speaker-B"
-    assert snapshot.directory[TABLET_MAC].display_name == "Someone's Tablet"
-    assert snapshot.directory["02:00:00:00:00:30"].connection == "ethernet"
-    assert snapshot.directory["02:00:00:00:00:30"].ip == "192.0.2.2"
-
-
 def test_parses_wan_port(info_async_bytes: bytes) -> None:
     snapshot = parse_info_async(info_async_bytes)
     wan = snapshot.wan_port
@@ -133,3 +124,11 @@ def test_wrong_field_type_raises_parse_error(info_async_bytes: bytes) -> None:
     with pytest.raises(ParseError) as excinfo:
         parse_info_async(json.dumps(data).encode())
     assert "uptime" in str(excinfo.value)
+
+
+def test_mac_keys_are_canonicalised(info_async_bytes: bytes) -> None:
+    data = json.loads(info_async_bytes)
+    clients = data[1]["02:00:00:00:00:01"]["2.4 GHz"]["User network"]
+    clients["02-00-00-00-00-AB"] = clients.pop("02:00:00:00:00:10")
+    snapshot = parse_info_async(json.dumps(data).encode())
+    assert any(c.mac == "02:00:00:00:00:ab" for c in snapshot.clients)

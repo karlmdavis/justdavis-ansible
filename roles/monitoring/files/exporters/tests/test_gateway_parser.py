@@ -105,3 +105,53 @@ def test_uptime_text_garbage_raises_parse_error() -> None:
 
     with pytest.raises(ParseError):
         parse_uptime("forever")
+
+
+def _with_cells(html: str, row_label: str, first_cell: str) -> str:
+    """Replace the first data cell of the given downstream-table row."""
+    start = html.index(f'<th class="row-label ">{row_label}</td>')
+    cell_start = html.index('<div class="netWidth">', start) + len('<div class="netWidth">')
+    cell_end = html.index("</div>", cell_start)
+    return html[:cell_start] + first_cell + html[cell_end:]
+
+
+def test_unlocked_channel_with_placeholder_values_is_kept_with_missing_numbers(
+    comcast_network_html: str,
+) -> None:
+    html = _with_cells(comcast_network_html, "Lock Status", "Not Locked")
+    html = _with_cells(html, "SNR", "----")
+    html = _with_cells(html, "Power Level", "N/A")
+    status = parse_comcast_network(html)
+    first = status.downstream[0]
+    assert first.locked is False
+    assert first.snr_db is None
+    assert first.power_dbmv is None
+    assert status.downstream[1].snr_db == 43.5
+
+
+def test_comma_grouped_codeword_counts_are_parsed(comcast_network_html: str) -> None:
+    html = _with_cells(comcast_network_html, "Unerrored Codewords", "209,921,024")
+    assert parse_comcast_network(html).downstream[0].unerrored == 209921024
+
+
+def test_unrecognised_lock_status_wording_raises_parse_error(comcast_network_html: str) -> None:
+    with pytest.raises(ParseError) as excinfo:
+        parse_comcast_network(_with_cells(comcast_network_html, "Lock Status", "Locked?"))
+    assert "Lock Status" in str(excinfo.value)
+
+
+def test_internet_inactive_is_parsed(comcast_network_html: str) -> None:
+    html = comcast_network_html.replace(
+        '<span class="readonlyLabel">Internet:</span>\n\t\t<span class="value">Active</span>',
+        '<span class="readonlyLabel">Internet:</span>\n\t\t<span class="value">Inactive</span>',
+    )
+    assert parse_comcast_network(html).internet_active is False
+
+
+def test_unrecognised_internet_wording_raises_parse_error(comcast_network_html: str) -> None:
+    html = comcast_network_html.replace(
+        '<span class="readonlyLabel">Internet:</span>\n\t\t<span class="value">Active</span>',
+        '<span class="readonlyLabel">Internet:</span>\n\t\t<span class="value">Maybe</span>',
+    )
+    with pytest.raises(ParseError):
+        parse_comcast_network(html)

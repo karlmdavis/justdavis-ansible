@@ -235,6 +235,7 @@ name = "justdavis-monitoring-exporters"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "ifaddr" },
     { name = "prometheus-client" },
     { name = "requests" },
     { name = "zeroconf" },
@@ -250,6 +251,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ifaddr", specifier = "==0.2.0" },
     { name = "prometheus-client", specifier = "==0.26.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "zeroconf", specifier = "==0.151.3" },

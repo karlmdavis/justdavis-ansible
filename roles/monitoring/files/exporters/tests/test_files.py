@@ -3,6 +3,8 @@
 import stat
 from pathlib import Path
 
+import pytest
+
 from justdavis_monitoring_exporters.common.files import write_if_changed
 
 
@@ -27,11 +29,19 @@ def test_changed_content_is_rewritten(tmp_path: Path) -> None:
     assert target.read_bytes() == b"a: 2\n"
 
 
-def test_written_file_is_group_and_world_readable(tmp_path: Path) -> None:
+def test_written_file_is_group_readable_but_not_world_readable(tmp_path: Path) -> None:
     target = tmp_path / "targets.yml"
     write_if_changed(target, b"x")
     mode = stat.S_IMODE(target.stat().st_mode)
-    assert mode == 0o644
+    assert mode == 0o640
+
+
+def test_failed_replace_leaves_no_temporary_file(tmp_path: Path) -> None:
+    target = tmp_path / "dir"
+    target.mkdir()
+    with pytest.raises(OSError):
+        write_if_changed(target, b"x")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["dir"]
 
 
 def test_no_temporary_files_are_left_behind(tmp_path: Path) -> None:

@@ -88,15 +88,30 @@
 #
 # Security benefit: Multi-layer protection via fail2ban (auth failures), rate limiting (IMAP),
 # and application-level controls (SASL authentication, spam filtering, virus scanning).
-- name: Firewall - Allow Mail Traffic (SMTP, SMTPS, Submission)
+# Port 465 (SMTPS) is deliberately not opened: Postfix runs no smtps listener, only submission (587).
+- name: Firewall - Allow Mail Traffic (SMTP, Submission)
   community.general.ufw:
     rule: allow
     name: "{{ item }}"
   with_items:
     - Postfix
-    - Postfix SMTPS
     - Postfix Submission
   become: true
+
+# LAN and tailnet mail clients are exempt from the IMAPS rate limit (they open several connections at
+# once on startup); inserted ahead of the limit rule because ufw matches the first applicable rule.
+- name: Firewall - Allow IMAPS from Trusted Networks Without Rate Limiting
+  community.general.ufw:
+    rule: allow
+    name: Dovecot Secure IMAP
+    from_ip: "{{ item.source }}"
+    comment: "Dovecot Secure IMAP - {{ item.name }}"
+    insert: 0
+    insert_relative_to: first-ipv4
+  become: true
+  loop:
+    - { source: "{{ network_home_private_cidr }}", name: 'LAN' }
+    - { source: "{{ network_tailscale_cidr }}", name: 'Tailscale' }
 
 - name: Firewall - Allow Mail Traffic (IMAPS with rate limiting)
   community.general.ufw:

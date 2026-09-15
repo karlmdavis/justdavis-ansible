@@ -36,8 +36,8 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
 - **restic over Borg**: restic talks to object storage directly (B2, S3, SFTP), is a single static
   binary in Ubuntu's apt, encrypts client-side with AES-256, and has first-class `forget`/`prune`/`check`.
   Borg needs an SSH host that runs Borg. Kopia is comparable but less proven for unattended servers.
-- **Backblaze B2 over a flat-rate box**: about $6/TB-month with card auto-pay and free egress up to three
-  times the stored volume; roughly $3/month for eddings' ~440 GB. A Hetzner Storage Box (flat ~€3.81 for
+- **Backblaze B2 over a flat-rate box**: $6.95/TB-month (2026-09 list price) with card auto-pay and free egress up to three
+  times the stored volume; roughly $3.50/month for eddings' ~440 GB. A Hetzner Storage Box (flat ~€3.81 for
   1 TB) is the alternative if a fixed invoice ever matters more; moving is one `rclone copy` of the
   encrypted repository.
 - **Credentials in an EnvironmentFile**: `/etc/offsite-backups/restic.env` (root, `0600`) holds the
@@ -52,7 +52,10 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
 
 ## One-Time Setup (owner)
 
-1. Create a Backblaze account with a card on file and a **private** bucket named
+1. Sign up for **Backblaze B2 Cloud Storage** (the pay-as-you-go object storage product at
+   backblaze.com/cloud-storage, not the $99/year "Computer Backup" client, which is a Mac/Windows
+   desktop agent and does not apply to a Linux server). Add a card; billing is monthly by usage, and
+   the first 10 GB is free. Then create a **private** bucket named
    `justdavis-offsite-backups` (or override `offsite_backups_b2_bucket`). Leave versioning at its
    default ("keep only the last version"); restic manages its own history. Do not enable object lock yet.
 2. Create an **application key restricted to that bucket** with capabilities `listBuckets`, `listFiles`,

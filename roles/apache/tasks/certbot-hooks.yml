@@ -1,0 +1,18 @@
+---
+# Installs the Certbot deploy hook that picks up renewed certificates in Apache. Certbot runs every
+# executable script in the deploy hook directory after a successful renewal, in addition to the
+# lineage's own `renew_hook` (see `certbot.yml`, which handles key permissions and slapd).
+
+- name: Create Certbot Deploy Hook Directory
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Create Certbot Deploy Hook Script for Apache
+  ansible.builtin.template:
+    src: 'certbot-deploy-apache.sh'
+    dest: '/etc/letsencrypt/renewal-hooks/deploy/10-apache2'
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true

@@ -1,0 +1,13 @@
+[Unit]
+Description=Offsite Backups - Integrity Check
+OnFailure=status-email-root@%n.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=12h
+EnvironmentFile=/etc/offsite-backups/restic.env
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ExecStart=/usr/bin/flock --wait 7200 /run/lock/offsite-backups.lock /usr/local/bin/offsite-backups-check.sh
+User=root

@@ -139,6 +139,14 @@
         # burst. See https://github.com/karlmdavis/justdavis-ansible/issues/72
         instance_type: t2.large
         image_id: "{{ ami_id_ubuntu_24_04 }}"
+        # Override the default Ubuntu AMI root volume size (8 GB): the user_karl role installs Homebrew,
+        # a Rust toolchain, and a Node toolchain, which filled the default volume (ENOSPC, 2026-09-15).
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 30
+              volume_type: gp3
+              delete_on_termination: true
         user_data: |
                    #!/bin/sh
                    # Seed the new VM with entropy. It's probably not great quality entropy, but

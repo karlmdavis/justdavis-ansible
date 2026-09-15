@@ -1,0 +1,191 @@
+---
+# Verifies the monitoring stack after deployment. This file is imported unconditionally (the `test`
+# tag only allows opting in with `--tags`), so it runs in production too and every check must hold
+# on a healthy long-running system, not just a fresh one.
+
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Test - Verify Monitoring Service is Running
+  ansible.builtin.systemd_service:
+    name: monitoring
+  register: monitoring_service_status
+  failed_when: monitoring_service_status.status.ActiveState != "active"
+  become: true
+
+- name: Test - Wait for Prometheus Readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/-/ready"
+    status_code: 200
+  register: monitoring_prometheus_ready
+  until: monitoring_prometheus_ready.status == 200
+  retries: 60
+  delay: 2
+
+- name: Test - Wait for Grafana Health
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_grafana_port }}/api/health"
+    status_code: 200
+  register: monitoring_grafana_health
+  until: monitoring_grafana_health.status == 200
+  retries: 60
+  delay: 2
+
+- name: Test - Wait for Alertmanager Readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_alertmanager_port }}/-/ready"
+    status_code: 200
+  register: monitoring_alertmanager_ready
+  until: monitoring_alertmanager_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Test - Full Prometheus Configuration Check
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
+    chdir: "{{ monitoring_base_dir }}"
+  changed_when: false
+  check_mode: false
+  become: true
+
+# The bridge-only exporters are not reachable from the host, so ask Prometheus's container to fetch
+# their metrics. Both serve their status metrics even when the device is not configured (as in test).
+- name: Test - Fetch Bridge Exporter Metrics
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/docker compose exec -T prometheus
+      wget -qO- http://{{ item.service }}:{{ item.port }}/metrics
+    chdir: "{{ monitoring_base_dir }}"
+  loop:
+    - service: amplifi_exporter
+      port: "{{ monitoring_amplifi_exporter_port }}"
+      metric: amplifi_up
+    - service: gateway_exporter
+      port: "{{ monitoring_gateway_exporter_port }}"
+      metric: gateway_up
+  loop_control:
+    label: "{{ item.service }}"
+  register: monitoring_bridge_metrics
+  until: item.metric in monitoring_bridge_metrics.stdout
+  retries: 30
+  delay: 2
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Fetch Host-Network Exporter Metrics
+  ansible.builtin.uri:
+    url: "http://{{ monitoring_docker_gateway }}:{{ item.port }}/metrics"
+    return_content: true
+  loop:
+    - port: "{{ monitoring_airplay_exporter_port }}"
+      metric: airplay_up
+    - port: "{{ monitoring_ping_exporter_port }}"
+      metric: ping_up
+    - port: "{{ monitoring_node_exporter_port }}"
+      metric: node_memory_MemTotal_bytes
+  loop_control:
+    label: "{{ item.metric }}"
+  register: monitoring_host_metrics
+  until: item.metric in monitoring_host_metrics.content
+  retries: 30
+  delay: 2
+
+- name: Test - Verify ping_exporter Pings the Static Targets
+  ansible.builtin.uri:
+    url: "http://{{ monitoring_docker_gateway }}:{{ monitoring_ping_exporter_port }}/metrics"
+    return_content: true
+  register: monitoring_ping_metrics
+  until: >-
+    ('ping_loss_ratio{' in monitoring_ping_metrics.content)
+    and ('target="' ~ monitoring_static_ping_targets[0] ~ '"') in monitoring_ping_metrics.content
+  retries: 30
+  delay: 2
+
+# The `airplay_tcp` job is dynamic (it only has targets while a tracked HomePod is associated), so
+# it is deliberately not required here.
+- name: Test - Wait for All Prometheus Targets to be Up
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/targets?state=active"
+    return_content: true
+  register: monitoring_targets
+  until: >-
+    (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
+    and (['airplay', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
+         | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
+        == []
+  retries: 30
+  delay: 5
+
+# Informational in production: device scrapers depend on the devices being up, so their state is
+# reported rather than asserted.
+- name: Test - Report Device Scraper Status
+  ansible.builtin.uri:
+    url: >-
+      http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/query?query={{
+      '{__name__=~"amplifi_up|gateway_up|airplay_up"}' | urlencode }}
+    return_content: true
+  register: monitoring_device_status
+  when: not is_test
+
+- name: Test - Show Device Scraper Status
+  ansible.builtin.debug:
+    msg: >-
+      {{ monitoring_device_status.json.data.result
+         | map(attribute='metric.__name__') | zip(monitoring_device_status.json.data.result
+         | map(attribute='value') | map('last')) | map('join', '=') | list }}
+  when: not is_test
+
+- name: Test - Count Expected Containers
+  ansible.builtin.set_fact:
+    monitoring_container_count: 9
+
+- name: Test - List Monitoring Containers
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose ps --all --quiet
+    chdir: "{{ monitoring_base_dir }}"
+  register: monitoring_container_ids
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Inspect Monitoring Containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      - >-
+        {{ "{{" }}.Name{{ "}}" }} {{ "{{" }}.State.Status{{ "}}" }}
+        {{ "{{" }}.RestartCount{{ "}}" }} {{ "{{" }}.Config.Image{{ "}}" }}
+      - "{{ item }}"
+  loop: "{{ monitoring_container_ids.stdout_lines }}"
+  register: monitoring_container_states
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Verify Every Container is Running
+  ansible.builtin.assert:
+    that:
+      - monitoring_container_ids.stdout_lines | length == monitoring_container_count
+      - monitoring_container_states.results | map(attribute='stdout') | select('search', ' running ')
+        | list | length == monitoring_container_count
+    fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
+
+- name: Test - Verify Exporter Containers Use the Locally Built Image
+  ansible.builtin.assert:
+    that:
+      - monitoring_container_states.results | map(attribute='stdout')
+        | select('search', ' ' ~ monitoring_exporters_image ~ '$') | list | length == 3
+    fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
+
+# A single historical crash must not fail every future production run, so restart counts are only
+# asserted on a fresh test system.
+- name: Test - Verify No Container Has Restarted (test only)
+  ansible.builtin.assert:
+    that:
+      - monitoring_container_states.results | map(attribute='stdout') | select('search', ' 0 ')
+        | list | length == monitoring_container_count
+    fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
+  when: is_test

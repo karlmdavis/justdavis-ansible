@@ -33,6 +33,13 @@
   failed_when: dig_immich.stdout == "" or dig_immich.rc != 0
   changed_when: false
 
+- name: Test DNS - Resolve intranet subdomain service (grafana)
+  ansible.builtin.command:
+    cmd: "dig +short grafana.intranet.{{ domain }}"
+  register: dig_grafana
+  failed_when: dig_grafana.stdout == "" or dig_grafana.rc != 0
+  changed_when: false
+
 - name: Test DNS - Resolve preview subdomain
   ansible.builtin.command:
     cmd: "dig +short preview.{{ domain_sw }}"

@@ -1,0 +1,280 @@
+[
+  {
+    "02:00:00:00:00:01": {
+      "children": {
+        "wifi": {
+          "02:00:00:00:00:02": {
+            "active_band": "2.4 GHz",
+            "connected_from": 2024,
+            "connected_to": 4643,
+            "connections_from": 4,
+            "connections_to": 11,
+            "cost": 3,
+            "first_connected": 33570,
+            "friendly_name": "Kitchen",
+            "ip": "192.0.2.239",
+            "last_connected": 2024,
+            "last_disconnected": 2029,
+            "level": 2,
+            "mac": "02:00:00:00:00:02",
+            "master_peer": "02:00:00:00:00:01",
+            "overriden_active_band": "2.4 GHz",
+            "platform_modification": 2,
+            "platform_name": "AFi-P-HD",
+            "protocol": 140,
+            "region_lock": "US",
+            "role": "Extender",
+            "rssi_min": -44,
+            "uptime": 2008337
+          },
+          "02:00:00:00:00:03": {
+            "active_band": "5 GHz",
+            "connected_from": 100,
+            "connected_to": 200,
+            "connections_from": 1,
+            "connections_to": 2,
+            "cost": 3,
+            "first_connected": 300,
+            "friendly_name": "Living Room (AFi-P-HD-000003)",
+            "ip": "192.0.2.234",
+            "last_connected": 100,
+            "last_disconnected": 105,
+            "level": 2,
+            "mac": "02:00:00:00:00:03",
+            "master_peer": "02:00:00:00:00:01",
+            "overriden_active_band": "5 GHz",
+            "platform_modification": 2,
+            "platform_name": "AFi-P-HD",
+            "protocol": 140,
+            "region_lock": "US",
+            "role": "Extender",
+            "rssi_min": -63,
+            "uptime": 2008342
+          }
+        }
+      },
+      "cost": 0,
+      "friendly_name": "test-router",
+      "ip": "192.0.2.1",
+      "level": 1,
+      "mac": "02:00:00:00:00:01",
+      "platform_name": "AFi-R-HD",
+      "protocol": 140,
+      "region_lock": "US",
+      "role": "Router",
+      "uptime": 33652
+    }
+  },
+  {
+    "02:00:00:00:00:01": {
+      "2.4 GHz": {
+        "User network": {
+          "02:00:00:00:00:10": {
+            "Address": "192.0.2.110",
+            "HappinessScore": 75,
+            "HostName": "Speaker-A",
+            "Inactive": 30,
+            "LeaseValidity": 2520,
+            "MaxBandwidth": 20,
+            "MaxSpatialStreams": 1,
+            "Mode": "802.11n",
+            "RxBitrate": 52000,
+            "RxBytes": 4294967200,
+            "RxBytes_15sec": 100,
+            "RxBytes_30sec": 200,
+            "RxBytes_5sec": 30,
+            "RxBytes_60sec": 400,
+            "RxMcs": 5,
+            "RxMhz": 20,
+            "SignalQuality": 74,
+            "TxBitrate": 11000,
+            "TxBytes": 56870999,
+            "TxBytes_15sec": 100,
+            "TxBytes_30sec": 200,
+            "TxBytes_5sec": 30,
+            "TxBytes_60sec": 400,
+            "TxMcs": 1,
+            "TxMhz": 20
+          }
+        },
+        "Internal network": {
+          "02:00:00:00:00:F2": {
+            "HappinessScore": 90,
+            "Inactive": 0,
+            "RxBitrate": 195000,
+            "RxBytes": 1090667698,
+            "RxBytes_15sec": 3693924,
+            "RxBytes_30sec": 7263961,
+            "RxBytes_5sec": 1345646,
+            "RxBytes_60sec": 16856825,
+            "RxMcs": 22,
+            "RxMhz": 20,
+            "SignalQuality": 97,
+            "TxBitrate": 173300,
+            "TxBytes": 4294967295,
+            "TxBytes_15sec": 1,
+            "TxBytes_30sec": 2,
+            "TxBytes_5sec": 3,
+            "TxBytes_60sec": 4,
+            "TxMcs": 20,
+            "TxMhz": 20
+          }
+        }
+      },
+      "5 GHz": {
+        "User network": {
+          "02:00:00:00:00:20": {
+            "Address": "192.0.2.120",
+            "HappinessScore": 100,
+            "HostName": "Tablet",
+            "Inactive": 490,
+            "LeaseValidity": 3000,
+            "MaxBandwidth": 80,
+            "MaxSpatialStreams": 2,
+            "Mode": "802.11ac",
+            "RxBitrate": 650000,
+            "RxBytes": 1000,
+            "RxBytes_15sec": 0,
+            "RxBytes_30sec": 0,
+            "RxBytes_5sec": 0,
+            "RxBytes_60sec": 0,
+            "RxMcs": 9,
+            "RxMhz": 80,
+            "SignalQuality": 89,
+            "TxBitrate": 6000,
+            "TxBytes": 2000,
+            "TxBytes_15sec": 0,
+            "TxBytes_30sec": 0,
+            "TxBytes_5sec": 0,
+            "TxBytes_60sec": 0,
+            "TxMcs": 0,
+            "TxMhz": 80
+          }
+        }
+      }
+    },
+    "02:00:00:00:00:02": {
+      "5 GHz": {
+        "User network": {
+          "02:00:00:00:00:11": {
+            "Address": "192.0.2.212",
+            "HappinessScore": 85,
+            "HostName": "Speaker-B",
+            "Inactive": 710,
+            "LeaseValidity": 3201,
+            "MaxBandwidth": 20,
+            "MaxSpatialStreams": 1,
+            "Mode": "802.11n",
+            "RxBitrate": 72200,
+            "RxBytes": 402156219,
+            "RxBytes_15sec": 19400,
+            "RxBytes_30sec": 65029,
+            "RxBytes_5sec": 4574,
+            "RxBytes_60sec": 134231,
+            "RxMcs": 7,
+            "RxMhz": 20,
+            "SignalQuality": 77,
+            "TxBitrate": 72200,
+            "TxBytes": 56870999,
+            "TxBytes_15sec": 21462,
+            "TxBytes_30sec": 56019,
+            "TxBytes_5sec": 5363,
+            "TxBytes_60sec": 98954,
+            "TxMcs": 7,
+            "TxMhz": 20
+          }
+        }
+      }
+    }
+  },
+  {
+    "02:00:00:00:00:10": {
+      "connection": "wireless",
+      "custom_info": {
+        "fingerprint": {
+          "device_id": 4456
+        }
+      },
+      "description": "Speaker A",
+      "host_name": "Speaker-A",
+      "icon_id": 4456,
+      "ip": "192.0.2.110",
+      "lease_validity": 2520
+    },
+    "02:00:00:00:00:11": {
+      "connection": "wireless",
+      "host_name": "Speaker-B",
+      "icon_id": 4456,
+      "ip": "192.0.2.212",
+      "lease_validity": 3201
+    },
+    "02:00:00:00:00:20": {
+      "connection": "wireless",
+      "description": "Someone's Tablet",
+      "host_name": "Tablet",
+      "icon_id": 92,
+      "ip": "192.0.2.120",
+      "lease_validity": 3000
+    },
+    "02:00:00:00:00:30": {
+      "connection": "ethernet",
+      "host_name": "server",
+      "icon_id": 3798,
+      "ip": "192.0.2.2"
+    }
+  },
+  {
+    "02:00:00:00:00:01": {
+      "02:00:00:00:00:30": 1
+    }
+  },
+  {
+    "02:00:00:00:00:01": {
+      "eth-0": {
+        "link": true,
+        "link_speed": 1000,
+        "rx_bitrate": 21931,
+        "tx_bitrate": 542
+      },
+      "eth-1": {
+        "link": true,
+        "link_speed": 1000,
+        "rx_bitrate": 850,
+        "tx_bitrate": 31
+      },
+      "eth-2": {
+        "link": false
+      }
+    }
+  },
+  {
+    "02:00:00:00:00:10": {
+      "bonjour": {
+        "ip": "192.0.2.110",
+        "services": [
+          "AABBCCDDEEFF@Speaker-A._raop._tcp.local",
+          "Speaker-A._airplay._tcp.local",
+          "Speaker-A._companion-link._tcp.local",
+          "Speaker-A.local",
+          "_airplay._tcp.local",
+          "_companion-link._tcp.local",
+          "_raop._tcp.local"
+        ]
+      },
+      "device": {
+        "host_name": "Speaker-A",
+        "id": 3797,
+        "model_name": "Wireless",
+        "name": "Speaker-A"
+      }
+    },
+    "02:00:00:00:00:30": {
+      "device": {
+        "host_name": "server",
+        "id": 3798,
+        "model_name": "Wired",
+        "name": "server"
+      }
+    }
+  }
+]

@@ -67,6 +67,12 @@
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich
+    # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`.
+    - name: Import role - monitoring
+      ansible.builtin.import_role:
+        name: monitoring
+      tags:
+        - monitoring
 
 - name: Apply Common Configuration
   hosts: all

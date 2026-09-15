@@ -1,0 +1,382 @@
+---
+# Installs and configures the home network monitoring stack (Prometheus, Grafana, Alertmanager,
+# ping_exporter, blackbox_exporter, node_exporter, and three custom exporters). See README.md.
+
+- name: Verify Vault Variables are Defined
+  ansible.builtin.assert:
+    that:
+      - vault_amplifi_password is defined
+      - vault_gateway_username is defined
+      - vault_gateway_password is defined
+      - vault_grafana_admin_password is defined
+      - vault_alertmanager_slack_bot_token is defined
+      - vault_alertmanager_discord_webhook_url is defined
+      - vault_monitoring_tracked_clients is defined
+    fail_msg: The monitoring role needs its vault_* variables (see roles/monitoring/README.md).
+  when: not is_test
+
+- name: Create System User
+  ansible.builtin.user:
+    name: "{{ monitoring_user }}"
+    state: present
+    system: true
+    shell: /bin/false
+    create_home: false
+    home: "{{ monitoring_base_dir }}"
+  register: monitoring_user_result
+  become: true
+
+- name: Set User and Group IDs for Docker Compose
+  ansible.builtin.set_fact:
+    monitoring_uid: "{{ monitoring_user_result.uid }}"
+    monitoring_gid: "{{ monitoring_user_result.group }}"
+
+- name: Install Python Cryptography for Certificate Inspection
+  ansible.builtin.apt:
+    name: python3-cryptography
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
+  become: true
+
+- name: Create Root-Owned Directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  loop:
+    - "{{ monitoring_base_dir }}"
+    - "{{ monitoring_base_dir }}/prometheus"
+    - "{{ monitoring_base_dir }}/alertmanager"
+    - "{{ monitoring_base_dir }}/blackbox"
+    - "{{ monitoring_base_dir }}/grafana"
+    - "{{ monitoring_base_dir }}/grafana/provisioning"
+    - "{{ monitoring_base_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_base_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_base_dir }}/grafana/dashboards"
+    - "{{ monitoring_base_dir }}/exporters"
+  become: true
+
+# Data, secrets, and the shared target files are owned by the service user and are not world readable:
+# the TSDB holds every device's association history and eddings has other local logins.
+- name: Create Service-Owned Directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_user }}"
+    mode: 'u=rwx,g=rx,o='
+  loop:
+    - "{{ monitoring_base_dir }}/data"
+    - "{{ monitoring_base_dir }}/data/prometheus"
+    - "{{ monitoring_base_dir }}/data/grafana"
+    - "{{ monitoring_base_dir }}/data/alertmanager"
+    - "{{ monitoring_base_dir }}/secrets"
+    - "{{ monitoring_base_dir }}/shared"
+  become: true
+
+# Fixed-subnet bridge network, pre-created so that its gateway address exists for the host-network
+# exporters to bind to (same approach as the Immich network).
+- name: Create Monitoring Docker Network
+  community.docker.docker_network:
+    name: "{{ monitoring_docker_network }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ monitoring_docker_subnet }}"
+        gateway: "{{ monitoring_docker_gateway }}"
+  become: true
+
+# Prometheus (on the bridge) scrapes the host-network exporters at the bridge gateway address; ufw
+# is default-deny, so allow just those ports from just this subnet (same shape as the PostgreSQL
+# rule for the Immich network).
+- name: Allow Host-Network Exporter Ports for Monitoring Docker Network
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    src: "{{ monitoring_docker_subnet }}"
+    dest: "{{ monitoring_docker_gateway }}"
+    port: >-
+      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port
+      }},{{ monitoring_airplay_exporter_port }}
+  become: true
+  when: "'Microsoft' not in ansible_kernel"
+
+# The validators below run inside the images, so make sure those images are present first.
+- name: Pull Images Used for Configuration Validation
+  community.docker.docker_image_pull:
+    name: "{{ item }}"
+    pull: not_present
+  loop:
+    - "{{ monitoring_prometheus_image }}"
+    - "{{ monitoring_alertmanager_image }}"
+    - "{{ monitoring_blackbox_image }}"
+  become: true
+
+# Gateway TLS: the gateway serves HTTPS with a self-signed certificate whose name does not match its
+# address, so the exporter pins the certificate's SHA-256 fingerprint, computed here at deploy time.
+# Re-run the role after a gateway firmware change if `gateway_up` drops to 0 with a TLS error.
+- name: Fetch Gateway TLS Certificate
+  community.crypto.get_certificate:
+    host: "{{ monitoring_gateway_host }}"
+    port: 443
+  register: monitoring_gateway_cert
+  # A gateway that is rebooting must not abort the deploy; the previously recorded fingerprint
+  # (below) keeps the exporter working, and without one it idles rather than using plain HTTP.
+  failed_when: false
+  when: not is_test and monitoring_gateway_host | length > 0 and not ansible_check_mode
+
+- name: Inspect Gateway TLS Certificate
+  community.crypto.x509_certificate_info:
+    content: "{{ monitoring_gateway_cert.cert }}"
+  register: monitoring_gateway_cert_info
+  when: monitoring_gateway_cert.cert is defined
+
+- name: Read Previously Recorded Gateway TLS Fingerprint
+  ansible.builtin.slurp:
+    src: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+  register: monitoring_gateway_fingerprint_file
+  failed_when: false
+  become: true
+
+- name: Set Gateway TLS Fingerprint
+  ansible.builtin.set_fact:
+    monitoring_gateway_tls_fingerprint: >-
+      {{ monitoring_gateway_cert_info.fingerprints.sha256
+         if monitoring_gateway_cert_info is not skipped
+         else (monitoring_gateway_fingerprint_file.content | b64decode | trim
+               if monitoring_gateway_fingerprint_file.content is defined else '') }}
+
+- name: Record Gateway TLS Fingerprint
+  ansible.builtin.copy:
+    content: "{{ monitoring_gateway_tls_fingerprint }}\n"
+    dest: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  when: monitoring_gateway_tls_fingerprint | length > 0
+
+- name: Create Environment File
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ monitoring_base_dir }}/.env"
+    owner: root
+    group: root
+    mode: 'u=rw,g=,o='
+  become: true
+  no_log: "{{ not is_test }}"
+  notify: Restart Monitoring
+
+- name: Create Secret Files
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ monitoring_base_dir }}/secrets/{{ item.name }}"
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_user }}"
+    mode: 'u=r,g=,o='
+  loop:
+    - name: grafana_admin_password
+      content: "{{ 'test-not-a-secret' if is_test else vault_grafana_admin_password }}"
+    - name: slack_bot_token
+      content: "{{ 'xoxb-test-not-a-secret' if is_test else vault_alertmanager_slack_bot_token }}"
+    - name: discord_webhook_url
+      content: "{{ monitoring_test_webhook_url if is_test else vault_alertmanager_discord_webhook_url }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    monitoring_test_webhook_url: https://example.invalid/test-not-a-secret
+  become: true
+  no_log: "{{ not is_test }}"
+  notify: Restart Monitoring
+
+- name: Create Prometheus Configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_base_dir }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+    validate: >-
+      /usr/bin/docker run --rm --user 0 --entrypoint promtool -v %s:/tmp/prometheus.yml:ro
+      {{ monitoring_prometheus_image }} check config --syntax-only /tmp/prometheus.yml
+  become: true
+  notify: Restart Monitoring
+
+- name: Create Prometheus Alert Rules
+  ansible.builtin.template:
+    src: alerts.yml.j2
+    dest: "{{ monitoring_base_dir }}/prometheus/alerts.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+    validate: >-
+      /usr/bin/docker run --rm --user 0 --entrypoint promtool -v %s:/tmp/alerts.yml:ro
+      {{ monitoring_prometheus_image }} check rules /tmp/alerts.yml
+  become: true
+  notify: Restart Monitoring
+
+- name: Create Alertmanager Configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_base_dir }}/alertmanager/alertmanager.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+    validate: >-
+      /usr/bin/docker run --rm --user 0 --entrypoint amtool -v %s:/tmp/alertmanager.yml:ro
+      {{ monitoring_alertmanager_image }} check-config /tmp/alertmanager.yml
+  become: true
+  notify: Restart Monitoring
+
+- name: Create Blackbox Exporter Configuration
+  ansible.builtin.template:
+    src: blackbox.yml.j2
+    dest: "{{ monitoring_base_dir }}/blackbox/blackbox.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+    validate: >-
+      /usr/bin/docker run --rm --user 0 --entrypoint /bin/blackbox_exporter -v %s:/tmp/blackbox.yml:ro
+      {{ monitoring_blackbox_image }} --config.check --config.file=/tmp/blackbox.yml
+  become: true
+  notify: Restart Monitoring
+
+# Seed the dynamic target files with the static targets only; the AmpliFi exporter rewrites them
+# whenever the set of tracked devices' addresses changes (and leaves them alone at start-up), so
+# never overwrite an existing file here.
+- name: Seed Dynamic Target Files
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ monitoring_base_dir }}/shared/{{ item }}"
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_user }}"
+    mode: 'u=rw,g=r,o='
+    force: false
+  loop:
+    - ping-targets.yml
+    - airplay-targets.json
+  become: true
+
+- name: Create Grafana Provisioning Files
+  ansible.builtin.template:
+    src: "grafana/{{ item.src }}"
+    dest: "{{ monitoring_base_dir }}/grafana/provisioning/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  loop:
+    - src: datasources.yml.j2
+      dest: datasources/prometheus.yml
+    - src: dashboards.yml.j2
+      dest: dashboards/default.yml
+  become: true
+  notify: Restart Monitoring
+
+# Dashboard changes are picked up live by Grafana's file provider; no restart needed.
+- name: Copy Grafana Dashboards
+  ansible.builtin.copy:
+    src: grafana/dashboards/
+    dest: "{{ monitoring_base_dir }}/grafana/dashboards/"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+
+# Exporter source tree: copy exactly the files the image build consumes (an allowlist, so local
+# tooling caches, tests, and stray files never reach the server), then remove anything on the
+# server that no longer exists locally.
+- name: Find Exporter Source Files
+  ansible.builtin.set_fact:
+    monitoring_exporter_files: >-
+      {{ query('community.general.filetree', 'exporters/')
+         | selectattr('state', 'equalto', 'file')
+         | selectattr('path', 'match', monitoring_exporter_allowlist)
+         | rejectattr('path', 'search', '(^|/)__pycache__/')
+         | map(attribute='path') | list }}
+  vars:
+    monitoring_exporter_allowlist: '^(Dockerfile|\.dockerignore|pyproject\.toml|uv\.lock|src/.+)$'
+
+- name: Create Exporter Source Directories
+  ansible.builtin.file:
+    path: "{{ monitoring_base_dir }}/exporters/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  loop: "{{ monitoring_exporter_files | map('dirname') | reject('equalto', '') | unique | sort }}"
+  become: true
+
+- name: Copy Exporter Source Files
+  ansible.builtin.copy:
+    src: "exporters/{{ item }}"
+    dest: "{{ monitoring_base_dir }}/exporters/{{ item }}"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  loop: "{{ monitoring_exporter_files | sort }}"
+  become: true
+  notify:
+    - Build Monitoring Exporters
+    - Restart Monitoring
+
+- name: Find Deployed Exporter Files
+  ansible.builtin.find:
+    paths: "{{ monitoring_base_dir }}/exporters"
+    recurse: true
+    hidden: true
+    file_type: file
+  register: monitoring_deployed_exporter_files
+  become: true
+
+- name: Remove Stale Deployed Exporter Files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ monitoring_deployed_exporter_files.files | map(attribute='path')
+       | map('regex_replace', '^' ~ (monitoring_exporters_dir ~ '/') | regex_escape, '')
+       | difference(monitoring_exporter_files)
+       | map('regex_replace', '^', monitoring_exporters_dir ~ '/') | list }}
+  vars:
+    monitoring_exporters_dir: "{{ monitoring_base_dir }}/exporters"
+  become: true
+  notify:
+    - Build Monitoring Exporters
+    - Restart Monitoring
+
+- name: Create Docker Compose File
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify:
+    - Pull Monitoring Images
+    - Restart Monitoring
+
+- name: Deploy Systemd Service
+  ansible.builtin.template:
+    src: monitoring.service.j2
+    dest: /etc/systemd/system/monitoring.service
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify:
+    - Reload Systemd
+    - Restart Monitoring
+
+# Build and pull now, while the deploy has a known-good network, rather than at (re)boot.
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and Start Monitoring Service
+  ansible.builtin.systemd_service:
+    name: monitoring
+    state: started
+    enabled: true
+  become: true

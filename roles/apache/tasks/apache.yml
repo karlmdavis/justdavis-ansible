@@ -104,6 +104,7 @@
     - intranet.conf
     - intranet-qbittorrent.conf
     - intranet-immich.conf
+    - intranet-grafana.conf
   become: true
   notify:
     - apache-reload
@@ -118,6 +119,7 @@
     - intranet.conf
     - intranet-qbittorrent.conf
     - intranet-immich.conf
+    - intranet-grafana.conf
   become: true
   notify:
     - apache-reload

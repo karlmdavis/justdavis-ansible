@@ -1,0 +1,28 @@
+---
+# Handlers run in the order they are defined here (not in notification order), which is what makes
+# "build, then pull, then restart" work: image work happens during the deploy, never at boot.
+
+- name: Reload Systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+
+- name: Build Monitoring Exporters
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose build --pull
+    chdir: "{{ monitoring_base_dir }}"
+  become: true
+  changed_when: true
+
+- name: Pull Monitoring Images
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose pull --ignore-buildable
+    chdir: "{{ monitoring_base_dir }}"
+  become: true
+  changed_when: true
+
+- name: Restart Monitoring
+  ansible.builtin.systemd_service:
+    name: monitoring
+    state: restarted
+  become: true

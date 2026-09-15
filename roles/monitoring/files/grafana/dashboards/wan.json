@@ -1,0 +1,153 @@
+{
+  "id": null,
+  "uid": "wan",
+  "title": "WAN",
+  "tags": ["home-network"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Layered ping: mean round trip (LAN router, gateway, ISP first hop, internet)",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_rtt_mean_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=~\"static|router|mesh_point\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Layered ping: packet loss",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind=~\"static|router|mesh_point\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Layered ping: jitter (standard deviation)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=~\"static|router|mesh_point\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "WAN throughput: AmpliFi WAN port and eddings br-wan",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 17},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "amplifi_wan_rx_bits_per_second", "legendFormat": "AmpliFi download"},
+        {"refId": "B", "expr": "amplifi_wan_tx_bits_per_second", "legendFormat": "AmpliFi upload"},
+        {"refId": "C", "expr": "rate(node_network_receive_bytes_total{device=\"br-wan\"}[1m]) * 8", "legendFormat": "eddings download"},
+        {"refId": "D", "expr": "rate(node_network_transmit_bytes_total{device=\"br-wan\"}[1m]) * 8", "legendFormat": "eddings upload"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bps", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "DOCSIS downstream SNR per channel",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "gateway_docsis_downstream_snr_db", "legendFormat": "ch {{channel}}"}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dB",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 33}]},
+          "custom": {"thresholdsStyle": {"mode": "line"}}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "hidden"}}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "DOCSIS downstream power per channel",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "gateway_docsis_downstream_power_dbmv", "legendFormat": "ch {{channel}}"}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBmV",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 12}]},
+          "custom": {"thresholdsStyle": {"mode": "line"}}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "hidden"}}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "DOCSIS uncorrectable codewords per second (any non-zero is a line problem)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 33},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "rate(gateway_docsis_downstream_uncorrectable_codewords_total[5m])", "legendFormat": "ch {{channel}}"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "hidden"}}
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Uptime: gateway, AmpliFi router, mesh points",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 33},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "gateway_uptime_seconds", "legendFormat": "Comcast gateway"},
+        {"refId": "B", "expr": "amplifi_router_uptime_seconds", "legendFormat": "AmpliFi router"},
+        {"refId": "C", "expr": "amplifi_mesh_point_uptime_seconds", "legendFormat": "{{name}} mesh point"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 600}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"}
+    },
+    {
+      "id": 9,
+      "type": "state-timeline",
+      "title": "Collectors: AmpliFi, gateway, AirPlay probe",
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 41},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "amplifi_up", "legendFormat": "AmpliFi exporter"},
+        {"refId": "B", "expr": "gateway_up", "legendFormat": "Gateway exporter"},
+        {"refId": "C", "expr": "airplay_up", "legendFormat": "AirPlay probe"}
+      ],
+      "options": {"mergeValues": true, "showValue": "never", "legend": {"displayMode": "hidden"}},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

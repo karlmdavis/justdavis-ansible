@@ -1,0 +1,8 @@
+ping:
+  interval: {{ monitoring_ping_interval_seconds }}s
+  timeout: {{ monitoring_ping_timeout_seconds }}s
+  history-size: {{ monitoring_ping_history_size }}
+targets:
+{% for target in monitoring_static_ping_targets %}
+  - {{ target }}
+{% endfor %}

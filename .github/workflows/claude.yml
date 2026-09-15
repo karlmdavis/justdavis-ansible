@@ -1,3 +1,8 @@
+##
+# Lets Claude Code act on `@claude` mentions in issues, PR comments, and PR reviews (answer questions,
+# implement requested changes, push commits). Configuration follows
+# https://code.claude.com/docs/en/github-actions; authentication is the repo secret `CLAUDE_CODE_OAUTH_TOKEN`.
+##
 name: Claude Code
 
 on:
@@ -10,6 +15,11 @@ on:
   pull_request_review:
     types: [submitted]
 
+# One Claude task at a time per issue or PR; later mentions wait rather than cancelling work in progress.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   claude:
     if: |
@@ -18,47 +28,29 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       pull-requests: read
       issues: read
+      # Required for the action's GitHub App token exchange.
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      # Lets Claude read CI results on PRs.
+      actions: read
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
-          
-          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          # model: "claude-opus-4-20250514"
-          
-          # Optional: Customize the trigger phrase (default: @claude)
-          # trigger_phrase: "/claude"
-          
-          # Optional: Trigger when specific user is assigned to an issue
-          # assignee_trigger: "claude-bot"
-          
-          # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
-          
-          # Optional: Add custom instructions for Claude to customize its behavior for your project
-          # custom_instructions: |
-          #   Follow our coding standards
-          #   Ensure all new code has tests
-          #   Use TypeScript for new files
-          
-          # Optional: Custom environment variables for Claude
-          # claude_env: |
-          #   NODE_ENV: test
-
+          # Caps runaway tasks; a mention that needs more can be split into follow-ups.
+          claude_args: |
+            --max-turns 75

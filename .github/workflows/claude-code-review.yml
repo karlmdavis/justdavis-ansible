@@ -46,7 +46,9 @@ jobs:
           # `--comment` makes the skill post its findings on the PR instead of only in the run log.
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           # The inline-comment MCP server only starts when `--allowedTools` names it, even though the
-          # skill's own frontmatter allows the same tool. `--max-turns` caps runaway reviews.
+          # skill's own frontmatter allows the same tool. The skill also fans out to subagents for its
+          # checks and reviews, and the subagent tool (`Agent`) is not in its frontmatter, so it has to
+          # be allowed here too or the review stops at its first step. `--max-turns` caps runaway reviews.
           claude_args: |
             --max-turns 50
-            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment"

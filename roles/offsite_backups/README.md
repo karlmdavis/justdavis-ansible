@@ -57,7 +57,9 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
    desktop agent and does not apply to a Linux server). Add a card; billing is monthly by usage, and
    the first 10 GB is free. Then create a **private** bucket named
    `justdavis-offsite-backups` (or override `offsite_backups_b2_bucket`). Leave versioning at its
-   default ("keep only the last version"); restic manages its own history. Do not enable object lock yet.
+   default ("keep only the last version"); restic manages its own history. Leave **Default Encryption
+   (SSE-B2) off**: restic already encrypts everything client-side with a key only we hold, so
+   server-side encryption with a Backblaze-held key adds nothing. Do not enable object lock yet.
 2. Create an **application key restricted to that bucket** with capabilities `listBuckets`, `listFiles`,
    `readFiles`, `writeFiles`, `deleteFiles` (prune needs delete).
 3. Generate a long random restic password and store it in 1Password together with the B2 key. Losing

@@ -43,6 +43,8 @@
   ansible.builtin.command:
     cmd: dpkg-statoverride --list /var/spool/postfix/var
   register: dpkg_override_postfix_var
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
   failed_when: false
 

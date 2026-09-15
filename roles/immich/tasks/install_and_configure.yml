@@ -23,6 +23,8 @@
   ansible.builtin.command:
     cmd: "getent passwd {{ immich_user }}"
   register: immich_passwd_entry
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
 
 - name: Parse Out UID for System User
@@ -33,6 +35,8 @@
   ansible.builtin.command:
     cmd: getent group media_managers
   register: media_managers_group_entry
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
   changed_when: false
 
 - name: Parse Out GID for Media Group

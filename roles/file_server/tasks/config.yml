@@ -1,5 +1,7 @@
 ---
 
+# The photos share (`groups/media/photos`) is deliberately absent from this list: it is Immich's upload
+# directory and the `immich` role owns it (owner `immich`, group `media_managers`).
 - name: Create File Share Directories
   ansible.builtin.file:
     state: directory
@@ -18,7 +20,6 @@
     - { path: "/var/fileshares/{{ domain }}/groups/media/tv-shows", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
     - { path: "/var/fileshares/{{ domain }}/groups/media/music-videos", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
     - { path: "/var/fileshares/{{ domain }}/groups/media/music", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
-    - { path: "/var/fileshares/{{ domain }}/groups/media/photos", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
     - { path: "/var/fileshares/{{ domain }}/groups/media/books", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
   become: true
 

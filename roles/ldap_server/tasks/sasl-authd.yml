@@ -121,3 +121,12 @@
   become: true
   notify:
     - "Restart 'slapd'"
+
+# Hosts provisioned before the socket moved into the Postfix chroot still carry the old bind-mount
+# entry in `/etc/fstab` (commented out or not). It has no matching task any more, so remove it.
+- name: Remove Legacy saslauthd Bind Mount from fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^#?\s*/var/run/saslauthd\s+/var/spool/postfix/var/run/saslauthd\s'
+    state: absent
+  become: true

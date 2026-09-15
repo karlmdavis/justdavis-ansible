@@ -17,6 +17,9 @@
       bantime = 1h
       findtime = 10m
       maxretry = 5
+      # Never ban ourselves: a mistyped password from a LAN or tailnet device must not lock the
+      # whole household out for an hour.
+      ignoreip = 127.0.0.1/8 ::1 {{ network_home_private_cidr }} {{ network_tailscale_cidr }}
 
       [sshd]
       enabled = true
@@ -72,9 +75,12 @@
       # Ignore bogus ICMP error responses
       net.ipv4.icmp_ignore_bogus_error_responses = 1
 
-      # Enable reverse path filtering (prevent IP spoofing)
-      net.ipv4.conf.all.rp_filter = 1
-      net.ipv4.conf.default.rp_filter = 1
+      # Reverse path filtering (anti-spoofing). Loose mode (2, also Ubuntu's default) still drops
+      # packets whose source is unroutable, but tolerates the asymmetric paths of a multi-homed host;
+      # strict mode (1) silently drops legitimate traffic on eddings (two bridges, two public IPs,
+      # Tailscale exit node).
+      net.ipv4.conf.all.rp_filter = 2
+      net.ipv4.conf.default.rp_filter = 2
     mode: u=rw,g=r,o=r
   become: true
   notify: Load security sysctl configuration
@@ -101,6 +107,16 @@
   community.general.ufw:
     rule: limit
     name: OpenSSH
+  become: true
+  when: "'Microsoft' not in ansible_kernel"
+
+# Older hosts also carry a plain `allow OpenSSH` rule from before rate limiting existed; ufw matches
+# it first, which disables the limit. Remove it (after the limit rule exists, so SSH never closes).
+- name: Firewall - Remove Legacy Unlimited SSH Rule
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+    delete: true
   become: true
   when: "'Microsoft' not in ansible_kernel"
 

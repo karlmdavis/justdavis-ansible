@@ -61,6 +61,9 @@ network_home_public_cidr: '96.86.32.136/29'
 # The LAN IP addresses of the "home" network.
 network_home_private_cidr: '10.0.0.0/24'
 
+# The Tailscale CGNAT range; connections from tailnet members arrive from these addresses.
+network_tailscale_cidr: '100.64.0.0/10'
+
 people:
   karl:
     givenName: Karl

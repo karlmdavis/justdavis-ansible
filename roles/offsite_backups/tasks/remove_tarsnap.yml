@@ -1,9 +1,9 @@
 ---
 
 ##
-# Removes the Tarsnap client that preceded restic. The Tarsnap account was deleted in mid-2026 after
-# its prepaid balance ran out (the archives went with it), so the key, cache, and units are dead
-# weight, and the Tarsnap apt signing key expired on 2026-02-01, which makes `apt update` complain.
+# Removes the Tarsnap client that preceded restic (see the README: no automatic payment made it a
+# hassle to keep going). The client, cache, and units are dead weight now, and the Tarsnap apt signing
+# key expired on 2026-02-01, which makes `apt update` complain.
 # Every task here is a no-op on hosts that never had Tarsnap.
 #
 # These tasks are transitional: once every managed host has run them, delete this file and its import

@@ -40,7 +40,7 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
   times the stored volume; roughly $3.50/month for eddings' ~440 GB. A Hetzner Storage Box (flat ~€3.81 for
   1 TB) is the alternative if a fixed invoice ever matters more; moving is one `rclone copy` of the
   encrypted repository.
-- **Credentials in an EnvironmentFile**: `/etc/offsite-backups/restic.env` (root, `0600`) holds the
+- **Credentials in an EnvironmentFile**: `/etc/restic/env` (root, `0600`) holds the
   repository, the restic password, and the B2 application key. The systemd units load it, and the
   `offsite-restic` wrapper loads it for interactive use, so nothing sensitive is on a command line.
 - **Prune is a separate unit**: backups and pruning have different failure modes and runtimes, and
@@ -113,7 +113,7 @@ test does the same automatically with a canary file on every run.
 
 ### Disaster recovery on a fresh machine
 
-Install restic, recreate `/etc/offsite-backups/restic.env` from the values in 1Password (repository,
+Install restic, recreate `/etc/restic/env` from the values in 1Password (repository,
 password, B2 key), then `restic restore latest --target /` for the paths you need. The cache under
 `/var/cache/restic` is rebuilt automatically.
 

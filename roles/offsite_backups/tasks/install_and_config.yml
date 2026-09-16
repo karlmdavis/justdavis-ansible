@@ -16,7 +16,7 @@
     group: root
     mode: u=rwx,g=,o=
   loop:
-    - /etc/offsite-backups
+    - /etc/restic
     - /var/cache/restic
   become: true
 
@@ -32,8 +32,8 @@
 # Holds the repository location and every credential restic needs, so it is root-only and never logged.
 - name: Create restic Environment File
   ansible.builtin.template:
-    src: restic.env.j2
-    dest: /etc/offsite-backups/restic.env
+    src: env.j2
+    dest: /etc/restic/env
     owner: root
     group: root
     mode: u=rw,g=,o=
@@ -43,7 +43,7 @@
 - name: Create Exclude Patterns File
   ansible.builtin.template:
     src: excludes.txt.j2
-    dest: /etc/offsite-backups/excludes.txt
+    dest: /etc/restic/excludes.txt
     owner: root
     group: root
     mode: u=rw,g=r,o=r

@@ -5,7 +5,7 @@ OnFailure=status-email-root@%n.service
 [Service]
 Type=oneshot
 TimeoutStartSec=12h
-EnvironmentFile=/etc/offsite-backups/restic.env
+EnvironmentFile=/etc/restic/env
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

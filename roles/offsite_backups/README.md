@@ -25,7 +25,7 @@ The three services share a `flock`, so they never run concurrently. Each one mai
 
 ## Rollback window
 
-Retention is 14 daily, 8 weekly, and 12 monthly snapshots (`offsite_backups_keep_*`). A file deleted or
+Retention is 14 daily, 8 weekly, and 12 monthly snapshots (set in `offsite-backups-prune.sh`). A file deleted or
 overwritten on the host disappears from the *next* snapshot only; every earlier snapshot still has it,
 and its data stays in the repository until the last snapshot referencing it is forgotten. In practice a
 mistake can be undone for two weeks at daily granularity and for a year at monthly granularity. Local
@@ -56,7 +56,7 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
    backblaze.com/cloud-storage, not the $99/year "Computer Backup" client, which is a Mac/Windows
    desktop agent and does not apply to a Linux server). Add a card; billing is monthly by usage, and
    the first 10 GB is free. Then create a **private** bucket named
-   `justdavis-offsite-backups` (or override `offsite_backups_b2_bucket`). Leave versioning at its
+   `justdavis-offsite-backups` (the name is fixed in `defaults/main.yml`). Leave versioning at its
    default ("keep only the last version"); restic manages its own history. Leave **Default Encryption
    (SSE-B2) off**: restic already encrypts everything client-side with a key only we hold, so
    server-side encryption with a Backblaze-held key adds nothing. Do not enable object lock yet.

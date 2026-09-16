@@ -2,7 +2,7 @@
 Description=Run offsite-backups-prune.service weekly.
 
 [Timer]
-OnCalendar={{ offsite_backups_schedule_prune }}
+OnCalendar=Sun *-*-* 05:00:00
 Persistent=true
 
 [Install]

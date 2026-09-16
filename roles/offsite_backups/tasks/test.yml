@@ -63,7 +63,7 @@
 
 - name: Verify That the Last-Success Metric Was Written
   ansible.builtin.command:
-    cmd: grep -q "^offsite_backups_last_success_timestamp_seconds" {{ offsite_backups_metrics_dir }}/offsite_backups.prom
+    cmd: grep -q "^offsite_backups_last_success_timestamp_seconds" /var/lib/node_exporter/textfile_collector/offsite_backups.prom
   changed_when: false
   become: true
   when: is_test

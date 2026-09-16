@@ -22,7 +22,7 @@
 
 - name: Create Metrics Directory for the node_exporter Textfile Collector
   ansible.builtin.file:
-    path: "{{ offsite_backups_metrics_dir }}"
+    path: "/var/lib/node_exporter/textfile_collector"
     state: directory
     owner: root
     group: root

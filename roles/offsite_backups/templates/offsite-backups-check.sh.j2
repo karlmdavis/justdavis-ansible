@@ -1,9 +1,9 @@
 #!/bin/bash
 ##
-# Monthly integrity check: verifies repository structure and re-reads a sample of the stored data.
+# Monthly integrity check: verifies repository structure and re-reads a 5% sample of the stored data.
 # Managed by Ansible (roles/offsite_backups).
 ##
 set -euo pipefail
 echo "Offsite backup check: verifying repository..."
-/usr/bin/restic check --read-data-subset={{ offsite_backups_check_read_data_subset }}
+/usr/bin/restic check --read-data-subset=5%
 echo "Offsite backup check: completed."

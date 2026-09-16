@@ -6,7 +6,7 @@
 ##
 set -euo pipefail
 
-metricsFile="{{ offsite_backups_metrics_dir }}/offsite_backups.prom"
+metricsFile="/var/lib/node_exporter/textfile_collector/offsite_backups.prom"
 excludesFile="/etc/offsite-backups/excludes.txt"
 
 # Writes the metrics file atomically. On failure the previous last-success timestamp is preserved.

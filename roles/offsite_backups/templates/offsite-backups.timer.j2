@@ -2,7 +2,8 @@
 Description=Run offsite-backups.service daily.
 
 [Timer]
-OnCalendar={{ offsite_backups_schedule_backup }}
+# 03:00 UTC is late evening in the Eastern US.
+OnCalendar=*-*-* 03:00:00
 RandomizedDelaySec=30min
 Persistent=true
 

@@ -1,0 +1,129 @@
+---
+
+- name: Install restic
+  ansible.builtin.apt:
+    name: restic
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
+  become: true
+
+- name: Create Configuration and Cache Directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=,o=
+  loop:
+    - /etc/restic
+    - /var/cache/restic
+  become: true
+
+- name: Create Metrics Directory for the node_exporter Textfile Collector
+  ansible.builtin.file:
+    path: "/var/lib/node_exporter/textfile_collector"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+# Holds the repository location and every credential restic needs, so it is root-only and never logged.
+- name: Create restic Environment File
+  ansible.builtin.template:
+    src: env.j2
+    dest: /etc/restic/env
+    owner: root
+    group: root
+    mode: u=rw,g=,o=
+  no_log: true
+  become: true
+
+- name: Create Exclude Patterns File
+  ansible.builtin.template:
+    src: excludes.txt.j2
+    dest: /etc/restic/excludes.txt
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create Backup, Prune, and Check Scripts
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  loop:
+    - offsite-backups.sh
+    - offsite-backups-prune.sh
+    - offsite-backups-check.sh
+    - offsite-restic
+  become: true
+
+- name: Create Service Status Mailer Unit
+  ansible.builtin.copy:
+    src: status-email-root@.service
+    dest: /etc/systemd/system/status-email-root@.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+
+- name: Create systemd Service Units
+  ansible.builtin.template:
+    src: "{{ item }}.service.j2"
+    dest: "/etc/systemd/system/{{ item }}.service"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  loop:
+    - offsite-backups
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true
+
+- name: Create systemd Timer Units
+  ansible.builtin.template:
+    src: "{{ item }}.timer.j2"
+    dest: "/etc/systemd/system/{{ item }}.timer"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  loop:
+    - offsite-backups
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true
+
+# `restic cat config` succeeds only against an initialized repository. Its output includes the
+# repository ID, nothing secret, but the environment is loaded via the wrapper so credentials never
+# appear on a command line.
+- name: Check Whether the restic Repository Is Initialized
+  ansible.builtin.command:
+    cmd: /usr/local/bin/offsite-restic cat config
+  register: offsite_backups_repo_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+
+- name: Initialize the restic Repository
+  ansible.builtin.command:
+    cmd: /usr/local/bin/offsite-restic init
+  when: offsite_backups_repo_check.rc != 0
+  become: true
+
+- name: Enable and Start the Backup, Prune, and Check Timers
+  ansible.builtin.systemd:
+    name: "{{ item }}.timer"
+    state: started
+    enabled: true
+    daemon_reload: true
+  loop:
+    - offsite-backups
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true

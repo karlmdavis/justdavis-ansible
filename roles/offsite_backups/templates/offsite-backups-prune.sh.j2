@@ -1,0 +1,15 @@
+#!/bin/bash
+##
+# Weekly retention: forget snapshots outside the keep policy (14 daily, 8 weekly, 12 monthly; deleted files
+# stay restorable until the last snapshot holding them ages out) and prune the data they referenced.
+# Managed by Ansible (roles/offsite_backups).
+##
+set -euo pipefail
+echo "Offsite backup prune: applying retention policy..."
+/usr/bin/restic forget \
+  --host "$(hostname --short)" \
+  --keep-daily 14 \
+  --keep-weekly 8 \
+  --keep-monthly 12 \
+  --prune
+echo "Offsite backup prune: completed."

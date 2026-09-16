@@ -1,0 +1,76 @@
+#!/bin/bash
+##
+# Daily offsite backup with restic. Environment (repository, credentials) comes from the systemd unit's
+# EnvironmentFile. Writes a Prometheus textfile metric so monitoring can alert on stale backups.
+# Managed by Ansible (roles/offsite_backups).
+##
+set -euo pipefail
+
+metricsFile="/var/lib/node_exporter/textfile_collector/offsite_backups.prom"
+excludesFile="/etc/restic/excludes.txt"
+
+# Writes the metrics file atomically. On failure the previous last-success timestamp is preserved.
+recordRun() {
+  local success="$1"
+  local exitCode="$2"
+  local now
+  now=$(date +%s)
+  local lastSuccess="0"
+  if [[ "${success}" == "1" ]]; then
+    lastSuccess="${now}"
+  elif [[ -f "${metricsFile}" ]]; then
+    lastSuccess=$(awk '/^offsite_backups_last_success_timestamp_seconds /{print $2}' "${metricsFile}")
+    lastSuccess="${lastSuccess:-0}"
+  fi
+  local tmpFile
+  tmpFile=$(mktemp "${metricsFile}.XXXXXX")
+  cat > "${tmpFile}" <<METRICS
+# HELP offsite_backups_last_run_timestamp_seconds Unix time of the last offsite backup attempt.
+# TYPE offsite_backups_last_run_timestamp_seconds gauge
+offsite_backups_last_run_timestamp_seconds ${now}
+# HELP offsite_backups_last_run_success Whether the last offsite backup attempt succeeded (1) or failed (0).
+# TYPE offsite_backups_last_run_success gauge
+offsite_backups_last_run_success ${success}
+# HELP offsite_backups_last_run_exit_code restic's exit code from the last offsite backup attempt.
+# TYPE offsite_backups_last_run_exit_code gauge
+offsite_backups_last_run_exit_code ${exitCode}
+# HELP offsite_backups_last_success_timestamp_seconds Unix time of the last successful offsite backup.
+# TYPE offsite_backups_last_success_timestamp_seconds gauge
+offsite_backups_last_success_timestamp_seconds ${lastSuccess}
+METRICS
+  chmod u=rw,g=r,o=r "${tmpFile}"
+  mv "${tmpFile}" "${metricsFile}"
+}
+
+# Any unexpected exit records a failure before the unit's OnFailure mail goes out.
+trap 'rc=$?; if [[ ${rc} -ne 0 ]]; then recordRun 0 "${rc}"; fi' EXIT
+
+# Only back up the directories that exist on this host (not all of them do in the AWS tests).
+includes=()
+{% for backup_include in backup_includes %}
+if [[ -d "{{ backup_include }}" ]]; then includes+=("{{ backup_include }}"); fi
+{% endfor %}
+if [[ ${{ '{#' }}includes[@]} -eq 0 ]]; then
+  echo "Offsite backup: nothing to back up (no configured directory exists)." >&2
+  exit 1
+fi
+
+echo "Offsite backup: starting snapshot of: ${includes[*]}"
+set +e
+/usr/bin/restic backup \
+  --one-file-system \
+  --exclude-caches \
+  --exclude-file="${excludesFile}" \
+  --tag scheduled \
+  "${includes[@]}"
+rc=$?
+set -e
+
+# restic exits 3 when some source files could not be read but the snapshot was still created; that is a
+# warning, not a failed backup.
+case "${rc}" in
+  0) echo "Offsite backup: completed." ;;
+  3) echo "Offsite backup: completed with warnings (some files could not be read)." >&2 ;;
+  *) echo "Offsite backup: FAILED with exit code ${rc}." >&2; exit "${rc}" ;;
+esac
+recordRun 1 "${rc}"

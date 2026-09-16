@@ -11,6 +11,8 @@ backup_includes:
   - /var/lib/tomcat8
   - /var/log/tomcat8
   - /var/lib/postgresql/backups
+  # Configuration for the arr suite containers (their media lives under /var/fileshares).
+  - /opt/arr_suite/config
 
 backup_excludes:
   - /var/fileshares/justdavis.com/groups/media/movies

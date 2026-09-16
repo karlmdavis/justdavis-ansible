@@ -90,4 +90,4 @@ This role uses variables from `group_vars` for:
 
 - Designed to work with `user_karl` role for complete user environment setup
 - Requires LDAP/Kerberos authentication infrastructure for user management
-- Compatible with existing backup strategies via tarsnap role
+- Compatible with existing backup strategies via the `offsite_backups` role

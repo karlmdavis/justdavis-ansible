@@ -1,0 +1,100 @@
+---
+
+##
+# Verifies the whole path end to end: a canary file is backed up, restored from the repository, and
+# compared. In tests the repository is a local directory, so no credentials are needed. On production
+# hosts only the timer handling runs, because a first full backup can take a day.
+##
+
+- name: Stop the Backup Timers During Tests
+  ansible.builtin.systemd:
+    name: "{{ item }}.timer"
+    state: stopped
+  loop:
+    - offsite-backups
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true
+
+- name: Write a Canary File into a Backed-Up Directory
+  ansible.builtin.copy:
+    dest: "{{ backup_includes[0] }}/.offsite-backups-canary"
+    content: "offsite-backups canary {{ ansible_date_time.iso8601 }}\n"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  when: is_test
+
+- name: Run the Backup Unit Once
+  ansible.builtin.systemd:
+    name: offsite-backups.service
+    state: started
+  become: true
+  when: is_test
+
+- name: Verify That a Snapshot Exists
+  ansible.builtin.command:
+    cmd: /usr/local/bin/offsite-restic snapshots --json
+  register: offsite_backups_snapshots
+  changed_when: false
+  failed_when: (offsite_backups_snapshots.stdout | from_json | length) < 1
+  become: true
+  when: is_test
+
+- name: Restore the Canary File from the Latest Snapshot
+  ansible.builtin.command:
+    cmd: >-
+      /usr/local/bin/offsite-restic restore latest
+      --target /var/tmp/offsite-backups-restore-test
+      --include {{ backup_includes[0] }}/.offsite-backups-canary
+  changed_when: true
+  become: true
+  when: is_test
+
+- name: Compare the Restored Canary with the Original
+  ansible.builtin.command:
+    cmd: >-
+      cmp {{ backup_includes[0] }}/.offsite-backups-canary
+      /var/tmp/offsite-backups-restore-test{{ backup_includes[0] }}/.offsite-backups-canary
+  changed_when: false
+  become: true
+  when: is_test
+
+- name: Verify That the Last-Success Metric Was Written
+  ansible.builtin.command:
+    cmd: grep -q "^offsite_backups_last_success_timestamp_seconds" /var/lib/node_exporter/textfile_collector/offsite_backups.prom
+  changed_when: false
+  become: true
+  when: is_test
+
+- name: Run the Prune and Check Units Once
+  ansible.builtin.systemd:
+    name: "{{ item }}.service"
+    state: started
+  loop:
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true
+  when: is_test
+
+- name: Remove the Canary File and the Restore Directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ backup_includes[0] }}/.offsite-backups-canary"
+    - /var/tmp/offsite-backups-restore-test
+  become: true
+  when: is_test
+
+- name: Start the Backup Timers Again
+  ansible.builtin.systemd:
+    name: "{{ item }}.timer"
+    state: started
+    enabled: true
+  loop:
+    - offsite-backups
+    - offsite-backups-prune
+    - offsite-backups-check
+  become: true

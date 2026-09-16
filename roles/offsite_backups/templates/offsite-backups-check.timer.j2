@@ -1,0 +1,9 @@
+[Unit]
+Description=Run offsite-backups-check.service monthly.
+
+[Timer]
+OnCalendar=*-*-01 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

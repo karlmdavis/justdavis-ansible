@@ -33,16 +33,36 @@
     purge: true
   become: true
 
-- name: Remove the Tarsnap APT Repository
-  ansible.builtin.apt_repository:
-    repo: "deb http://pkg.tarsnap.com/deb/{{ ansible_facts['distribution_release'] }} ./"
+# The source line was hand-edited on eddings to a `[signed-by=...]` form that no longer matches what the
+# old role wrote, so the file is removed by name (it is the name apt_repository derives from the URL).
+- name: Find Tarsnap APT Source Files
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: 'pkg_tarsnap_com_*'
+  register: offsite_backups_tarsnap_sources
+
+- name: Remove Tarsnap APT Source Files and Keyring
+  ansible.builtin.file:
+    path: "{{ item }}"
     state: absent
+  loop: "{{ (offsite_backups_tarsnap_sources.files | map(attribute='path') | list) + ['/etc/apt/keyrings/tarsnap.gpg'] }}"
   become: true
 
-- name: Remove the Tarsnap APT Signing Key
-  ansible.builtin.apt_key:
-    id: 3058D169CA1EF173
-    state: absent
+# The 2024 signing key also lives in the legacy global keyring on older hosts; `apt-key` is deprecated
+# but is still the only way to remove entries from it.
+- name: Check for the Tarsnap Key in the Legacy APT Keyring
+  ansible.builtin.command:
+    cmd: apt-key list 3058D169CA1EF173
+  register: offsite_backups_tarsnap_legacy_key
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+
+- name: Remove the Tarsnap Key from the Legacy APT Keyring
+  ansible.builtin.command:
+    cmd: apt-key del 3058D169CA1EF173
+  when: "'Tarsnap' in offsite_backups_tarsnap_legacy_key.stdout"
   become: true
 
 # The key file (/root/tarsnap.key) is deliberately kept until we are certain the archives are unrecoverable

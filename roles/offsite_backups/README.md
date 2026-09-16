@@ -128,7 +128,7 @@ credentials to manage.
 
 Tarsnap preceded this role and served well for years, but it has no automatic payment, so keeping the
 prepaid balance topped up was a recurring hassle and the account eventually lapsed. `tasks/remove_tarsnap.yml`
-uninstalls the client, its apt repository and expired signing key, the ~1 GB cache, and the systemd units
+uninstalls the client, its apt repository and expired signing key, the ~1 GB cache, and the systemd units (but not the key file, see #111)
 from every host; the tasks are no-ops where Tarsnap was never installed.
 
 ## Testing

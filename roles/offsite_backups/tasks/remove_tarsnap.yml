@@ -42,7 +42,9 @@
     state: absent
   become: true
 
-- name: Remove Tarsnap Units, Config, Key, Script, and Cache
+# The key file (/root/tarsnap.key) is deliberately kept until we are certain the archives are unrecoverable
+# or unneeded; see #111.
+- name: Remove Tarsnap Units, Config, Script, and Cache
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
@@ -51,7 +53,6 @@
     - /etc/systemd/system/tarsnap-backups.service
     - /usr/local/bin/tarsnap-backups.sh
     - /etc/tarsnap.conf
-    - /root/tarsnap.key
     - /usr/local/tarsnap-cache
   become: true
   register: offsite_backups_tarsnap_removed

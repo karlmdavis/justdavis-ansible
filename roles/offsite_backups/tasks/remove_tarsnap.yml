@@ -5,6 +5,9 @@
 # its prepaid balance ran out (the archives went with it), so the key, cache, and units are dead
 # weight, and the Tarsnap apt signing key expired on 2026-02-01, which makes `apt update` complain.
 # Every task here is a no-op on hosts that never had Tarsnap.
+#
+# These tasks are transitional: once every managed host has run them, delete this file and its import
+# (tracked in #111).
 ##
 
 - name: Check Whether the Tarsnap Timer Exists

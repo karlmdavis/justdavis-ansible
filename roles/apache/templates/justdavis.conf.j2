@@ -1,6 +1,8 @@
 <VirtualHost *:80>
   ServerName {{ domain }}
-  ServerAlias www.{{ domain }}
+{% for alias in apache_main_site_aliases %}
+  ServerAlias {{ alias }}
+{% endfor %}
   
   DocumentRoot /var/apache2/{{ domain }}/www/
   <Directory /var/apache2/{{ domain }}/www/>
@@ -24,7 +26,9 @@
 
 <VirtualHost *:443>
   ServerName {{ domain }}
-  ServerAlias www.{{ domain }}
+{% for alias in apache_main_site_aliases %}
+  ServerAlias {{ alias }}
+{% endfor %}
   
   DocumentRoot /var/apache2/{{ domain }}/www/
   <Directory /var/apache2/{{ domain }}/www/>

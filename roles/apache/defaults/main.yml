@@ -1,0 +1,10 @@
+---
+
+# Additional names served by the main `{{ domain }}` virtual host. `davisonlinehome.name` has no site of
+# its own and has always been an alias of the main site. (`mail.{{ domain }}` is deliberately not here:
+# the mail hostname is only an MX/IMAP/submission endpoint, and a browser hitting it gets the default
+# vhost's 404.) The wildcard certificate covers all of them.
+apache_main_site_aliases:
+  - "www.{{ domain }}"
+  - "{{ domain_doh }}"
+  - "www.{{ domain_doh }}"

@@ -3,6 +3,6 @@ network:
   ethernets:
     eno1:
       dhcp4: true
-    enp4s0:
+    eno2:
       dhcp4: true
   version: 2

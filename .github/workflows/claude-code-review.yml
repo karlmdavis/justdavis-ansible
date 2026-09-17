@@ -45,13 +45,15 @@ jobs:
           plugins: "code-review@claude-code-plugins"
           # `--comment` makes the skill post its findings on the PR instead of only in the run log.
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          # The inline-comment MCP server only starts when `--allowedTools` names it, even though the
-          # skill's own frontmatter allows the same tool. The skill fans out to subagents (`Agent`) and
-          # reads the PR with `gh`; runs with only the MCP tool allowed ended on a permission denial, so
-          # the skill's frontmatter tools are repeated here explicitly. `--max-turns` caps runaway reviews.
-          # Temporary while diagnosing why reviews post nothing: prints Claude's transcript (including the
-          # denied tool) into the public job log. Remove once the allow list is settled.
-          show_full_output: true
+          # Everything the review needs must be allowed here; in automation mode nothing else is granted, and
+          # the plugin's frontmatter is not applied on its own (verified from a transcript, 2026-09-17):
+          # - `Skill` runs the `/code-review:code-review` invocation itself; without it the plugin never starts.
+          # - `Agent` runs the plugin's pre-check and parallel reviewer subagents.
+          # - `Read`/`Glob`/`Grep` let it read the diff and CLAUDE.md files without shell pipelines, which the
+          #   `Bash(gh ...)` rules do not cover.
+          # - The `gh pr`/`gh issue` commands are the plugin frontmatter's own list.
+          # - The inline-comment MCP server only starts when named here.
+          # `--max-turns` caps runaway reviews.
           claude_args: |
             --max-turns 50
-            --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
+            --allowedTools "Skill,Agent,Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"

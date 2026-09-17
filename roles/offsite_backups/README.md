@@ -60,11 +60,15 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
    default ("keep only the last version"); restic manages its own history. Leave **Default Encryption
    (SSE-B2) off**: restic already encrypts everything client-side with a key only we hold, so
    server-side encryption with a Backblaze-held key adds nothing. Do not enable object lock yet.
-2. Create an **application key restricted to that bucket** with capabilities `listBuckets`, `listFiles`,
+2. Raise the account's **Caps & Alerts**: new accounts cap storage at the free 10 GB, and the first backup
+   stops with `403: Cannot upload files, storage cap exceeded` as soon as it is reached. Set the storage cap
+   to at least 1 TB (or unlimited), and give the daily download cap room for a restore drill (20 GB or
+   more); leave transaction caps at their defaults.
+3. Create an **application key restricted to that bucket** with capabilities `listBuckets`, `listFiles`,
    `readFiles`, `writeFiles`, `deleteFiles` (prune needs delete).
-3. Generate a long random restic password and store it in 1Password together with the B2 key. Losing
+4. Generate a long random restic password and store it in 1Password together with the B2 key. Losing
    the password means losing every backup; there is no recovery.
-4. Add to the vault (`uv run ansible-vault edit group_vars/all/vault.yml`):
+5. Add to the vault (`uv run ansible-vault edit group_vars/all/vault.yml`):
 
    ```yaml
    vault_offsite_backups_restic_password: "..."
@@ -72,7 +76,7 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
    vault_offsite_backups_b2_key: "..."
    ```
 
-5. Run the playbook. The role initializes the repository on first run and starts the timers. The first
+6. Run the playbook. The role initializes the repository on first run and starts the timers. The first
    backup of eddings uploads roughly 440 GB, which takes about a day on the current uplink; later runs
    upload only new or changed chunks.
 

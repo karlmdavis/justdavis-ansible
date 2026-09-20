@@ -30,3 +30,4 @@ test/test-session.env
 /.venv/
 
 .worktrees/
+.claude/worktrees/

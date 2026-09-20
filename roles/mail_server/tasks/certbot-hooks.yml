@@ -1,0 +1,14 @@
+---
+# Installs the Certbot deploy hooks that pick up renewed certificates in the mail services. Certbot runs
+# every executable in this directory after a successful renewal. The directory is created by the `apache`
+# role, which runs first and obtains the certificate these services use.
+
+- name: Create Certbot Deploy Hook Scripts for Mail Services
+  ansible.builtin.template:
+    src: "certbot-deploy-{{ item }}.sh"
+    dest: "/etc/letsencrypt/renewal-hooks/deploy/10-{{ item }}"
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+  loop:
+    - 'dovecot'
+    - 'postfix'

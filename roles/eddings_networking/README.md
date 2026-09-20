@@ -38,7 +38,7 @@ flowchart TD
 | Address | Use |
 | --- | --- |
 | `.137` | `eddings` — primary public IP |
-| `.139` | `eddings` — VPN gateway |
+| `.139` | `eddings` — secondary IP, formerly the OpenVPN gateway; OpenVPN is gone, see #117 |
 | `.141` | AmpliFi HD WAN / home network edge (`karlanderica`) |
 | `.138`, `.140` | spare |
 | `.142` | Comcast gateway |

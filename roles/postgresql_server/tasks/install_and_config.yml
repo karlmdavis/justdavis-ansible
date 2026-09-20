@@ -3,15 +3,28 @@
 # Add PostgreSQL official APT repository for newer extension versions
 # Required for immich role which needs pgvector >= 0.7.0 with halfvec[] type support
 # Ubuntu's default repository has older pgvector versions that lack required features
-- name: Add PostgreSQL APT repository key
-  ansible.builtin.apt_key:
-    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
-    state: present
+# PGDG's signing key goes into its own keyring file and the repository line names it with `signed-by`;
+# `apt_key` and its global trusted keyring are deprecated. The line must stay byte-identical to the one
+# already on eddings (hand-written in March 2026): apt refuses to work when the same repository appears
+# twice with different `Signed-By` values (#112).
+- name: Create APT Keyrings Directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
   become: true
 
-- name: Add PostgreSQL APT repository
+- name: Add PostgreSQL APT Signing Key
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
+    creates: /etc/apt/keyrings/pgdg.gpg
+  become: true
+
+- name: Add PostgreSQL APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    repo: "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
     state: present
     filename: pgdg
   become: true

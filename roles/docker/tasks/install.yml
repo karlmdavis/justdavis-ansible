@@ -11,15 +11,30 @@
     update_cache: true
   become: true
 
-- name: Add Docker GPG key
-  ansible.builtin.apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+# Docker's signing key goes into its own keyring file and the repository line names it with `signed-by`,
+# per Docker's install instructions; `apt_key` and its global trusted keyring are deprecated. The line
+# must stay byte-identical to the one already on eddings (hand-written in March 2026): apt refuses to
+# work when the same repository appears twice with different `Signed-By` values.
+- name: Create APT Keyrings Directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
   become: true
 
-- name: Add Docker repository
+- name: Add Docker APT Signing Key
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    creates: /etc/apt/keyrings/docker.gpg
+  become: true
+
+# Still the `jammy` packages on Ubuntu 24.04: that is what eddings has run since its rebuild, and moving
+# to the `noble` line would swap the installed docker-ce packages.
+- name: Add Docker APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable"
     state: present
   become: true
 

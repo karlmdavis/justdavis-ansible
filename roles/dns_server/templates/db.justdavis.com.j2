@@ -34,7 +34,6 @@ tests.justdavis.com.            IN      NS                ns-357.awsdns-44.com.
 ns1                       IN      A                 {{ eddings_public_ip }}
 mail                      IN      A                 {{ eddings_public_ip }}
 eddings                   IN      A                 {{ eddings_public_ip }}
-piers                     IN      A                 96.86.32.138
 karlanderica              IN      A                 96.86.32.141
 
 ; IPv4 Address Records for Private "karlanderica" LAN.
@@ -53,8 +52,6 @@ www                       IN      CNAME             @
 smtp                      IN      CNAME             mail
 kerberos                  IN      CNAME             eddings
 ldap                      IN      CNAME             eddings
-kelso                     IN      CNAME             karlanderica
-longview                  IN      CNAME             karlanderica
 
 ; Mailserver Records
 ; name             ttl    class   rr     priority   name
@@ -69,9 +66,6 @@ longview                  IN      CNAME             karlanderica
 @                         IN      TXT               ("v=spf1 mx ip4:{{ eddings_public_ip }} -all "
   "google-site-verification=zsa6iMYRbZYGwZ0OB1Nh_liDeYIFMoD86ScalD2mtac")
 _kerberos                 IN      TXT               "{{ domain | upper }}"
-; The DKIM public key used by piers:
-2C1B581A-34C6-11E5-B653-7B34DD816394._domainkey IN      TXT     ( "v=DKIM1; k=rsa; "
-          "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVsRq7QzJ+cGi3xwJu/cKfcbyeR8XG2XDqcKQDoHOUH1iCIbQbYT5gnMvmhWcihNRKtn4/W80RZA7w+8QWUoFsl+KJOyZpU42u65kAqHDlYuXQlb/CFVLVtWh12FwXl4G3ukb4+NK4MStEoiz9im67/vqhLbBNCaMaFVeW9Joo/QIDAQAB" )  ; ----- DKIM key 2C1B581A-34C6-11E5-B653-7B34DD816394 for justdavis.com
 ; The DKIM public key used by eddings:
 $INCLUDE /etc/bind/dkim-{{ domain }}.record
 

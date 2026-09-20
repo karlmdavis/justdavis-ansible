@@ -1,6 +1,10 @@
 ---
 zfs_ssd_pool_device: /dev/sda1
 
+# Keep the server on UTC: the offsite backup, prune, check, spam-training and PostgreSQL dump timers are
+# all scheduled in UTC, and so are the logs.
+base_timezone: Etc/UTC
+
 backup_includes:
   - /home
   - /var/fileshares

@@ -18,16 +18,19 @@ This role installs `files/netplan/00-installer-config.yaml`, which defines two b
 flowchart TD
     net([Internet])
     modem["Comcast Business modem/gateway<br/>10.1.10.1 — routed, not bridged, UPnP off<br/>routes 96.86.32.136/29, gateway .142"]
-    eddings["eddings · br-wan<br/>96.86.32.137 (main)<br/>96.86.32.139 (VPN)"]
     amplifi["AmpliFi HD router<br/>WAN 96.86.32.141 (static)<br/>LAN 10.0.0.1"]
     lan["Home LAN 10.0.0.0/24"]
-    eddlan["eddings · br-lan<br/>10.0.0.2"]
+
+    subgraph eddings
+        wan["br-wan<br/>96.86.32.137 (main)<br/>96.86.32.139 (secondary)"]
+        lanif["br-lan<br/>10.0.0.2"]
+    end
 
     net --> modem
-    modem --> eddings
+    modem --> wan
     modem --> amplifi
     amplifi --> lan
-    eddlan --- lan
+    lanif --- lan
 ```
 
 ### ISP / address block

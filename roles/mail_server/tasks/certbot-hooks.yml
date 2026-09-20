@@ -1,14 +1,7 @@
 ---
-# Installs the Certbot deploy hooks that pick up renewed certificates in the mail services. Certbot
-# runs every executable script in the deploy hook directory after a successful renewal, in addition to
-# the lineage's own `renew_hook` (which lives in the `apache` role and handles slapd).
-
-- name: Create Certbot Deploy Hook Directory
-  ansible.builtin.file:
-    path: /etc/letsencrypt/renewal-hooks/deploy
-    state: directory
-    mode: 'u=rwx,g=rx,o=rx'
-  become: true
+# Installs the Certbot deploy hooks that pick up renewed certificates in the mail services. Certbot runs
+# every executable in this directory after a successful renewal. The directory is created by the `apache`
+# role, which runs first and obtains the certificate these services use.
 
 - name: Create Certbot Deploy Hook Scripts for Mail Services
   ansible.builtin.template:

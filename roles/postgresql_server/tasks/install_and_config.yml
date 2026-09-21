@@ -30,14 +30,16 @@
       set -o pipefail;
       curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
       | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
-    # `pipefail` needs bash; without it a failed download still leaves a bad keyring that `creates` then keeps.
+    # `pipefail` needs bash; without it a failed download leaves a bad keyring that `creates` then keeps.
     executable: /bin/bash
     creates: /etc/apt/keyrings/pgdg.gpg
   become: true
 
 - name: Add PostgreSQL APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/pgdg.gpg]
+      http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main
     state: present
     filename: pgdg
   become: true

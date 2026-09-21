@@ -29,14 +29,16 @@
       set -o pipefail;
       curl -fsSL https://download.docker.com/linux/ubuntu/gpg
       | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    # `pipefail` needs bash; without it a failed download still leaves a bad keyring that `creates` then keeps.
+    # `pipefail` needs bash; without it a failed download leaves a bad keyring that `creates` then keeps.
     executable: /bin/bash
     creates: /etc/apt/keyrings/docker.gpg
   become: true
 
 - name: Add Docker APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable"
+    repo: >-
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu jammy stable
     state: present
   become: true
 

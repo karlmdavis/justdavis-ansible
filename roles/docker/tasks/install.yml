@@ -34,8 +34,6 @@
     creates: /etc/apt/keyrings/docker.gpg
   become: true
 
-# Still the `jammy` packages on Ubuntu 24.04: that is what eddings has run since its rebuild, and moving
-# to the `noble` line would swap the installed docker-ce packages.
 - name: Add Docker APT Repository
   ansible.builtin.apt_repository:
     repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable"

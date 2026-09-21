@@ -26,7 +26,12 @@
 
 - name: Add Docker APT Signing Key
   ansible.builtin.shell:
-    cmd: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    cmd: >-
+      set -o pipefail;
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    # `pipefail` needs bash; without it a failed download still leaves a bad keyring that `creates` then keeps.
+    executable: /bin/bash
     creates: /etc/apt/keyrings/docker.gpg
   become: true
 

@@ -18,7 +18,12 @@
 
 - name: Add PostgreSQL APT Signing Key
   ansible.builtin.shell:
-    cmd: curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
+    cmd: >-
+      set -o pipefail;
+      curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
+      | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
+    # `pipefail` needs bash; without it a failed download still leaves a bad keyring that `creates` then keeps.
+    executable: /bin/bash
     creates: /etc/apt/keyrings/pgdg.gpg
   become: true
 

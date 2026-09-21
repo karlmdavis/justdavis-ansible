@@ -25,10 +25,11 @@
 # Security benefit: Mitigates HTTP flood attacks and reduces load from aggressive scanners/bots.
 # Combined with fail2ban's application-level analysis, provides multi-layer protection.
 #
-# Devices on the LAN and on the tailnet are exempt from the rate limit: a phone syncing photos or a
-# laptop reloading the intranet opens many connections quickly, and remote family behind one NAT share
-# a single source address. The exemptions are inserted ahead of the limit rules because ufw matches
-# the first rule that applies.
+# Devices on the LAN, on the tailnet, and behind the home router's WAN address are exempt from the
+# rate limit: a phone syncing photos or a laptop reloading the intranet opens many connections quickly,
+# and every LAN device that uses a public site name arrives from the router's WAN address, so they all
+# share one source. The exemptions are inserted ahead of the limit rules because ufw matches the first
+# rule that applies.
 - name: Firewall - Allow Apache from Trusted Networks Without Rate Limiting
   community.general.ufw:
     rule: allow
@@ -43,6 +44,8 @@
     - { app: 'Apache Secure', source: "{{ network_home_private_cidr }}", name: 'LAN' }
     - { app: 'Apache', source: "{{ network_tailscale_cidr }}", name: 'Tailscale' }
     - { app: 'Apache Secure', source: "{{ network_tailscale_cidr }}", name: 'Tailscale' }
+    - { app: 'Apache', source: "{{ network_home_public_cidr }}", name: 'Home WAN' }
+    - { app: 'Apache Secure', source: "{{ network_home_public_cidr }}", name: 'Home WAN' }
 
 - name: Firewall - Allow Apache HTTP with rate limiting
   community.general.ufw:

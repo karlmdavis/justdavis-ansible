@@ -6,20 +6,39 @@
       - apt-transport-https
       - ca-certificates
       - curl
+      - gnupg
       - software-properties-common
     state: present
     update_cache: true
   become: true
 
-- name: Add Docker GPG key
-  ansible.builtin.apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+# Docker's signing key lives in its own keyring file, named by `signed-by` in the repository line;
+# `apt_key` and the global trusted keyring are deprecated.
+- name: Create APT Keyrings Directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
   become: true
 
-- name: Add Docker repository
+- name: Add Docker APT Signing Key
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    # `pipefail` needs bash; without it a failed download leaves a bad keyring that `creates` then keeps.
+    executable: /bin/bash
+    creates: /etc/apt/keyrings/docker.gpg
+  become: true
+
+- name: Add Docker APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
+    repo: >-
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu jammy stable
     state: present
   become: true
 

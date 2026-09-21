@@ -3,15 +3,43 @@
 # Add PostgreSQL official APT repository for newer extension versions
 # Required for immich role which needs pgvector >= 0.7.0 with halfvec[] type support
 # Ubuntu's default repository has older pgvector versions that lack required features
-- name: Add PostgreSQL APT repository key
-  ansible.builtin.apt_key:
-    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
     state: present
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
   become: true
 
-- name: Add PostgreSQL APT repository
+# PGDG's signing key lives in its own keyring file, named by `signed-by` in the repository line;
+# `apt_key` and the global trusted keyring are deprecated.
+- name: Create APT Keyrings Directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Add PostgreSQL APT Signing Key
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
+      | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
+    # `pipefail` needs bash; without it a failed download leaves a bad keyring that `creates` then keeps.
+    executable: /bin/bash
+    creates: /etc/apt/keyrings/pgdg.gpg
+  become: true
+
+- name: Add PostgreSQL APT Repository
   ansible.builtin.apt_repository:
-    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/pgdg.gpg]
+      http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main
     state: present
     filename: pgdg
   become: true

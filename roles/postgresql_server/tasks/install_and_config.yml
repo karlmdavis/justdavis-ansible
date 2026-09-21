@@ -13,10 +13,8 @@
     cache_valid_time: "{{ 60 * 15 }}"
   become: true
 
-# PGDG's signing key goes into its own keyring file and the repository line names it with `signed-by`;
-# `apt_key` and its global trusted keyring are deprecated. The line must stay byte-identical to the one
-# already on eddings (hand-written in March 2026): apt refuses to work when the same repository appears
-# twice with different `Signed-By` values (#112).
+# PGDG's signing key lives in its own keyring file, named by `signed-by` in the repository line;
+# `apt_key` and the global trusted keyring are deprecated.
 - name: Create APT Keyrings Directory
   ansible.builtin.file:
     path: /etc/apt/keyrings

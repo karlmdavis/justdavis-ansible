@@ -1,6 +1,6 @@
 ---
 
-# System timezone, as a tz database name. UTC is the default because every systemd timer's `OnCalendar` is
-# in local time, so a server's timezone silently sets when its scheduled jobs run; workstations override
+# System timezone, as a tz database name. Servers stay on UTC, the default, because systemd timers fire
+# in local time: changing a server's timezone silently shifts every scheduled job. Workstations override
 # this in their group_vars.
 base_timezone: Etc/UTC

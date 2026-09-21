@@ -99,7 +99,9 @@
   become: true
 
 # LAN and tailnet mail clients are exempt from the IMAPS rate limit (they open several connections at
-# once on startup); inserted ahead of the limit rule because ufw matches the first applicable rule.
+# once on startup), as is the home router's WAN address: LAN clients that connect to the public mail name
+# arrive from it and all share that one source. Inserted ahead of the limit rule because ufw matches the
+# first applicable rule.
 - name: Firewall - Allow IMAPS from Trusted Networks Without Rate Limiting
   community.general.ufw:
     rule: allow
@@ -112,6 +114,7 @@
   loop:
     - { source: "{{ network_home_private_cidr }}", name: 'LAN' }
     - { source: "{{ network_tailscale_cidr }}", name: 'Tailscale' }
+    - { source: "{{ network_home_public_cidr }}", name: 'Home WAN' }
 
 - name: Firewall - Allow Mail Traffic (IMAPS with rate limiting)
   community.general.ufw:

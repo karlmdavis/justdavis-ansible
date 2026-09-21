@@ -1,0 +1,4 @@
+---
+
+# Workstations show local time; servers stay on the role's UTC default.
+base_timezone: America/New_York

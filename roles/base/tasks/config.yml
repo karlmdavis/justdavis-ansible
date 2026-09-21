@@ -126,22 +126,12 @@
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
+# Sets the timezone through `timedatectl`.
 - name: Configure Timezone
-  ansible.builtin.template:
-    src: templates/timezone.j2
-    dest: /etc/timezone
-    owner: root
-    group: root
-    mode: u=rw,g=r,o=r
+  community.general.timezone:
+    name: "{{ base_timezone }}"
   become: true
-  register: timezone_file
   when: "'Microsoft' not in ansible_kernel"
-
-- name: Apply Timezone Change
-  ansible.builtin.command:
-    cmd: /usr/sbin/dpkg-reconfigure --frontend noninteractive tzdata
-  become: true
-  when: "timezone_file.changed and 'Microsoft' not in ansible_kernel"
 
 - name: Install 'ntp' and Other Base Packages
   ansible.builtin.apt:

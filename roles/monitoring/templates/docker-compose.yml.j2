@@ -203,5 +203,8 @@ services:
       - --collector.filesystem
       - --collector.netdev
       - --collector.netdev.device-exclude=^(veth.*|docker.*|br-[0-9a-f]{12}|vnet.*|tailscale.*|lo)$
+      # Jobs outside the stack (the offsite backups) report through .prom files in this directory.
+      - --collector.textfile
+      - --collector.textfile.directory=/host/var/lib/node_exporter/textfile_collector
     volumes:
       - /:/host:ro,rslave

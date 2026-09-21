@@ -127,7 +127,9 @@ internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside -8 to +
 uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the gateway reporting
 its Internet connection inactive for 2 minutes; HomePods not answering ping, not accepting AirPlay
 connections, or not resolving over mDNS; a mesh point missing from the topology; router, mesh point,
-or gateway reboots; collectors that stop working; and exporters whose scrape loop has stalled.
+or gateway reboots; collectors that stop working; exporters whose scrape loop has stalled; and the
+offsite backup (from the `offsite_backups` role's metrics file, read by node_exporter's textfile
+collector): no success for 36 hours, a failed run, or the metrics missing for an hour.
 
 The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling because, as of
 September 2026, the gateway reads around +10 to +11.5 dBmV with excellent SNR and zero uncorrectables.

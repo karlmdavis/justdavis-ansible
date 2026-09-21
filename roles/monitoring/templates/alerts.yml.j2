@@ -73,6 +73,36 @@ groups:
           severity: warning
         annotations:
           summary: "WAN jitter to {{ L }} $labels.target {{ R }} is {{ L }} $value | humanizeDuration {{ R }}"
+
+  # The offsite_backups role writes these gauges through node_exporter's textfile collector.
+  - name: backups
+    rules:
+      - alert: OffsiteBackupStale
+        expr: >-
+          time() - offsite_backups_last_success_timestamp_seconds
+          > {{ monitoring_alert_backup_max_age_seconds }}
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            No successful offsite backup for
+            {{ L }} $value | humanizeDuration {{ R }}
+
+      - alert: OffsiteBackupFailed
+        expr: offsite_backups_last_run_success == 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "The last offsite backup attempt failed (restic exit code in the metrics file)"
+
+      # The metrics file is missing or the textfile collector is not reading it.
+      - alert: OffsiteBackupMetricsMissing
+        expr: absent(offsite_backups_last_success_timestamp_seconds)
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "node_exporter is not reporting offsite backup metrics"
 {% if not is_test %}
 
   - name: homepods

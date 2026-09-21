@@ -84,6 +84,8 @@ monitoring_alert_docsis_power_max_dbmv: 12
 monitoring_alert_docsis_power_min_dbmv: -8
 monitoring_alert_docsis_uncorrectable_increase_15m: 1000
 monitoring_alert_reboot_uptime_seconds: 600
+# The offsite backup runs nightly; 36 hours tolerates one missed or overlong run before alerting.
+monitoring_alert_backup_max_age_seconds: 129600
 
 monitoring_grafana_root_url: "https://grafana.intranet.{{ domain }}/"
 

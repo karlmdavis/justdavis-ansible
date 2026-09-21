@@ -126,9 +126,7 @@
   become: true
   when: "'Microsoft' not in ansible_kernel"
 
-# Sets the timezone through `timedatectl`, which is what the system actually honors; the old approach of
-# writing `/etc/timezone` and running `dpkg-reconfigure tzdata` reported a change on every run and
-# never took effect on Ubuntu 24.04.
+# Sets the timezone through `timedatectl`.
 - name: Configure Timezone
   community.general.timezone:
     name: "{{ base_timezone }}"

@@ -3,6 +3,16 @@
 # Add PostgreSQL official APT repository for newer extension versions
 # Required for immich role which needs pgvector >= 0.7.0 with halfvec[] type support
 # Ubuntu's default repository has older pgvector versions that lack required features
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
+  become: true
+
 # PGDG's signing key goes into its own keyring file and the repository line names it with `signed-by`;
 # `apt_key` and its global trusted keyring are deprecated. The line must stay byte-identical to the one
 # already on eddings (hand-written in March 2026): apt refuses to work when the same repository appears

@@ -24,8 +24,9 @@ unit:
 - **amplifi_exporter** (custom) reads the AmpliFi router's web UI: which mesh point and band every
   client is on, its signal quality and link rates, mesh point backhaul health, and WAN throughput. It
   also keeps the ping and AirPlay probe target lists in sync with DHCP.
-- **gateway_exporter** (custom) reads the Comcast Business gateway's status page: uptime and the
-  downstream DOCSIS channels' SNR, power, and codeword error counters.
+- **gateway_exporter** (custom) reads the Comcast Business gateway's status page: uptime, whether the
+  Internet connection is active, and the downstream DOCSIS channels' SNR, power, and codeword error
+  counters.
 - **airplay_exporter** (custom) actively resolves each HomePod's AirPlay mDNS services from the LAN
   side every poll, and passively browses announcements.
 
@@ -44,6 +45,11 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
   latency is where the problem is.
 - DOCSIS SNR, power, and uncorrectable codewords distinguish a line problem (which a reboot only masks)
   from a router problem.
+
+### Why three custom exporters
+
+No existing Prometheus exporter fits any of the three devices; the exporters' README
+(`files/exporters/README.md`) records what was found and why it was not usable.
 
 ### Networking
 

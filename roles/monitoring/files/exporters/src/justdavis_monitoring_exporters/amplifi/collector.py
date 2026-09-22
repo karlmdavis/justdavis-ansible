@@ -2,9 +2,10 @@
 
 The scrape thread hands each successful poll to `publish()`, which resolves duplicate associations,
 advances the byte-counter unwrapping (so every poll is observed, however often Prometheus scrapes), and
-stores an immutable published snapshot. `collect()` only reads it. When the router cannot be reached
-the scraper calls `clear()`, so per-device series disappear instead of going stale, and label sets from
-rotating private MAC addresses never accumulate.
+stores an immutable published snapshot. `collect()` only reads it. Every `publish()` replaces the whole
+snapshot, so label sets from rotating private MAC addresses never accumulate; when the router cannot be
+reached the scraper calls `clear()`, so per-device series disappear instead of going stale. Every label
+value that comes from the network goes through `sanitise_label`.
 """
 
 import threading
@@ -21,14 +22,17 @@ from justdavis_monitoring_exporters.common.counters import Unwrapper32
 from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, short_service
 from justdavis_monitoring_exporters.common.metrics import status_families
-from justdavis_monitoring_exporters.common.settings import TrackedClient
+from justdavis_monitoring_exporters.common.settings import ClientKind, TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 
 _CLIENT_LABELS = ["mac", "name", "kind"]
+_TRACKED_LABELS = ["mac", "name", "kind"]
 _MESH_POINT_LABELS = ["mac", "name"]
 _KBPS = 1000.0
 
 type Direction = Literal["rx", "tx"]
+# Untracked clients are "other", and mesh backhaul links get their own kind.
+type ClientLabelKind = ClientKind | Literal["backhaul"]
 # The router's byte counters belong to an association, so a client that roams to another access
 # point gets a fresh baseline rather than a spurious 4 GiB "wrap".
 type CounterKey = tuple[str, str, Direction]
@@ -99,6 +103,7 @@ class AmplifiCollector(Collector):
         yield from self._router_families(published.snapshot)
         yield from self._mesh_point_families(published.snapshot)
         yield from self._client_families(published)
+        yield from self._tracked_families(published)
         yield from self._airplay_families(published.snapshot)
 
     def _target_families(self) -> Iterator[Metric]:
@@ -152,7 +157,10 @@ class AmplifiCollector(Collector):
         )
         for mp in snapshot.mesh_points:
             labels = [mp.mac, sanitise_label(mp.name)]
-            info.add_metric(labels, {"backhaul_band": mp.backhaul_band, "platform": mp.platform})
+            info.add_metric(
+                labels,
+                {"backhaul_band": sanitise_label(mp.backhaul_band), "platform": sanitise_label(mp.platform)},
+            )
             rssi.add_metric(labels, float(mp.rssi_min_dbm))
             uptime.add_metric(labels, float(mp.uptime_seconds))
         yield info
@@ -163,7 +171,8 @@ class AmplifiCollector(Collector):
         tracked = self._tracked.get(client.mac)
         if tracked is not None:
             return [client.mac, sanitise_label(tracked.name), tracked.kind]
-        return [client.mac, "", "backhaul" if client.is_backhaul else "other"]
+        kind: ClientLabelKind = "backhaul" if client.is_backhaul else "other"
+        return [client.mac, "", kind]
 
     def _client_families(self, published: PublishedSnapshot) -> Iterator[Metric]:
         snapshot = published.snapshot
@@ -208,9 +217,9 @@ class AmplifiCollector(Collector):
                 {
                     "ap": client.ap_mac,
                     "ap_name": sanitise_label(ap_names.get(client.ap_mac, "")),
-                    "band": client.band,
-                    "network": client.network,
-                    "mode": client.mode or "",
+                    "band": sanitise_label(client.band),
+                    "network": sanitise_label(client.network),
+                    "mode": sanitise_label(client.mode or ""),
                 },
             )
             signal.add_metric(labels, float(client.signal_quality))
@@ -228,6 +237,21 @@ class AmplifiCollector(Collector):
         yield inactive
         yield rx_bytes
         yield tx_bytes
+
+    def _tracked_families(self, published: PublishedSnapshot) -> Iterator[Metric]:
+        # Present for every tracked client whether or not it is on the WiFi, unlike the
+        # amplifi_client_* series, so a rule can say "this HomePod is not associated".
+        associated = GaugeMetricFamily(
+            "amplifi_tracked_client_associated",
+            "1 when the router currently lists this tracked client as a WiFi client.",
+            labels=_TRACKED_LABELS,
+        )
+        present = {client.mac for client in published.clients}
+        for tracked in self._tracked.values():
+            associated.add_metric(
+                [tracked.mac, sanitise_label(tracked.name), tracked.kind], float(tracked.mac in present)
+            )
+        yield associated
 
     def _airplay_families(self, snapshot: AmplifiSnapshot) -> Iterator[Metric]:
         advertised = GaugeMetricFamily(

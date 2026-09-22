@@ -1,9 +1,10 @@
 """Rendering of the dynamic target files driven by the AmpliFi snapshot.
 
 * `ping-targets.yml`: the full ping_exporter config (global `ping:` block plus `targets:`), so that
-  ping targets follow DHCP address changes. ping_exporter watches the file and applies target changes
-  live; changes to the `ping:` block only take effect when ping_exporter restarts (the role restarts
-  the stack when its environment file changes).
+  ping targets follow DHCP address changes. The file is rewritten whenever its rendered content
+  differs, so a changed `ping:` setting lands on the first successful poll after a restart;
+  ping_exporter applies target changes live but only reads the `ping:` block at start-up (the role
+  restarts the stack when its environment file changes, which covers that).
 * `airplay-targets.json`: Prometheus `file_sd` for blackbox_exporter's AirPlay TCP probe, one entry per
   HomePod currently associated with the WiFi.
 

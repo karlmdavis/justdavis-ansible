@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, InfoMetricFamily, Metric
 from prometheus_client.registry import Collector
 
+from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.metrics import status_families
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 from justdavis_monitoring_exporters.gateway.models import GatewayStatus
@@ -42,9 +43,9 @@ class GatewayCollector(Collector):
         wan.add_metric(
             [],
             {
-                "wan_ip": snapshot.wan_ip,
-                "wan_static_ip": snapshot.wan_static_ip,
-                "isp_gateway": snapshot.isp_gateway,
+                "wan_ip": sanitise_label(snapshot.wan_ip),
+                "wan_static_ip": sanitise_label(snapshot.wan_static_ip),
+                "isp_gateway": sanitise_label(snapshot.isp_gateway),
             },
         )
         yield wan
@@ -79,7 +80,7 @@ class GatewayCollector(Collector):
                 labels,
                 {
                     "frequency_hz": "" if channel.frequency_hz is None else str(channel.frequency_hz),
-                    "modulation": channel.modulation,
+                    "modulation": sanitise_label(channel.modulation),
                 },
             )
             locked.add_metric(labels, float(channel.locked))

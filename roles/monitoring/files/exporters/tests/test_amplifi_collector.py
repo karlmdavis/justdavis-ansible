@@ -190,12 +190,28 @@ def test_target_info_is_exported_from_the_targets_holder() -> None:
     )
 
 
-def test_network_sourced_labels_are_sanitised() -> None:
-    from justdavis_monitoring_exporters.common.labels import sanitise_label
+def test_names_and_bands_from_the_router_are_sanitised_in_every_family() -> None:
+    # A mesh point name with curly quotes and a control character, and a band with a stray byte.
+    kitchen = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Kitchen")
+    odd = replace(kitchen, name="Karl\u2019s Kitchen\n\x07", backhaul_band="2.4 GHz\x00")
+    snapshot = replace(
+        SNAPSHOT, mesh_points=tuple(odd if mp is kitchen else mp for mp in SNAPSHOT.mesh_points)
+    )
+    registry, _ = registry_with(snapshot)
+    labels = {"mac": kitchen.mac, "name": "Karl's Kitchen"}
+    assert registry.get_sample_value("amplifi_mesh_point_uptime_seconds", labels) is not None
+    info = {**labels, "backhaul_band": "2.4 GHz", "platform": "AFi-P-HD"}
+    assert registry.get_sample_value("amplifi_mesh_point_info", info) == 1.0
+    assert "\x07" not in generate_latest(registry).decode()
 
-    assert sanitise_label("Karl’s iPad\n") == "Karl's iPad"  # noqa: RUF001
-    assert sanitise_label("x" * 100) == "x" * 64
-    assert sanitise_label("") == ""
+
+def test_tracked_clients_report_whether_they_are_on_the_wifi() -> None:
+    registry, collector = registry_with(SNAPSHOT)
+    assert registry.get_sample_value("amplifi_tracked_client_associated", SPEAKER_A) == 1.0
+    gone = tuple(c for c in SNAPSHOT.clients if c.mac != "02:00:00:00:00:10")
+    collector.publish(replace(SNAPSHOT, clients=gone))
+    assert registry.get_sample_value("amplifi_tracked_client_associated", SPEAKER_A) == 0.0
+    assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) is None
 
 
 def _with_rx_bytes(snapshot: AmplifiSnapshot, mac: str, rx_bytes: int) -> AmplifiSnapshot:

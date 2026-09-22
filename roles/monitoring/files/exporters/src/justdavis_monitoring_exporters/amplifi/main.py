@@ -193,6 +193,8 @@ def main() -> None:
         try:
             scraper.seed_targets()
         except OSError:
+            count_error(errors, "write")
+            collector.set_target_files_ok(False)
             log.error("could not seed target files in %s", settings.shared_dir, exc_info=True)
         thread = threading.Thread(
             target=run_scrape_loop,

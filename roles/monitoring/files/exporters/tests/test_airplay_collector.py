@@ -1,10 +1,12 @@
-"""Tests for the AirPlay mDNS probe: polling logic against a fake resolver, and the collector."""
+"""Tests for the AirPlay mDNS probe: polling logic against a fake resolver, the scraper, and the collector."""
 
+import pytest
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
-from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey
-from justdavis_monitoring_exporters.airplay.resolver import AIRPLAY_TYPE, RAOP_TYPE, poll
+from justdavis_monitoring_exporters.airplay.main import AirplayScraper, AirplaySettings, build_registry
+from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
+from justdavis_monitoring_exporters.airplay.resolver import AIRPLAY_TYPE, RAOP_TYPE, _Listener, poll
 from justdavis_monitoring_exporters.common.settings import TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 
@@ -17,6 +19,14 @@ A_AIRPLAY = ServiceKey("Speaker A", "_airplay._tcp")
 A_RAOP = ServiceKey("Speaker A", "_raop._tcp")
 B_AIRPLAY = ServiceKey("Speaker B", "_airplay._tcp")
 B_RAOP = ServiceKey("Speaker B", "_raop._tcp")
+SETTINGS = AirplaySettings(
+    lan_ip="192.0.2.10",
+    port=9803,
+    listen_addr="127.0.0.1",
+    interval_seconds=30,
+    resolve_timeout_ms=10,
+    tracked_clients=TRACKED,
+)
 
 
 class FakeResolver:
@@ -27,11 +37,12 @@ class FakeResolver:
         self.resolvable = resolvable
         self._discovered = discovered or {}
         self.requests: list[tuple[str, str]] = []
+        self.error: Exception | None = None
 
     def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
         self.requests.append((service_type, instance_name))
-        if instance_name == "boom":
-            raise RuntimeError("zeroconf not running")
+        if self.error is not None:
+            raise self.error
         return instance_name in self.resolvable
 
     def discovered(self) -> dict[tuple[str, str], float]:
@@ -40,48 +51,55 @@ class FakeResolver:
 
 def test_airplay_instances_are_resolved_by_name() -> None:
     resolver = FakeResolver({"Speaker A"})
-    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0)
+    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
     assert (AIRPLAY_TYPE, "Speaker A") in resolver.requests
     assert (AIRPLAY_TYPE, "Speaker B") in resolver.requests
-    assert snapshot.resolved[A_AIRPLAY] is True
-    assert snapshot.resolved[B_AIRPLAY] is False
+    assert snapshot.services[A_AIRPLAY].resolved is True
+    assert snapshot.services[B_AIRPLAY].resolved is False
 
 
 def test_raop_instances_are_matched_through_passive_discovery_because_they_carry_a_device_id() -> None:
     discovered = {(RAOP_TYPE, "AABBCCDDEEFF@Speaker A"): 50.0}
     resolver = FakeResolver({"AABBCCDDEEFF@Speaker A"}, discovered)
-    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0)
+    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
     assert (RAOP_TYPE, "AABBCCDDEEFF@Speaker A") in resolver.requests
     assert all(name != "Speaker A" for t, name in resolver.requests if t == RAOP_TYPE)
-    assert snapshot.resolved[A_RAOP] is True
-    assert snapshot.resolved[B_RAOP] is False
-    assert A_RAOP in snapshot.discovered
+    assert snapshot.services[A_RAOP].resolved is True
+    assert snapshot.services[A_RAOP].discovered is True
+    assert snapshot.services[B_RAOP].resolved is False
 
 
 def test_poll_only_probes_homepods() -> None:
     resolver = FakeResolver(set())
-    poll(resolver, TRACKED, timeout_ms=10, now=100.0)
+    poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
     assert all(name != "Tablet" for _, name in resolver.requests)
 
 
-def test_last_seen_comes_from_resolution_then_discovery_then_the_previous_poll() -> None:
+def test_last_seen_comes_from_resolution_then_discovery_then_the_earlier_record() -> None:
     discovered = {(AIRPLAY_TYPE, "Speaker B"): 50.0, (AIRPLAY_TYPE, "Guest Device"): 60.0}
     resolver = FakeResolver({"Speaker A"}, discovered)
-    first = poll(resolver, TRACKED, timeout_ms=10, now=100.0)
-    assert first.last_seen[A_AIRPLAY] == 100.0
-    assert first.last_seen[B_AIRPLAY] == 50.0
-    assert ServiceKey("Guest Device", "_airplay._tcp") not in first.last_seen
-    quiet = FakeResolver(set())
-    second = poll(quiet, TRACKED, timeout_ms=10, now=200.0, previous=first)
-    assert second.resolved[A_AIRPLAY] is False
-    assert second.last_seen[A_AIRPLAY] == 100.0
-    assert second.last_seen[B_AIRPLAY] == 50.0
+    first = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
+    assert first.services[A_AIRPLAY].last_seen == 100.0
+    assert first.services[B_AIRPLAY].last_seen == 50.0
+    assert ServiceKey("Guest Device", "_airplay._tcp") not in first.services
+    earlier = {A_AIRPLAY: 100.0, B_AIRPLAY: 50.0}
+    second = poll(FakeResolver(set()), TRACKED, timeout_ms=10, now=200.0, last_seen=earlier)
+    assert second.services[A_AIRPLAY].resolved is False
+    assert second.services[A_AIRPLAY].last_seen == 100.0
+    assert second.services[B_AIRPLAY].last_seen == 50.0
 
 
-def test_a_failing_resolve_counts_as_unresolved_without_failing_the_poll() -> None:
-    tracked = (TrackedClient(mac="02:00:00:00:00:99", name="Boom", kind="homepod", airplay_name="boom"),)
-    snapshot = poll(FakeResolver(set()), tracked, timeout_ms=10, now=1.0)
-    assert snapshot.resolved[ServiceKey("boom", "_airplay._tcp")] is False
+def test_listener_names_feed_poll_without_the_type_suffix() -> None:
+    # The browser hands over "<instance>.<type>"; the resolver must be asked for "<instance>" only, or
+    # every RAOP query would target "X._raop._tcp.local.._raop._tcp.local." and fail forever.
+    listener = _Listener()
+    listener.add_service(None, RAOP_TYPE, "AABBCCDDEEFF@Speaker A." + RAOP_TYPE)  # type: ignore[arg-type]
+    resolver = FakeResolver({"AABBCCDDEEFF@Speaker A"}, listener.snapshot())
+    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=1.0, last_seen={})
+    assert (RAOP_TYPE, "AABBCCDDEEFF@Speaker A") in resolver.requests
+    assert snapshot.services[A_RAOP].resolved is True
+    listener.remove_service(None, RAOP_TYPE, "AABBCCDDEEFF@Speaker A." + RAOP_TYPE)  # type: ignore[arg-type]
+    assert listener.snapshot() == {}
 
 
 def test_service_key_from_mdns_strips_type_and_device_id() -> None:
@@ -89,18 +107,39 @@ def test_service_key_from_mdns_strips_type_and_device_id() -> None:
     assert ServiceKey.from_mdns(RAOP_TYPE, "AABBCCDDEEFF@Speaker A._raop._tcp.local.") == A_RAOP
 
 
+def test_resolver_error_fails_the_poll_and_keeps_last_seen_for_the_next_one() -> None:
+    resolver = FakeResolver({"Speaker A"})
+    registry, collector, errors = build_registry()
+    scraper = AirplayScraper(SETTINGS, resolver, collector, errors)
+    scraper()
+    a = {"name": "Speaker A", "service": "_airplay._tcp"}
+    assert registry.get_sample_value("airplay_service_resolved", a) == 1.0
+    first_seen = registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", a)
+    resolver.error = RuntimeError("zeroconf not running")
+    with pytest.raises(RuntimeError):
+        scraper()
+    assert registry.get_sample_value("airplay_service_resolved", a) is None
+    assert registry.get_sample_value("airplay_scrape_errors_total", {"stage": "resolve"}) == 1.0
+    resolver.error = None
+    resolver.resolvable = set()
+    scraper()
+    assert registry.get_sample_value("airplay_service_resolved", a) == 0.0
+    assert registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", a) == first_seen
+
+
 def test_collector_exports_resolved_discovered_and_last_seen() -> None:
     snapshot = AirplaySnapshot(
-        resolved={A_AIRPLAY: True, B_AIRPLAY: False},
-        discovered=frozenset({B_AIRPLAY}),
-        last_seen={B_AIRPLAY: 50.0},
+        services={
+            A_AIRPLAY: ServiceObservation(resolved=True, discovered=False, last_seen=None),
+            B_AIRPLAY: ServiceObservation(resolved=False, discovered=True, last_seen=50.0),
+        }
     )
-    snapshots: SnapshotHolder[AirplaySnapshot] = SnapshotHolder()
-    snapshots.set(snapshot)
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(ScrapeStatus.initial().succeeded(timestamp=1.0, duration_seconds=0.1))
+    collector = AirplayCollector(statuses)
+    collector.publish(snapshot)
     registry = CollectorRegistry()
-    registry.register(AirplayCollector(snapshots, statuses))
+    registry.register(collector)
     a = {"name": "Speaker A", "service": "_airplay._tcp"}
     b = {"name": "Speaker B", "service": "_airplay._tcp"}
     assert registry.get_sample_value("airplay_up") == 1.0

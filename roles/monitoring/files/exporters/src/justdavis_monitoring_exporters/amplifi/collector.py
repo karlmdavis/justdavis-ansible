@@ -19,13 +19,13 @@ from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WifiC
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
 from justdavis_monitoring_exporters.common.counters import Unwrapper32
 from justdavis_monitoring_exporters.common.labels import sanitise_label
+from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, short_service
 from justdavis_monitoring_exporters.common.metrics import status_families
 from justdavis_monitoring_exporters.common.settings import TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 
 _CLIENT_LABELS = ["mac", "name", "kind"]
 _MESH_POINT_LABELS = ["mac", "name"]
-_AIRPLAY_SERVICES = ("_airplay._tcp", "_raop._tcp")
 _KBPS = 1000.0
 
 type Direction = Literal["rx", "tx"]
@@ -238,9 +238,9 @@ class AmplifiCollector(Collector):
         for tracked in self._tracked.values():
             if tracked.kind != "homepod":
                 continue
-            services = snapshot.bonjour.get(tracked.mac, frozenset())
-            for service in _AIRPLAY_SERVICES:
-                present = f"{service}.local" in services
+            advertised_services = {short_service(s) for s in snapshot.bonjour.get(tracked.mac, frozenset())}
+            for service in AIRPLAY_SERVICES:
+                present = service in advertised_services
                 advertised.add_metric(
                     [tracked.mac, sanitise_label(tracked.name), tracked.kind, service], float(present)
                 )

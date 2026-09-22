@@ -2,18 +2,20 @@
 
 import logging
 import os
+import sys
 import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 
 import ifaddr
-from prometheus_client import CollectorRegistry
+from prometheus_client import CollectorRegistry, Counter
 
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
-from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot
-from justdavis_monitoring_exporters.airplay.resolver import ZeroconfResolver, poll
+from justdavis_monitoring_exporters.airplay.models import ServiceKey
+from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
 from justdavis_monitoring_exporters.common.loop import run_scrape_loop
+from justdavis_monitoring_exporters.common.metrics import count_error
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -61,61 +63,80 @@ def lan_ip_is_local(lan_ip: str) -> bool:
     return any(str(ip.ip) == lan_ip for adapter in ifaddr.get_adapters() for ip in adapter.ips if ip.is_IPv4)
 
 
-def build_registry() -> tuple[CollectorRegistry, AirplayCollector]:
+def build_registry() -> tuple[CollectorRegistry, AirplayCollector, Counter]:
+    """The registry served over HTTP, with the collector and the per-stage error counter on it."""
     registry = CollectorRegistry()
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(ScrapeStatus.initial())
-    snapshots: SnapshotHolder[AirplaySnapshot] = SnapshotHolder()
-    collector = AirplayCollector(snapshots, statuses)
+    collector = AirplayCollector(statuses)
     registry.register(collector)
-    return registry, collector
+    errors = Counter("airplay_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
+    return registry, collector, errors
+
+
+class AirplayScraper:
+    """One poll: resolve every HomePod's services and publish the observations.
+
+    The last-seen timestamps are kept here, across polls and across failed polls, so that the
+    `airplay_service_last_seen_timestamp_seconds` series survive a resolver outage.
+    """
+
+    def __init__(
+        self, settings: AirplaySettings, resolver: Resolver, collector: AirplayCollector, errors: Counter
+    ) -> None:
+        self._settings = settings
+        self._resolver = resolver
+        self._collector = collector
+        self._errors = errors
+        self._last_seen: dict[ServiceKey, float] = {}
+
+    def __call__(self) -> None:
+        try:
+            snapshot = poll(
+                self._resolver,
+                self._settings.tracked_clients,
+                timeout_ms=self._settings.resolve_timeout_ms,
+                now=time.time(),
+                last_seen=self._last_seen,
+            )
+        except Exception:
+            count_error(self._errors, "resolve")
+            self._collector.clear()
+            raise
+        for key, seen in snapshot.services.items():
+            if seen.last_seen is not None:
+                self._last_seen[key] = seen.last_seen
+        self._collector.publish(snapshot)
 
 
 def main() -> None:
     env = os.environ
     configure_logging(env)
     settings = load_settings(AirplaySettings.from_env, env)
-    registry, collector = build_registry()
+    registry, collector, errors = build_registry()
     stop = threading.Event()
     shutdown = serve(registry, addr=settings.listen_addr, port=settings.port)
     thread: threading.Thread | None = None
     resolver: ZeroconfResolver | None = None
     if settings.lan_ip is None:
         log.warning("MONITORING_LAN_IP is not set; serving airplay_up 0 and idling")
-    elif not lan_ip_is_local(settings.lan_ip):
-        log.error(
-            "MONITORING_LAN_IP %s is not an address of this host; serving airplay_up 0 and idling",
-            settings.lan_ip,
-        )
     else:
+        # Both of these can be transient at boot (the LAN address not yet configured), so exit and
+        # let the container's restart policy retry rather than idling until someone notices.
+        if not lan_ip_is_local(settings.lan_ip):
+            log.error("MONITORING_LAN_IP %s is not an address of this host; exiting", settings.lan_ip)
+            shutdown()
+            sys.exit(1)
         try:
             resolver = ZeroconfResolver(settings.lan_ip)
         except Exception:
-            log.error(
-                "could not start mDNS on %s; serving airplay_up 0 and idling", settings.lan_ip, exc_info=True
-            )
-    if resolver is not None:
-        active = resolver
-
-        def scrape() -> None:
-            previous = collector.snapshots.get()
-            try:
-                snapshot = poll(
-                    active,
-                    settings.tracked_clients,
-                    timeout_ms=settings.resolve_timeout_ms,
-                    now=time.time(),
-                    previous=previous,
-                )
-            except Exception:
-                collector.snapshots.clear()
-                raise
-            collector.snapshots.set(snapshot)
-
+            log.error("could not start mDNS on %s; exiting", settings.lan_ip, exc_info=True)
+            shutdown()
+            sys.exit(1)
         thread = threading.Thread(
             target=run_scrape_loop,
             kwargs={
-                "scrape": scrape,
+                "scrape": AirplayScraper(settings, resolver, collector, errors),
                 "interval_seconds": settings.interval_seconds,
                 "backoff_cap_seconds": _BACKOFF_CAP_SECONDS,
                 "stop": stop,

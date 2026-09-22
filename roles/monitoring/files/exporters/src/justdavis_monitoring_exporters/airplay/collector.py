@@ -14,15 +14,19 @@ _LABELS = ["name", "service"]
 
 
 class AirplayCollector(Collector):
-    def __init__(
-        self, snapshots: SnapshotHolder[AirplaySnapshot], statuses: SnapshotHolder[ScrapeStatus]
-    ) -> None:
-        self.snapshots = snapshots
+    def __init__(self, statuses: SnapshotHolder[ScrapeStatus]) -> None:
         self.statuses = statuses
+        self._snapshots: SnapshotHolder[AirplaySnapshot] = SnapshotHolder()
+
+    def publish(self, snapshot: AirplaySnapshot) -> None:
+        self._snapshots.set(snapshot)
+
+    def clear(self) -> None:
+        self._snapshots.clear()
 
     def collect(self) -> Iterator[Metric]:
         yield from status_families("airplay", self.statuses.get())
-        snapshot = self.snapshots.get()
+        snapshot = self._snapshots.get()
         if snapshot is None:
             return
         resolved = GaugeMetricFamily(
@@ -40,13 +44,12 @@ class AirplayCollector(Collector):
             "Unix time the service was last resolved or announced.",
             labels=_LABELS,
         )
-        for key, ok in snapshot.resolved.items():
+        for key, seen in snapshot.services.items():
             labels = [sanitise_label(key.name), key.service]
-            resolved.add_metric(labels, float(ok))
-            discovered.add_metric(labels, float(key in snapshot.discovered))
-            seen = snapshot.last_seen.get(key)
-            if seen is not None:
-                last_seen.add_metric(labels, seen)
+            resolved.add_metric(labels, float(seen.resolved))
+            discovered.add_metric(labels, float(seen.discovered))
+            if seen.last_seen is not None:
+                last_seen.add_metric(labels, seen.last_seen)
         yield resolved
         yield discovered
         yield last_seen

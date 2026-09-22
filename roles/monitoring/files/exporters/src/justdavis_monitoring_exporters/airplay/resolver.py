@@ -3,8 +3,9 @@
 Two discovery signals (plus a last-seen timestamp) are collected for each expected HomePod:
 
 * Active resolution (`airplay_service_resolved`): each poll asks the network for the HomePod's
-  `_airplay._tcp` and `_raop._tcp` instances with a short timeout. This is the alerting signal, because
-  a HomePod that silently stops answering is caught within one poll.
+  `_airplay._tcp` and `_raop._tcp` instances with a short timeout. This is the alerting signal. A
+  HomePod that stops answering is caught once its cached records expire (zeroconf answers from its
+  cache first; A records typically live 120 s), which is well within the alert's `for` window.
 * Passive discovery (`airplay_service_discovered`): a `ServiceBrowser` keeps a cache of announcements.
   It lags real failures by up to the record TTL (75 minutes) but shows what the LAN "sees" without
   being asked, which is the view an iPhone's AirPlay picker has.
@@ -13,8 +14,10 @@ The `_airplay._tcp` instance name is the HomePod's AirPlay name, so it can be qu
 `_raop._tcp` instance name carries a device-id prefix (`AABBCCDDEEFF@Kitchen`) that is not known in
 advance, so it is taken from passive discovery when available and resolved by its full name.
 
-Discovered names are only exported for the expected HomePods so that arbitrary LAN or guest devices
-cannot inject unbounded label values. Requires host networking (multicast on the LAN interface).
+A resolver error (as opposed to a query that times out) propagates out of `poll()`, so the exporter
+reports a failed poll rather than "every HomePod stopped answering". Discovered names are only exported
+for the expected HomePods so that arbitrary LAN or guest devices cannot inject unbounded label values.
+Requires host networking (multicast on the LAN interface).
 """
 
 import logging
@@ -26,19 +29,21 @@ from typing import Protocol
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
-from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, short_service
+from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
+from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, AirplayService, mdns_type
 from justdavis_monitoring_exporters.common.settings import TrackedClient
 
 log = logging.getLogger(__name__)
 
-AIRPLAY_TYPE = "_airplay._tcp.local."
-RAOP_TYPE = "_raop._tcp.local."
-SERVICE_TYPES = (AIRPLAY_TYPE, RAOP_TYPE)
+AIRPLAY_TYPE = mdns_type("_airplay._tcp")
+RAOP_TYPE = mdns_type("_raop._tcp")
 _MAX_WORKERS = 10
 
 
 class Resolver(Protocol):
-    def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool: ...
+    def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+        """Actively query for `instance_name` of `service_type`; False when nothing answered in time."""
+        ...
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
         """Passively seen (service type, full instance name) pairs and when they were last announced."""
@@ -46,22 +51,14 @@ class Resolver(Protocol):
 
 
 def _instance_for(
-    service_type: str, airplay_name: str, discovered: Mapping[tuple[str, str], float]
+    service: AirplayService, airplay_name: str, discovered: Mapping[tuple[str, str], float]
 ) -> str | None:
-    if service_type == AIRPLAY_TYPE:
+    if service == "_airplay._tcp":
         return airplay_name
     for (seen_type, instance), _ in discovered.items():
-        if seen_type == service_type and ServiceKey.from_mdns(seen_type, instance).name == airplay_name:
+        if seen_type == mdns_type(service) and ServiceKey.from_mdns(seen_type, instance).name == airplay_name:
             return instance
     return None
-
-
-def _safe_resolve(resolver: Resolver, service_type: str, instance: str, timeout_ms: int) -> bool:
-    try:
-        return resolver.resolve(service_type, instance, timeout_ms)
-    except Exception:
-        log.warning("resolving %s failed", service_type, exc_info=True)
-        return False
 
 
 def poll(
@@ -70,45 +67,49 @@ def poll(
     *,
     timeout_ms: int,
     now: float,
-    previous: AirplaySnapshot | None = None,
+    last_seen: Mapping[ServiceKey, float],
 ) -> AirplaySnapshot:
     """Actively resolve every tracked HomePod and merge in passive discovery for the same names.
 
-    `last_seen` carries forward from `previous` so the timestamp series survives an outage.
+    `last_seen` is the caller's record from earlier polls; the returned observations carry it forward,
+    updated by this poll's resolutions and announcements.
     """
     homepods = [client for client in tracked if client.kind == "homepod"]
-    expected = {
-        ServiceKey(client.airplay_name, short_service(t)) for client in homepods for t in SERVICE_TYPES
-    }
     passive = resolver.discovered()
-    jobs: list[tuple[ServiceKey, str | None]] = []
-    for client in homepods:
-        for service_type in SERVICE_TYPES:
-            key = ServiceKey(client.airplay_name, short_service(service_type))
-            jobs.append((key, _instance_for(service_type, client.airplay_name, passive)))
-    resolved: dict[ServiceKey, bool] = {}
+    jobs: list[tuple[ServiceKey, str | None]] = [
+        (
+            ServiceKey(client.airplay_name, service),
+            _instance_for(service, client.airplay_name, passive),
+        )
+        for client in homepods
+        for service in AIRPLAY_SERVICES
+    ]
+    resolved: dict[ServiceKey, bool] = {key: False for key, _instance in jobs}
     resolvable = [(key, instance) for key, instance in jobs if instance is not None]
     if resolvable:
         with ThreadPoolExecutor(max_workers=min(_MAX_WORKERS, len(resolvable))) as pool:
             results = pool.map(
-                lambda job: _safe_resolve(resolver, job[0].service + ".local.", job[1], timeout_ms),
-                resolvable,
+                lambda job: resolver.resolve(mdns_type(job[0].service), job[1], timeout_ms), resolvable
             )
             for (key, _instance), ok in zip(resolvable, results, strict=True):
                 resolved[key] = ok
-    for key, _unresolvable in jobs:
-        resolved.setdefault(key, False)
-    discovered: dict[ServiceKey, float] = {}
+    announced: dict[ServiceKey, float] = {}
     for (seen_type, instance), seen_at in passive.items():
-        key = ServiceKey.from_mdns(seen_type, instance)
-        if key in expected:
-            discovered[key] = max(seen_at, discovered.get(key, 0.0))
-    last_seen: dict[ServiceKey, float] = dict(previous.last_seen) if previous is not None else {}
-    last_seen.update(discovered)
+        try:
+            key = ServiceKey.from_mdns(seen_type, instance)
+        except ValueError:
+            continue
+        if key in resolved:
+            announced[key] = max(seen_at, announced.get(key, 0.0))
+    services: dict[ServiceKey, ServiceObservation] = {}
     for key, ok in resolved.items():
+        seen = last_seen.get(key)
+        if key in announced:
+            seen = max(announced[key], seen or 0.0)
         if ok:
-            last_seen[key] = now
-    return AirplaySnapshot(resolved=resolved, discovered=frozenset(discovered), last_seen=last_seen)
+            seen = now
+        services[key] = ServiceObservation(resolved=ok, discovered=key in announced, last_seen=seen)
+    return AirplaySnapshot(services=services)
 
 
 class _Listener(ServiceListener):
@@ -141,7 +142,7 @@ class ZeroconfResolver:
     def __init__(self, lan_ip: str) -> None:
         self._zc = Zeroconf(interfaces=[lan_ip], ip_version=IPVersion.V4Only)
         self._listener = _Listener()
-        self._browser = ServiceBrowser(self._zc, list(SERVICE_TYPES), self._listener)
+        self._browser = ServiceBrowser(self._zc, [mdns_type(s) for s in AIRPLAY_SERVICES], self._listener)
 
     def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
         info = self._zc.get_service_info(service_type, f"{instance_name}.{service_type}", timeout=timeout_ms)

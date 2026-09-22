@@ -54,6 +54,14 @@ groups:
         annotations:
           summary: "The gateway exporter has not completed a poll in 15 minutes"
 
+      - alert: AirPlayProbeFailing
+        expr: airplay_up == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AirPlay mDNS probe is not running (check MONITORING_LAN_IP and host networking)"
+
       - alert: AirPlayProbeStalled
         expr: airplay_up == 1 and time() - airplay_last_success_timestamp_seconds > 600
         labels:
@@ -61,12 +69,33 @@ groups:
         annotations:
           summary: "The AirPlay mDNS probe has not completed a poll in 10 minutes"
 
+      # The notification path itself: a rotated Slack token or a deleted Discord webhook would
+      # otherwise turn every alert into a silent one. Two receivers means a failure of one is still
+      # deliverable through the other.
+      - alert: AlertmanagerNotificationsFailing
+        expr: rate(alertmanager_notifications_failed_total[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alertmanager cannot deliver to {{ L }} $labels.integration {{ R }}"
+
+      - alert: PrometheusAlertmanagerUnreachable
+        expr: prometheus_notifications_alertmanagers_discovered < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus has no reachable Alertmanager; nothing is being delivered"
+
   - name: wan
     rules:
       # The WAN rules below compare against a series that must exist; if the ping target list ever
       # loses the anchor, they would all fall silent, so say so.
       - alert: WanProbeMissing
-        expr: absent(ping_loss_ratio{target="{{ wan_target }}"})
+        expr: >-
+          absent(ping_loss_ratio{target="{{ wan_target }}"})
+          or absent(ping_rtt_mean_seconds{target="{{ wan_target }}"})
+          or absent(ping_rtt_std_deviation_seconds{target="{{ wan_target }}"})
         for: 10m
         labels:
           severity: warning
@@ -138,6 +167,16 @@ groups:
 
   - name: homepods
     rules:
+      # The ping and AirPlay probes drop a HomePod within one poll of it leaving the WiFi, so the
+      # rules below cannot see that case; this one can.
+      - alert: HomePodNotOnWifi
+        expr: amplifi_tracked_client_associated{kind="homepod"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HomePod {{ L }} $labels.name {{ R }} is not associated with any access point"
+
       - alert: HomePodUnreachable
         expr: >-
           (ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind="homepod"}) == 1
@@ -162,6 +201,15 @@ groups:
           severity: warning
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} does not answer AirPlay mDNS queries"
+
+      # A running probe with nothing to probe means the tracked-client list has no HomePods.
+      - alert: AirPlayProbeNoTargets
+        expr: absent(airplay_service_resolved) and on () airplay_up == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AirPlay probe is running but no HomePod is configured to be probed"
 
   - name: amplifi
     rules:
@@ -188,14 +236,6 @@ groups:
           severity: warning
         annotations:
           summary: "A mesh point has disappeared from the AmpliFi topology"
-
-      - alert: AirPlayProbeFailing
-        expr: airplay_up == 0
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "The AirPlay mDNS probe is not running (check MONITORING_LAN_IP and host networking)"
 
       - alert: AmpliFiScrapeFailing
         expr: amplifi_up == 0

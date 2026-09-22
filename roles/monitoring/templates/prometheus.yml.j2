@@ -53,6 +53,12 @@ scrape_configs:
       - targets:
           - blackbox_exporter:{{ monitoring_blackbox_port }}
 
+  # Alertmanager's own metrics, so that failed notifications are themselves alertable.
+  - job_name: alertmanager
+    static_configs:
+      - targets:
+          - alertmanager:{{ monitoring_alertmanager_port }}
+
   # AirPlay TCP port probes; targets are rewritten by the AmpliFi exporter as HomePod addresses change.
   - job_name: airplay_tcp
     metrics_path: /probe

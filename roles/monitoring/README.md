@@ -135,11 +135,15 @@ channel webhook URL from Discord's channel integration settings. Thresholds are 
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
 or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside
 -8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
-gateway reporting its Internet connection inactive for 2 minutes; HomePods not answering ping, not
-accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the topology;
-router, mesh point, or gateway reboots; collectors that stop working; exporters whose scrape loop has
-stalled; and the offsite backup (from the `offsite_backups` role's metrics file, read by node_exporter's
-textfile collector): no success for 36 hours, a failed run, or the metrics missing for an hour.
+gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
+ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the
+topology; router, mesh point, or gateway reboots; collectors that stop working; exporters whose scrape
+loop has stalled; the WAN probe series or the AirPlay probe's targets going missing; the offsite backup
+(from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
+success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
+Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which
+still reaches the other). What no rule can cover is the whole stack being down at once; a dead-man's
+switch to an outside heartbeat service would, and is a possible follow-up.
 
 The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling; the template
 explains why next to the value.

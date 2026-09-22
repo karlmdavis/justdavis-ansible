@@ -56,7 +56,7 @@
   register: monitoring_targets
   until: >-
     (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and (['airplay', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
+    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
          | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
         == []
   retries: 30

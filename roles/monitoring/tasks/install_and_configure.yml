@@ -31,14 +31,6 @@
     monitoring_uid: "{{ monitoring_user_result.uid }}"
     monitoring_gid: "{{ monitoring_user_result.group }}"
 
-- name: Install Python Cryptography for Certificate Inspection
-  ansible.builtin.apt:
-    name: python3-cryptography
-    state: present
-    update_cache: true
-    cache_valid_time: "{{ 60 * 15 }}"
-  become: true
-
 - name: Create Root-Owned Directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -114,49 +106,9 @@
     - "{{ monitoring_blackbox_image }}"
   become: true
 
-# Gateway TLS: the gateway serves HTTPS with a self-signed certificate whose name does not match its
-# address, so the exporter pins the certificate's SHA-256 fingerprint, computed here at deploy time.
-# Re-run the role after a gateway firmware change if `gateway_up` drops to 0 with a TLS error.
-- name: Fetch Gateway TLS Certificate
-  community.crypto.get_certificate:
-    host: "{{ monitoring_gateway_host }}"
-    port: 443
-  register: monitoring_gateway_cert
-  # A gateway that is rebooting must not abort the deploy; the previously recorded fingerprint
-  # (below) keeps the exporter working, and without one it idles rather than using plain HTTP.
-  failed_when: false
-  when: not is_test and monitoring_gateway_host | length > 0 and not ansible_check_mode
-
-- name: Inspect Gateway TLS Certificate
-  community.crypto.x509_certificate_info:
-    content: "{{ monitoring_gateway_cert.cert }}"
-  register: monitoring_gateway_cert_info
-  when: monitoring_gateway_cert.cert is defined
-
-- name: Read Previously Recorded Gateway TLS Fingerprint
-  ansible.builtin.slurp:
-    src: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
-  register: monitoring_gateway_fingerprint_file
-  failed_when: false
-  become: true
-
-- name: Set Gateway TLS Fingerprint
-  ansible.builtin.set_fact:
-    monitoring_gateway_tls_fingerprint: >-
-      {{ monitoring_gateway_cert_info.fingerprints.sha256
-         if monitoring_gateway_cert_info is not skipped
-         else (monitoring_gateway_fingerprint_file.content | b64decode | trim
-               if monitoring_gateway_fingerprint_file.content is defined else '') }}
-
-- name: Record Gateway TLS Fingerprint
-  ansible.builtin.copy:
-    content: "{{ monitoring_gateway_tls_fingerprint }}\n"
-    dest: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
-    owner: root
-    group: root
-    mode: 'u=rw,g=r,o=r'
-  become: true
-  when: monitoring_gateway_tls_fingerprint | length > 0
+# Sets `monitoring_gateway_tls_fingerprint` for the environment file below.
+- name: Determine Gateway TLS Fingerprint
+  ansible.builtin.import_tasks: gateway_tls_fingerprint.yml
 
 - name: Create Environment File
   ansible.builtin.template:
@@ -284,67 +236,9 @@
     mode: 'u=rw,g=r,o=r'
   become: true
 
-# Exporter source tree: copy exactly the files the image build consumes (an allowlist, so local
-# tooling caches, tests, and stray files never reach the server), then remove anything on the
-# server that no longer exists locally.
-- name: Find Exporter Source Files
-  ansible.builtin.set_fact:
-    monitoring_exporter_files: >-
-      {{ query('community.general.filetree', 'exporters/')
-         | selectattr('state', 'equalto', 'file')
-         | selectattr('path', 'match', monitoring_exporter_allowlist)
-         | rejectattr('path', 'search', '(^|/)__pycache__/')
-         | map(attribute='path') | list }}
-  vars:
-    monitoring_exporter_allowlist: '^(Dockerfile|\.dockerignore|pyproject\.toml|uv\.lock|src/.+)$'
-
-- name: Create Exporter Source Directories
-  ansible.builtin.file:
-    path: "{{ monitoring_base_dir }}/exporters/{{ item }}"
-    state: directory
-    owner: root
-    group: root
-    mode: 'u=rwx,g=rx,o=rx'
-  loop: "{{ monitoring_exporter_files | map('dirname') | reject('equalto', '') | unique | sort }}"
-  become: true
-
-- name: Copy Exporter Source Files
-  ansible.builtin.copy:
-    src: "exporters/{{ item }}"
-    dest: "{{ monitoring_base_dir }}/exporters/{{ item }}"
-    owner: root
-    group: root
-    mode: 'u=rw,g=r,o=r'
-  loop: "{{ monitoring_exporter_files | sort }}"
-  become: true
-  notify:
-    - Build Monitoring Exporters
-    - Restart Monitoring
-
-- name: Find Deployed Exporter Files
-  ansible.builtin.find:
-    paths: "{{ monitoring_base_dir }}/exporters"
-    recurse: true
-    hidden: true
-    file_type: file
-  register: monitoring_deployed_exporter_files
-  become: true
-
-- name: Remove Stale Deployed Exporter Files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop: >-
-    {{ monitoring_deployed_exporter_files.files | map(attribute='path')
-       | map('regex_replace', '^' ~ (monitoring_exporters_dir ~ '/') | regex_escape, '')
-       | difference(monitoring_exporter_files)
-       | map('regex_replace', '^', monitoring_exporters_dir ~ '/') | list }}
-  vars:
-    monitoring_exporters_dir: "{{ monitoring_base_dir }}/exporters"
-  become: true
-  notify:
-    - Build Monitoring Exporters
-    - Restart Monitoring
+# The image build context for the custom exporters.
+- name: Sync Exporter Source Tree
+  ansible.builtin.import_tasks: exporter_source.yml
 
 - name: Create Docker Compose File
   ansible.builtin.template:

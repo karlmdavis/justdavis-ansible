@@ -15,6 +15,15 @@
     fail_msg: The monitoring role needs its vault_* variables (see roles/monitoring/README.md).
   when: not is_test
 
+# Compose's env-file parser treats ` #` in an unquoted value as the start of a comment, which would
+# truncate the tracked-client JSON and stop the AmpliFi exporter from starting.
+- name: Verify Tracked-Client Names Survive the Environment File
+  ansible.builtin.assert:
+    that:
+      - "' #' not in (vault_monitoring_tracked_clients | to_json)"
+    fail_msg: A tracked-client name contains " #", which Compose would read as a comment.
+  when: not is_test
+
 - name: Create System User
   ansible.builtin.user:
     name: "{{ monitoring_user }}"

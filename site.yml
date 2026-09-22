@@ -9,6 +9,9 @@
   hosts: eddings.justdavis.com
   become: true
   gather_facts: true
+  # A run that fails after notifying a handler must still run it: otherwise the next run, seeing no
+  # change, never rebuilds an image or restarts a service whose inputs already changed on disk.
+  force_handlers: true
   tasks:
     - name: Import role - eddings_base
       ansible.builtin.import_role:

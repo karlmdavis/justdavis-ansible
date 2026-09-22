@@ -205,6 +205,16 @@ groups:
         annotations:
           summary: "The AmpliFi exporter cannot read the router"
 
+      # The exporter keeps polling when it cannot rewrite the shared target files, but the ping and
+      # AirPlay probes then keep following stale HomePod addresses.
+      - alert: AmpliFiTargetFilesNotWritable
+        expr: amplifi_target_files_ok == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The AmpliFi exporter cannot write the ping/AirPlay target files in /shared"
+
   - name: gateway
     rules:
       - alert: GatewayRebooted

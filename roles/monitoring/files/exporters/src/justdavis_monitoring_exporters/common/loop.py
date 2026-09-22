@@ -10,6 +10,10 @@ from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, Snapsho
 
 log = logging.getLogger(__name__)
 
+# 2**20 times any sane interval is past any sane cap; without a bound the float conversion overflows
+# after 1024 consecutive failures (a few days of outage) and kills the loop.
+_MAX_BACKOFF_EXPONENT = 20
+
 
 def default_jitter() -> float:
     return random.uniform(0.9, 1.1)
@@ -43,7 +47,8 @@ def run_scrape_loop(
             current = current.failed(duration_seconds=duration)
             status.set(current)
             log.error("scrape failed (%d in a row)", current.consecutive_failures, exc_info=True)
-            delay = min(interval_seconds * 2**current.consecutive_failures, backoff_cap_seconds)
+            exponent = min(current.consecutive_failures, _MAX_BACKOFF_EXPONENT)
+            delay = min(interval_seconds * 2**exponent, backoff_cap_seconds)
         else:
             duration = time.monotonic() - started
             status.set(current.succeeded(timestamp=clock(), duration_seconds=duration))

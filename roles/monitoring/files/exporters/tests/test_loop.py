@@ -1,6 +1,7 @@
 """Tests for the scrape loop: pacing, backoff with jitter, and never dying on errors."""
 
 import threading
+from collections.abc import Callable
 
 from justdavis_monitoring_exporters.common.loop import run_scrape_loop
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
@@ -21,13 +22,15 @@ class Waiter:
         return self.stop.is_set()
 
 
-def run(scrape: object, *, interval: float, cap: float, waits: int) -> tuple[list[float], ScrapeStatus]:
+def run(
+    scrape: Callable[[], None], *, interval: float, cap: float, waits: int
+) -> tuple[list[float], ScrapeStatus]:
     stop = threading.Event()
     waiter = Waiter(stop, waits)
     status: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     status.set(ScrapeStatus.initial())
     run_scrape_loop(
-        scrape,  # type: ignore[arg-type]
+        scrape,
         interval_seconds=interval,
         backoff_cap_seconds=cap,
         stop=stop,
@@ -89,3 +92,13 @@ def test_jitter_scales_the_delay() -> None:
         clock=lambda: 0.0,
     )
     assert waiter.delays == [90.0]
+
+
+def test_a_long_outage_keeps_the_loop_alive_at_the_cap() -> None:
+    def boom() -> None:
+        raise RuntimeError("device unreachable")
+
+    # 1100 failures is past the point where 2**N stops fitting in a float.
+    delays, status = run(boom, interval=30, cap=200, waits=1100)
+    assert delays[-1] == 200
+    assert status.consecutive_failures == 1100

@@ -138,18 +138,10 @@ That is a data point for a Comcast conversation, not an alert.
 There is intentionally no "HomePod on the wrong mesh point" alert yet: the data is recorded first, and a
 rule can be added once the dashboards show what normal looks like.
 
-## Exporter Development
+## Custom Exporters
 
-The custom exporters live in `files/exporters/` as a uv-managed package with its own lock file:
-
-```bash
-cd roles/monitoring/files/exporters
-uv sync
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
-```
-
-Parsers are pure functions tested against sanitised fixtures of the real device responses; the module
-headers document the endpoints, login flows, and response schemas they depend on. Each exporter serves
+The custom exporters live in `files/exporters/` as a uv-managed package with its own lock file and
+README (what they are, why they are custom, and how to develop them). Each exporter serves
 `<name>_up`, `<name>_last_success_timestamp_seconds`, `<name>_scrape_duration_seconds`, and
 `<name>_consecutive_failures` at all times, plus `<name>_scrape_errors_total{stage}` to say which step
 failed, and only serves device metrics from its last successful poll, so nothing goes stale silently.

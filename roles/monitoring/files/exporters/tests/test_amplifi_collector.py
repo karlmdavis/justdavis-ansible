@@ -1,10 +1,11 @@
 """Tests for the AmpliFi Prometheus collector (snapshot -> metric families)."""
 
+from dataclasses import replace
 from pathlib import Path
 
-from prometheus_client import CollectorRegistry
+from prometheus_client import CollectorRegistry, generate_latest
 
-from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector
+from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, CounterKey
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
@@ -27,7 +28,7 @@ def registry_with(
 ) -> tuple[CollectorRegistry, AmplifiCollector]:
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(status or ScrapeStatus.initial())
-    collector = AmplifiCollector(statuses, TRACKED, Unwrapper32())
+    collector = AmplifiCollector(statuses, TRACKED, Unwrapper32[CounterKey]())
     collector.set_targets((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
     if snapshot is not None:
         collector.publish(snapshot)
@@ -116,9 +117,18 @@ def test_clearing_the_snapshot_restarts_counter_baselines() -> None:
     assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 50.0
 
 
-def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:
-    from dataclasses import replace
+def test_a_client_that_roams_to_another_access_point_restarts_its_baseline() -> None:
+    registry, collector = registry_with(SNAPSHOT)
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0
+    speaker = next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10")
+    roamed = replace(speaker, ap_mac="02:00:00:00:00:02", rx_bytes=50)
+    others = tuple(c for c in SNAPSHOT.clients if c.mac != "02:00:00:00:00:10")
+    collector.publish(replace(SNAPSHOT, clients=(*others, roamed)))
+    # The new association's counter starts near zero: a reset, not a 4 GiB wrap.
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 50.0
 
+
+def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:
     stale = replace(
         next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10"),
         ap_mac="02:00:00:00:00:02",
@@ -128,8 +138,6 @@ def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:
     snapshot = replace(SNAPSHOT, clients=(*SNAPSHOT.clients, stale))
     registry, _ = registry_with(snapshot)
     assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) == 74.0
-    from prometheus_client import generate_latest
-
     exposition = generate_latest(registry).decode()
     assert exposition.count('amplifi_client_signal_quality{kind="homepod",mac="02:00:00:00:00:10"') == 1
 
@@ -191,7 +199,5 @@ def test_network_sourced_labels_are_sanitised() -> None:
 
 
 def _with_rx_bytes(snapshot: AmplifiSnapshot, mac: str, rx_bytes: int) -> AmplifiSnapshot:
-    from dataclasses import replace
-
     clients = tuple(replace(c, rx_bytes=rx_bytes) if c.mac == mac else c for c in snapshot.clients)
     return replace(snapshot, clients=clients)

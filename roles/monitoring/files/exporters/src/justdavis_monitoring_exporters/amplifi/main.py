@@ -11,7 +11,7 @@ from pathlib import Path
 from prometheus_client import CollectorRegistry, Counter
 
 from justdavis_monitoring_exporters.amplifi.client import AmplifiClient
-from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector
+from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, CounterKey
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import (
@@ -94,7 +94,7 @@ def build_registry(tracked: tuple[TrackedClient, ...]) -> tuple[CollectorRegistr
     registry = CollectorRegistry()
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(ScrapeStatus.initial())
-    collector = AmplifiCollector(statuses, tracked, Unwrapper32())
+    collector = AmplifiCollector(statuses, tracked, Unwrapper32[CounterKey]())
     registry.register(collector)
     errors = Counter("amplifi_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
     return registry, collector, errors

@@ -10,6 +10,7 @@ rotating private MAC addresses never accumulate.
 import threading
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, InfoMetricFamily, Metric
 from prometheus_client.registry import Collector
@@ -26,6 +27,11 @@ _CLIENT_LABELS = ["mac", "name", "kind"]
 _MESH_POINT_LABELS = ["mac", "name"]
 _AIRPLAY_SERVICES = ("_airplay._tcp", "_raop._tcp")
 _KBPS = 1000.0
+
+type Direction = Literal["rx", "tx"]
+# The router's byte counters belong to an association, so a client that roams to another access
+# point gets a fresh baseline rather than a spurious 4 GiB "wrap".
+type CounterKey = tuple[str, str, Direction]
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +59,7 @@ class AmplifiCollector(Collector):
         self,
         statuses: SnapshotHolder[ScrapeStatus],
         tracked: Sequence[TrackedClient],
-        unwrapper: Unwrapper32,
+        unwrapper: Unwrapper32[CounterKey],
     ) -> None:
         self.statuses = statuses
         self._published: SnapshotHolder[PublishedSnapshot] = SnapshotHolder()
@@ -66,9 +72,10 @@ class AmplifiCollector(Collector):
     def publish(self, snapshot: AmplifiSnapshot) -> None:
         with self._publish_lock:
             clients = dedupe_clients(snapshot.clients)
-            self._unwrapper.forget_missing({(c.mac, d) for c in clients for d in ("rx", "tx")})
-            rx = {c.mac: self._unwrapper.update((c.mac, "rx"), c.rx_bytes) for c in clients}
-            tx = {c.mac: self._unwrapper.update((c.mac, "tx"), c.tx_bytes) for c in clients}
+            keys: set[CounterKey] = {(c.mac, c.ap_mac, d) for c in clients for d in ("rx", "tx")}
+            self._unwrapper.forget_missing(keys)
+            rx = {c.mac: self._unwrapper.update((c.mac, c.ap_mac, "rx"), c.rx_bytes) for c in clients}
+            tx = {c.mac: self._unwrapper.update((c.mac, c.ap_mac, "tx"), c.tx_bytes) for c in clients}
             self._published.set(PublishedSnapshot(snapshot, clients, rx, tx))
 
     def clear(self) -> None:

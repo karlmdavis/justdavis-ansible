@@ -57,3 +57,20 @@ class FakeClock:
 
     def advance(self, seconds: float) -> None:
         self.now += seconds
+
+
+class FailingHttpClient(FakeHttpClient):
+    """Serves the script until `fail_after` calls, then raises `error` from every request."""
+
+    def __init__(self, script: dict[tuple[str, str], list[HttpResponse]], *, error: Exception) -> None:
+        super().__init__(script)
+        self.error: Exception | None = None
+        self._armed = error
+
+    def arm(self) -> None:
+        self.error = self._armed
+
+    def _next(self, method: str, path: str) -> HttpResponse:
+        if self.error is not None:
+            raise self.error
+        return super()._next(method, path)

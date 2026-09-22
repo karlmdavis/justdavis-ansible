@@ -155,3 +155,10 @@ def test_unrecognised_internet_wording_raises_parse_error(comcast_network_html: 
     )
     with pytest.raises(ParseError):
         parse_comcast_network(html)
+
+
+def test_repeated_channel_index_raises_parse_error(comcast_network_html: str) -> None:
+    # The index is the only channel label; a repeat would make Prometheus reject the whole scrape.
+    html = _with_cells(comcast_network_html, "Index", "2")
+    with pytest.raises(ParseError, match="Index: repeated"):
+        parse_comcast_network(html)

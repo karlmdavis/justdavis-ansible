@@ -10,7 +10,7 @@ from justdavis_monitoring_exporters.amplifi.main import AmplifiScraper, AmplifiS
 from justdavis_monitoring_exporters.amplifi.targets import PingConfig
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
 from justdavis_monitoring_exporters.common.settings import TrackedClient
-from tests.fakes import FakeHttpClient, response
+from tests.fakes import FailingHttpClient, FakeHttpClient, response
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "amplifi_login.html").read_text()
@@ -119,3 +119,15 @@ def test_errors_counter_is_served_from_the_same_registry_as_the_collector() -> N
     registry, _collector, errors = build_registry(TRACKED)
     errors.labels(stage="fetch").inc()
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "fetch"}) == 1.0
+
+
+def test_unreachable_router_clears_snapshot_and_counts_fetch_stage(tmp_path: Path) -> None:
+    http = FailingHttpClient(http_with(INFO_JSON).script, error=ConnectionError("router unreachable"))
+    scraper, _collector, registry = make(tmp_path, http=http)
+    scraper()
+    http.arm()
+    with pytest.raises(ConnectionError):
+        scraper()
+    assert registry.get_sample_value("amplifi_router_uptime_seconds") is None
+    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "fetch"}) == 1.0
+    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "login"}) is None

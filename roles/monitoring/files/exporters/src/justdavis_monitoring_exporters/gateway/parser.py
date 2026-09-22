@@ -207,11 +207,17 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
     correctable = _row(codewords, "Correctable Codewords", count)
     uncorrectable = _row(codewords, "Uncorrectable Codewords", count)
     channels: list[DocsisChannel] = []
+    seen: set[int] = set()
     for i in range(count):
         ctx = f"Downstream[{indexes[i]}]"
         index = _count(indexes[i], f"{ctx}.Index")
         if index is None:
             raise ParseError(f"{ctx}.Index: missing")
+        # The index is the only channel label; a repeat would give Prometheus duplicate series and
+        # make it reject the whole scrape.
+        if index in seen:
+            raise ParseError(f"{ctx}.Index: repeated")
+        seen.add(index)
         frequency_mhz = _number(frequency[i], "MHz", f"{ctx}.Frequency")
         channels.append(
             DocsisChannel(

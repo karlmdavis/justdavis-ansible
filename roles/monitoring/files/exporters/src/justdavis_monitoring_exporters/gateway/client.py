@@ -5,17 +5,19 @@ Login is `POST /check.jst` with form fields `username` and `password`; success i
 form with HTTP 200, so "needs login" is detected by content (`gateway.parser.is_login_page`).
 
 The gateway allows a single admin session and writes a system-log entry on every login, so this client
-keeps one session alive across polls and re-logs in only when the login form comes back. Re-logins are
-additionally rate limited (`relogin_min_seconds`) so that a person using the GUI is not logged out every
-poll; a throttled attempt raises `LoginThrottled`, which the exporter reports as `gateway_up 0` without
-counting a login error (the shared scrape loop still logs it and backs off).
+keeps one session alive across polls and re-logs in only when the login form (or a redirect) comes back
+instead of the page. Re-logins are additionally rate limited (`relogin_min_seconds`) so that a person
+using the GUI is not logged out every poll; a throttled attempt raises `LoginThrottled`, which the
+exporter reports as `gateway_up 0` without counting a login error (the shared scrape loop still logs it
+and backs off). The throttle counts from the attempt, not from success, so rejected credentials produce
+one login error and then throttled attempts until the window passes, rather than a login-log flood.
 """
 
 import logging
 from collections.abc import Callable
 
 from justdavis_monitoring_exporters.common.errors import ExporterError, LoginError
-from justdavis_monitoring_exporters.common.http import HttpClient
+from justdavis_monitoring_exporters.common.http import HttpClient, HttpResponse
 from justdavis_monitoring_exporters.gateway.parser import is_login_page
 
 log = logging.getLogger(__name__)
@@ -26,6 +28,12 @@ _STATUS_PATH = "/comcast_network.jst"
 
 class LoginThrottled(ExporterError):
     """A re-login was needed but suppressed by the rate limit."""
+
+
+def _needs_login(page: HttpResponse) -> bool:
+    """The gateway answers a session-less request with the login form (200) or, on some paths, a
+    redirect; either way the status page did not come back."""
+    return page.status != 200 or is_login_page(page.body)
 
 
 class GatewayClient:
@@ -51,11 +59,11 @@ class GatewayClient:
     def fetch_comcast_network(self) -> bytes:
         """Return the raw status page body, logging in (subject to the throttle) when needed."""
         page = self._http.get(_STATUS_PATH)
-        if not is_login_page(page.body):
+        if not _needs_login(page):
             return page.body
         self._login()
         page = self._http.get(_STATUS_PATH)
-        if is_login_page(page.body):
+        if _needs_login(page):
             raise LoginError("gateway still shows the login form after logging in")
         log.info("logged in to the gateway")
         return page.body

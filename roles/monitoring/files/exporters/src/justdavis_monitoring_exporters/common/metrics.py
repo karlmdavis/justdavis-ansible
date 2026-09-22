@@ -1,7 +1,9 @@
 """Metric families shared by every exporter's collector."""
 
 from collections.abc import Iterator
+from typing import Literal
 
+from prometheus_client import Counter
 from prometheus_client.core import GaugeMetricFamily, Metric
 
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus
@@ -28,3 +30,11 @@ def status_families(prefix: str, status: ScrapeStatus | None) -> Iterator[Metric
         "Number of consecutive failed scrape attempts.",
         value=float(current.consecutive_failures),
     )
+
+
+# The step of a poll that failed, as the `stage` label of `<prefix>_scrape_errors_total`.
+type ErrorStage = Literal["login", "fetch", "tls", "parse", "write", "resolve"]
+
+
+def count_error(errors: Counter, stage: ErrorStage) -> None:
+    errors.labels(stage=stage).inc()

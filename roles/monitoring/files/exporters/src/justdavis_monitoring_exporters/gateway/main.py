@@ -7,11 +7,13 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+import requests
 from prometheus_client import CollectorRegistry, Counter
 
-from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient, pinned_session
 from justdavis_monitoring_exporters.common.loop import run_scrape_loop
+from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -107,24 +109,33 @@ class GatewayScraper:
             body = self._client.fetch_comcast_network()
         except LoginThrottled:
             self._collector.clear()
-            log.info("gateway session lost (someone else logged in?); waiting for the re-login window")
+            log.info(
+                "gateway login needed but throttled (session lost, or the last login was rejected); "
+                "waiting for the re-login window"
+            )
             raise
         except LoginError:
-            self._errors.labels(stage="login").inc()
-            self._collector.clear()
+            self._fail("login")
+            raise
+        except requests.exceptions.SSLError:
+            # The pinned fingerprint no longer matches: the certificate changed (re-run the role) or
+            # something else answered.
+            self._fail("tls")
             raise
         except Exception:
-            self._errors.labels(stage="fetch").inc()
-            self._collector.clear()
+            self._fail("fetch")
             raise
         try:
             snapshot = parse_comcast_network(body)
-        except ParseError:
-            self._errors.labels(stage="parse").inc()
-            self._collector.clear()
+            self._collector.publish(snapshot)
+        except Exception:
+            self._fail("parse")
             raise
-        self._collector.publish(snapshot)
         log.debug("parsed %d downstream channels", len(snapshot.downstream))
+
+    def _fail(self, stage: ErrorStage) -> None:
+        count_error(self._errors, stage)
+        self._collector.clear()
 
 
 def main() -> None:

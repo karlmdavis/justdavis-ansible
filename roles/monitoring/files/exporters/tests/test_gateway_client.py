@@ -98,3 +98,18 @@ def test_password_never_appears_in_repr() -> None:
         fresh_session_http(), username="admin", password="hunter2", relogin_min_seconds=0, clock=FakeClock()
     )
     assert "hunter2" not in repr(client)
+
+
+def test_redirected_status_page_triggers_login_like_the_login_form_does() -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/comcast_network.jst"): [
+                response(302, "", location="/login.jst"),
+                response(200, STATUS_HTML),
+            ],
+            ("POST", "/check.jst"): [response(302, "", location="/at_a_glance.jst")],
+        }
+    )
+    client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
+    assert client.fetch_comcast_network() == STATUS_HTML.encode()
+    assert [c.method for c in http.calls] == ["GET", "POST", "GET"]

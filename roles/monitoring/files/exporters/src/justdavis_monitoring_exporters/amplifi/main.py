@@ -21,10 +21,11 @@ from justdavis_monitoring_exporters.amplifi.targets import (
     target_infos,
 )
 from justdavis_monitoring_exporters.common.counters import Unwrapper32
-from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.files import write_if_changed
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient
 from justdavis_monitoring_exporters.common.loop import run_scrape_loop
+from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -119,22 +120,23 @@ class AmplifiScraper:
         try:
             body = self._client.fetch_info_async()
         except LoginError:
-            self._errors.labels(stage="login").inc()
-            self._collector.clear()
+            self._fail("login")
             raise
         except Exception:
-            self._errors.labels(stage="fetch").inc()
-            self._collector.clear()
+            self._fail("fetch")
             raise
         try:
             snapshot = parse_info_async(body)
-        except ParseError:
-            self._errors.labels(stage="parse").inc()
-            self._collector.clear()
+            self._collector.publish(snapshot)
+        except Exception:
+            self._fail("parse")
             raise
-        self._collector.publish(snapshot)
         log.debug("parsed %d clients, %d mesh points", len(snapshot.clients), len(snapshot.mesh_points))
         self._write_targets(snapshot)
+
+    def _fail(self, stage: ErrorStage) -> None:
+        count_error(self._errors, stage)
+        self._collector.clear()
 
     def _write_targets(self, snapshot: AmplifiSnapshot) -> None:
         settings = self._settings
@@ -149,7 +151,7 @@ class AmplifiScraper:
             if write_if_changed(settings.shared_dir / AIRPLAY_TARGETS_FILE, airplay):
                 log.info("rewrote %s", AIRPLAY_TARGETS_FILE)
         except OSError:
-            self._errors.labels(stage="write").inc()
+            count_error(self._errors, "write")
             self._collector.set_target_files_ok(False)
             log.error("could not write target files in %s", settings.shared_dir, exc_info=True)
             return

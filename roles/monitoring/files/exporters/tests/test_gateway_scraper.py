@@ -3,18 +3,19 @@
 from pathlib import Path
 
 import pytest
+from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
 from justdavis_monitoring_exporters.gateway.client import GatewayClient, LoginThrottled
 from justdavis_monitoring_exporters.gateway.main import GatewayScraper, build_registry
-from tests.fakes import FakeClock, FakeHttpClient, response
+from tests.fakes import FailingHttpClient, FakeClock, FakeHttpClient, response
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "gateway_login.html").read_text()
 STATUS_HTML = (FIXTURES / "gateway_comcast_network.html").read_text()
 
 
-def make(http: FakeHttpClient, clock: FakeClock | None = None) -> tuple[GatewayScraper, object]:
+def make(http: FakeHttpClient, clock: FakeClock | None = None) -> tuple[GatewayScraper, CollectorRegistry]:
     registry, collector, errors = build_registry()
     client = GatewayClient(
         http, username="admin", password="pw", relogin_min_seconds=300, clock=clock or FakeClock()
@@ -25,7 +26,7 @@ def make(http: FakeHttpClient, clock: FakeClock | None = None) -> tuple[GatewayS
 def test_successful_poll_publishes_snapshot() -> None:
     scraper, registry = make(FakeHttpClient({("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]}))
     scraper()
-    assert registry.get_sample_value("gateway_uptime_seconds") == 6149.0  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_uptime_seconds") == 6149.0
 
 
 def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
@@ -36,8 +37,8 @@ def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
     scraper()
     with pytest.raises(ParseError):
         scraper()
-    assert registry.get_sample_value("gateway_uptime_seconds") is None  # type: ignore[attr-defined]
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "parse"}) == 1.0  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_uptime_seconds") is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "parse"}) == 1.0
 
 
 def test_rejected_login_counts_login_stage() -> None:
@@ -50,7 +51,7 @@ def test_rejected_login_counts_login_stage() -> None:
     scraper, registry = make(http)
     with pytest.raises(LoginError):
         scraper()
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) == 1.0  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) == 1.0
 
 
 def test_throttled_relogin_clears_snapshot_without_counting_an_error() -> None:
@@ -71,5 +72,20 @@ def test_throttled_relogin_clears_snapshot_without_counting_an_error() -> None:
     # is inside the re-login window, so it must back off quietly.
     with pytest.raises(LoginThrottled):
         scraper()
-    assert registry.get_sample_value("gateway_uptime_seconds") is None  # type: ignore[attr-defined]
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None  # type: ignore[attr-defined]
+    assert registry.get_sample_value("gateway_uptime_seconds") is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None
+
+
+def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
+    http = FailingHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]},
+        error=ConnectionError("gateway unreachable"),
+    )
+    scraper, registry = make(http)
+    scraper()
+    http.arm()
+    with pytest.raises(ConnectionError):
+        scraper()
+    assert registry.get_sample_value("gateway_uptime_seconds") is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None

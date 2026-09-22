@@ -6,25 +6,27 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector
-from justdavis_monitoring_exporters.amplifi.main import AmplifiScraper, AmplifiSettings, build_registry
+from justdavis_monitoring_exporters.amplifi.main import (
+    AmplifiDevice,
+    AmplifiScraper,
+    AmplifiSettings,
+    build_registry,
+)
 from justdavis_monitoring_exporters.amplifi.targets import PingConfig
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
-from justdavis_monitoring_exporters.common.settings import TrackedClient
 from tests.fakes import FailingHttpClient, FakeHttpClient, response
+from tests.helpers import tracked
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "amplifi_login.html").read_text()
 INFO_HTML = (FIXTURES / "amplifi_info.html").read_text()
 INFO_JSON = (FIXTURES / "amplifi_info_async.json").read_bytes()
-TRACKED = (
-    TrackedClient(mac="02:00:00:00:00:10", name="Speaker A", kind="homepod", airplay_name="Speaker A"),
-)
+TRACKED = (tracked("02:00:00:00:00:10", "Speaker A", "homepod"),)
 
 
 def settings(tmp_path: Path) -> AmplifiSettings:
     return AmplifiSettings(
-        host="192.0.2.1",
-        password="pw",
+        device=AmplifiDevice(host="192.0.2.1", password="pw"),
         port=9801,
         listen_addr="127.0.0.1",
         interval_seconds=30,

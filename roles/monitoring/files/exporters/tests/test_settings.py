@@ -5,6 +5,7 @@ import json
 import pytest
 
 from justdavis_monitoring_exporters.common.settings import (
+    Mac,
     SettingsError,
     TrackedClient,
     env_host,
@@ -19,7 +20,7 @@ def test_parse_tracked_clients_normalises_and_defaults_airplay_name() -> None:
     raw = json.dumps([{"mac": "AA:BB:CC:DD:EE:01", "name": "Kitchen", "kind": "homepod"}])
     clients = parse_tracked_clients(raw)
     assert clients == (
-        TrackedClient(mac="aa:bb:cc:dd:ee:01", name="Kitchen", kind="homepod", airplay_name="Kitchen"),
+        TrackedClient(mac=Mac("aa:bb:cc:dd:ee:01"), name="Kitchen", kind="homepod", airplay_name="Kitchen"),
     )
 
 
@@ -108,6 +109,6 @@ def test_parse_tracked_clients_rejects_duplicate_macs() -> None:
 
 def test_tracked_client_rejects_blank_name_and_bad_mac_at_construction() -> None:
     with pytest.raises(SettingsError):
-        TrackedClient(mac="aa:bb:cc:dd:ee:01", name="", kind="homepod", airplay_name="x")
+        TrackedClient(mac=Mac("aa:bb:cc:dd:ee:01"), name="", kind="homepod", airplay_name="x")
     with pytest.raises(SettingsError):
-        TrackedClient(mac="not-a-mac", name="x", kind="homepod", airplay_name="x")
+        TrackedClient(mac=Mac("not-a-mac"), name="x", kind="homepod", airplay_name="x")

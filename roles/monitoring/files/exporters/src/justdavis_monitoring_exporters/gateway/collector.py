@@ -14,21 +14,19 @@ _CHANNEL = ["channel"]
 
 
 class GatewayCollector(Collector):
-    def __init__(
-        self, snapshots: SnapshotHolder[GatewayStatus], statuses: SnapshotHolder[ScrapeStatus]
-    ) -> None:
-        self.snapshots = snapshots
+    def __init__(self, statuses: SnapshotHolder[ScrapeStatus]) -> None:
         self.statuses = statuses
+        self._snapshots: SnapshotHolder[GatewayStatus] = SnapshotHolder()
 
     def publish(self, snapshot: GatewayStatus) -> None:
-        self.snapshots.set(snapshot)
+        self._snapshots.set(snapshot)
 
     def clear(self) -> None:
-        self.snapshots.clear()
+        self._snapshots.clear()
 
     def collect(self) -> Iterator[Metric]:
         yield from status_families("gateway", self.statuses.get())
-        snapshot = self.snapshots.get()
+        snapshot = self._snapshots.get()
         if snapshot is None:
             return
         yield GaugeMetricFamily(

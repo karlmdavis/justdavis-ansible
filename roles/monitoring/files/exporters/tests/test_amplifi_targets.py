@@ -12,16 +12,16 @@ from justdavis_monitoring_exporters.amplifi.targets import (
     render_ping_targets,
     target_infos,
 )
-from justdavis_monitoring_exporters.common.settings import TrackedClient
+from tests.helpers import tracked
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = parse_info_async((FIXTURES / "amplifi_info_async.json").read_bytes())
 
 TRACKED = (
-    TrackedClient(mac="02:00:00:00:00:10", name="Speaker A", kind="homepod", airplay_name="Speaker A"),
-    TrackedClient(mac="02:00:00:00:00:11", name="Speaker B", kind="homepod", airplay_name="Speaker B"),
-    TrackedClient(mac="02:00:00:00:00:20", name="Tablet", kind="ipad", airplay_name="Tablet"),
-    TrackedClient(mac="02:00:00:00:00:99", name="Absent", kind="laptop", airplay_name="Absent"),
+    tracked("02:00:00:00:00:10", "Speaker A", "homepod"),
+    tracked("02:00:00:00:00:11", "Speaker B", "homepod"),
+    tracked("02:00:00:00:00:20", "Tablet", "ipad"),
+    tracked("02:00:00:00:00:99", "Absent", "laptop"),
 )
 STATIC = ("1.1.1.1", "8.8.8.8")
 PING = PingConfig(interval_seconds=1, timeout_seconds=2, history_size=60)

@@ -33,12 +33,6 @@ def as_int(value: object, ctx: str) -> int:
     raise ParseError(f"{ctx}: expected integer, got {type(value).__name__}")
 
 
-def as_float(value: object, ctx: str) -> float:
-    if isinstance(value, int | float) and not isinstance(value, bool):
-        return float(value)
-    raise ParseError(f"{ctx}: expected number, got {type(value).__name__}")
-
-
 def as_bool(value: object, ctx: str) -> bool:
     if isinstance(value, bool):
         return value

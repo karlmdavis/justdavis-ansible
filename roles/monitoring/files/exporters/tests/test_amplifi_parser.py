@@ -7,15 +7,16 @@ import pytest
 
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.common.errors import ParseError
+from justdavis_monitoring_exporters.common.settings import Mac
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
-ROUTER_MAC = "02:00:00:00:00:01"
-KITCHEN_MP_MAC = "02:00:00:00:00:02"
-SPEAKER_A_MAC = "02:00:00:00:00:10"
-SPEAKER_B_MAC = "02:00:00:00:00:11"
-TABLET_MAC = "02:00:00:00:00:20"
-BACKHAUL_MAC = "02:00:00:00:00:f2"
+ROUTER_MAC = Mac("02:00:00:00:00:01")
+KITCHEN_MP_MAC = Mac("02:00:00:00:00:02")
+SPEAKER_A_MAC = Mac("02:00:00:00:00:10")
+SPEAKER_B_MAC = Mac("02:00:00:00:00:11")
+TABLET_MAC = Mac("02:00:00:00:00:20")
+BACKHAUL_MAC = Mac("02:00:00:00:00:f2")
 
 
 @pytest.fixture(scope="module")

@@ -7,13 +7,13 @@ from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.main import AirplayScraper, AirplaySettings, build_registry
 from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
 from justdavis_monitoring_exporters.airplay.resolver import AIRPLAY_TYPE, RAOP_TYPE, _Listener, poll
-from justdavis_monitoring_exporters.common.settings import TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
+from tests.helpers import tracked
 
 TRACKED = (
-    TrackedClient(mac="02:00:00:00:00:10", name="Speaker-A", kind="homepod", airplay_name="Speaker A"),
-    TrackedClient(mac="02:00:00:00:00:11", name="Speaker-B", kind="homepod", airplay_name="Speaker B"),
-    TrackedClient(mac="02:00:00:00:00:20", name="Tablet", kind="ipad", airplay_name="Tablet"),
+    tracked("02:00:00:00:00:10", "Speaker-A", "homepod", "Speaker A"),
+    tracked("02:00:00:00:00:11", "Speaker-B", "homepod", "Speaker B"),
+    tracked("02:00:00:00:00:20", "Tablet", "ipad"),
 )
 A_AIRPLAY = ServiceKey("Speaker A", "_airplay._tcp")
 A_RAOP = ServiceKey("Speaker A", "_raop._tcp")

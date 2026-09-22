@@ -3,7 +3,7 @@
 import pytest
 
 from justdavis_monitoring_exporters.common.errors import ParseError
-from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_float, as_int, as_list, as_str
+from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_int, as_list, as_str
 
 
 def test_as_dict_returns_mapping() -> None:
@@ -46,15 +46,3 @@ def test_as_int_rejects_bool() -> None:
 def test_as_int_rejects_float() -> None:
     with pytest.raises(ParseError):
         as_int(7.0, "ctx")
-
-
-def test_as_float_accepts_int_and_float() -> None:
-    assert as_float(7, "ctx") == 7.0
-    assert as_float(7.5, "ctx") == 7.5
-
-
-def test_as_float_rejects_bool_and_str() -> None:
-    with pytest.raises(ParseError):
-        as_float(False, "ctx")
-    with pytest.raises(ParseError):
-        as_float("7", "ctx")

@@ -55,3 +55,28 @@ def run_scrape_loop(
             delay = interval_seconds
         if wait_fn(delay * jitter()):
             return
+
+
+def start_scrape_thread(
+    name: str,
+    scrape: Callable[[], None],
+    *,
+    interval_seconds: float,
+    backoff_cap_seconds: float,
+    stop: threading.Event,
+    status: SnapshotHolder[ScrapeStatus],
+) -> threading.Thread:
+    """A daemon thread (not yet started) that runs `run_scrape_loop` with the production clock."""
+    return threading.Thread(
+        target=run_scrape_loop,
+        kwargs={
+            "scrape": scrape,
+            "interval_seconds": interval_seconds,
+            "backoff_cap_seconds": backoff_cap_seconds,
+            "stop": stop,
+            "status": status,
+            "clock": time.time,
+        },
+        name=name,
+        daemon=True,
+    )

@@ -14,19 +14,20 @@ SNAPSHOT = parse_comcast_network((FIXTURES / "gateway_comcast_network.html").rea
 
 
 def registry_with(snapshot: GatewayStatus | None) -> CollectorRegistry:
-    snapshots: SnapshotHolder[GatewayStatus] = SnapshotHolder()
-    if snapshot is not None:
-        snapshots.set(snapshot)
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
-    statuses.set(ScrapeStatus.initial().succeeded(timestamp=1.0, duration_seconds=0.1))
+    status = ScrapeStatus.initial()
+    statuses.set(status.succeeded(timestamp=1.0, duration_seconds=0.1) if snapshot else status)
+    collector = GatewayCollector(statuses)
+    if snapshot is not None:
+        collector.publish(snapshot)
     registry = CollectorRegistry()
-    registry.register(GatewayCollector(snapshots, statuses))
+    registry.register(collector)
     return registry
 
 
-def test_status_only_without_snapshot() -> None:
+def test_status_only_before_the_first_successful_poll() -> None:
     registry = registry_with(None)
-    assert registry.get_sample_value("gateway_up") == 1.0
+    assert registry.get_sample_value("gateway_up") == 0.0
     assert registry.get_sample_value("gateway_uptime_seconds") is None
 
 

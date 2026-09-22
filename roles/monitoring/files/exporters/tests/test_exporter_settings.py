@@ -7,14 +7,14 @@ import pytest
 from justdavis_monitoring_exporters.airplay.main import AirplaySettings
 from justdavis_monitoring_exporters.amplifi.main import AmplifiSettings
 from justdavis_monitoring_exporters.common.settings import SettingsError
-from justdavis_monitoring_exporters.gateway.main import GatewaySettings
+from justdavis_monitoring_exporters.gateway.main import GatewayDevice, GatewaySettings, UnpinnedGateway
 
 TRACKED_JSON = json.dumps([{"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}])
 
 
 def test_amplifi_settings_defaults_and_not_configured() -> None:
-    settings = AmplifiSettings.from_env({"AMPLIFI_PASSWORD": "pw"})
-    assert settings.host is None
+    settings = AmplifiSettings.from_env({})
+    assert settings.device is None
     assert settings.port == 9801
     assert settings.listen_addr == "0.0.0.0"
     assert settings.interval_seconds == 30
@@ -36,8 +36,8 @@ def test_amplifi_settings_full() -> None:
             "MONITORING_AMPLIFI_PORT": "9901",
         }
     )
-    assert settings.host == "10.0.0.1"
-    assert settings.base_url == "http://10.0.0.1"
+    assert settings.device is not None
+    assert settings.device.base_url == "http://10.0.0.1"
     assert settings.interval_seconds == 45
     assert settings.tracked_clients[0].name == "Speaker A"
     assert settings.static_ping_targets == ("1.1.1.1",)
@@ -61,21 +61,20 @@ def test_gateway_settings() -> None:
             "MONITORING_GATEWAY_TLS_FINGERPRINT_SHA256": "AB:" * 31 + "AB",
         }
     )
-    assert settings.base_url == "https://10.1.10.1"
-    assert settings.tls_fingerprint_sha256 == "AB:" * 31 + "AB"
+    assert isinstance(settings.device, GatewayDevice)
+    assert settings.device.base_url == "https://10.1.10.1"
+    assert settings.device.tls_fingerprint_sha256 == "AB:" * 31 + "AB"
     assert settings.interval_seconds == 60
     assert settings.relogin_min_seconds == 300
     assert settings.port == 9802
     assert "pw" not in repr(settings)
 
 
-def test_gateway_settings_without_fingerprint_is_not_configured_and_never_plain_http() -> None:
+def test_gateway_settings_without_fingerprint_yield_an_unpinned_device_that_cannot_be_polled() -> None:
     settings = GatewaySettings.from_env(
         {"MONITORING_GATEWAY_HOST": "10.1.10.1", "GATEWAY_USERNAME": "admin", "GATEWAY_PASSWORD": "pw"}
     )
-    assert settings.tls_fingerprint_sha256 is None
-    assert settings.configured is False
-    assert settings.base_url == "https://10.1.10.1"
+    assert settings.device == UnpinnedGateway(host="10.1.10.1")
 
 
 def test_gateway_settings_reject_malformed_fingerprint() -> None:

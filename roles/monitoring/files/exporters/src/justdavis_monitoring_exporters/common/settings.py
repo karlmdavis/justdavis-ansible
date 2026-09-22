@@ -11,12 +11,16 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, cast, get_args
+from typing import Literal, NewType, cast, get_args
 
 from justdavis_monitoring_exporters.common.errors import ExporterError
 from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_list, as_str
 
 type ClientKind = Literal["homepod", "appletv", "ipad", "phone", "laptop", "other"]
+
+# A MAC address in canonical form (lowercase, colon-separated), so that router-reported and
+# configured addresses join by plain equality; produced only by `canonical_mac`/`normalise_mac`.
+Mac = NewType("Mac", str)
 
 _CLIENT_KINDS: tuple[str, ...] = get_args(ClientKind.__value__)
 _MAC_RE = re.compile(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
@@ -27,12 +31,12 @@ class SettingsError(ExporterError):
     """A configuration value is malformed."""
 
 
-def canonical_mac(value: str) -> str:
+def canonical_mac(value: str) -> Mac:
     """Lowercase, colon-separated form of a MAC address (no validation; see `normalise_mac`)."""
-    return value.strip().lower().replace("-", ":")
+    return Mac(value.strip().lower().replace("-", ":"))
 
 
-def normalise_mac(value: str, ctx: str) -> str:
+def normalise_mac(value: str, ctx: str) -> Mac:
     mac = canonical_mac(value)
     if not _MAC_RE.match(mac):
         raise SettingsError(f"{ctx}.mac: {value!r} is not a MAC address")
@@ -43,7 +47,7 @@ def normalise_mac(value: str, ctx: str) -> str:
 class TrackedClient:
     """A device the user cares about, giving stable labels to its metrics and ping/AirPlay probes."""
 
-    mac: str
+    mac: Mac
     name: str
     kind: ClientKind
     airplay_name: str
@@ -84,7 +88,7 @@ def parse_tracked_clients(raw: str) -> tuple[TrackedClient, ...]:
                     airplay_name=airplay_name,
                 )
             )
-        seen: set[str] = set()
+        seen: set[Mac] = set()
         for client in clients:
             if client.mac in seen:
                 raise SettingsError(f"MONITORING_TRACKED_CLIENTS: duplicate mac {client.mac}")

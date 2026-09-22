@@ -3,7 +3,6 @@
 import logging
 import os
 import threading
-import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,7 +23,7 @@ from justdavis_monitoring_exporters.common.counters import Unwrapper32
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.files import write_if_changed
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient
-from justdavis_monitoring_exporters.common.loop import run_scrape_loop
+from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
@@ -52,9 +51,21 @@ _BACKOFF_CAP_SECONDS = 600
 
 
 @dataclass(frozen=True, slots=True)
-class AmplifiSettings:
-    host: str | None
+class AmplifiDevice:
+    """The router to poll; its web UI is plain HTTP only."""
+
+    host: str
     password: str = field(repr=False)
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self.host}"
+
+
+@dataclass(frozen=True, slots=True)
+class AmplifiSettings:
+    # None is the "not configured" state: serve amplifi_up 0 and idle.
+    device: AmplifiDevice | None
     port: int
     listen_addr: str
     interval_seconds: int
@@ -63,19 +74,17 @@ class AmplifiSettings:
     shared_dir: Path
     ping: PingConfig
 
-    @property
-    def base_url(self) -> str:
-        return f"http://{self.host}"
-
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AmplifiSettings":
         host = env_host(env, "MONITORING_AMPLIFI_HOST")
-        password = env.get("AMPLIFI_PASSWORD", "")
-        if host is not None and not password:
-            raise SettingsError("AMPLIFI_PASSWORD: required when MONITORING_AMPLIFI_HOST is set")
+        device: AmplifiDevice | None = None
+        if host is not None:
+            password = env.get("AMPLIFI_PASSWORD", "")
+            if not password:
+                raise SettingsError("AMPLIFI_PASSWORD: required when MONITORING_AMPLIFI_HOST is set")
+            device = AmplifiDevice(host=host, password=password)
         return cls(
-            host=host,
-            password=password,
+            device=device,
             port=env_port(env, "MONITORING_AMPLIFI_PORT", 9801),
             listen_addr=env_str(env, "MONITORING_LISTEN_ADDR", "0.0.0.0"),
             interval_seconds=env_int(env, "MONITORING_AMPLIFI_INTERVAL", 30, minimum=1),
@@ -185,10 +194,12 @@ def main() -> None:
     stop = threading.Event()
     shutdown = serve(registry, addr=settings.listen_addr, port=settings.port)
     thread: threading.Thread | None = None
-    if settings.host is None:
+    if settings.device is None:
         log.warning("MONITORING_AMPLIFI_HOST is not set; serving amplifi_up 0 and idling")
     else:
-        client = AmplifiClient(RequestsHttpClient(settings.base_url), password=settings.password)
+        client = AmplifiClient(
+            RequestsHttpClient(settings.device.base_url), password=settings.device.password
+        )
         scraper = AmplifiScraper(settings, client, collector, errors)
         try:
             scraper.seed_targets()
@@ -196,17 +207,12 @@ def main() -> None:
             count_error(errors, "write")
             collector.set_target_files_ok(False)
             log.error("could not seed target files in %s", settings.shared_dir, exc_info=True)
-        thread = threading.Thread(
-            target=run_scrape_loop,
-            kwargs={
-                "scrape": scraper,
-                "interval_seconds": settings.interval_seconds,
-                "backoff_cap_seconds": _BACKOFF_CAP_SECONDS,
-                "stop": stop,
-                "status": collector.statuses,
-                "clock": time.time,
-            },
-            name="amplifi-scrape",
-            daemon=True,
+        thread = start_scrape_thread(
+            "amplifi-scrape",
+            scraper,
+            interval_seconds=settings.interval_seconds,
+            backoff_cap_seconds=_BACKOFF_CAP_SECONDS,
+            stop=stop,
+            status=collector.statuses,
         )
     run_until_stopped(scrape_thread=thread, stop=stop, shutdown_server=shutdown)

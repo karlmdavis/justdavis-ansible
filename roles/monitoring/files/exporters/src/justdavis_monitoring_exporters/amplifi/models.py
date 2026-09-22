@@ -3,12 +3,14 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from justdavis_monitoring_exporters.common.settings import Mac
+
 BACKHAUL_NETWORK = "Internal network"
 
 
 @dataclass(frozen=True, slots=True)
 class Router:
-    mac: str
+    mac: Mac
     name: str
     ip: str
     platform: str
@@ -17,7 +19,7 @@ class Router:
 
 @dataclass(frozen=True, slots=True)
 class MeshPoint:
-    mac: str
+    mac: Mac
     name: str
     ip: str
     platform: str
@@ -31,8 +33,8 @@ class WifiClient:
     """One WiFi association. Backhaul links between mesh points appear here with `network` set to
     `BACKHAUL_NETWORK` and no address/hostname/mode."""
 
-    mac: str
-    ap_mac: str
+    mac: Mac
+    ap_mac: Mac
     band: str
     network: str
     ip: str | None
@@ -65,4 +67,4 @@ class AmplifiSnapshot:
     mesh_points: tuple[MeshPoint, ...]
     clients: tuple[WifiClient, ...]
     wan_port: WanPort
-    bonjour: Mapping[str, frozenset[str]]
+    bonjour: Mapping[Mac, frozenset[str]]

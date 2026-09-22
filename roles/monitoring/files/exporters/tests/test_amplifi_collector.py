@@ -10,14 +10,15 @@ from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
 from justdavis_monitoring_exporters.common.counters import Unwrapper32
-from justdavis_monitoring_exporters.common.settings import TrackedClient
+from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
+from tests.helpers import tracked
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = parse_info_async((FIXTURES / "amplifi_info_async.json").read_bytes())
 TRACKED = (
-    TrackedClient(mac="02:00:00:00:00:10", name="Speaker A", kind="homepod", airplay_name="Speaker A"),
-    TrackedClient(mac="02:00:00:00:00:11", name="Speaker B", kind="homepod", airplay_name="Speaker B"),
+    tracked("02:00:00:00:00:10", "Speaker A", "homepod"),
+    tracked("02:00:00:00:00:11", "Speaker B", "homepod"),
 )
 SPEAKER_A = {"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}
 TABLET = {"mac": "02:00:00:00:00:20", "name": "", "kind": "other"}
@@ -121,7 +122,7 @@ def test_a_client_that_roams_to_another_access_point_restarts_its_baseline() -> 
     registry, collector = registry_with(SNAPSHOT)
     assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0
     speaker = next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10")
-    roamed = replace(speaker, ap_mac="02:00:00:00:00:02", rx_bytes=50)
+    roamed = replace(speaker, ap_mac=Mac("02:00:00:00:00:02"), rx_bytes=50)
     others = tuple(c for c in SNAPSHOT.clients if c.mac != "02:00:00:00:00:10")
     collector.publish(replace(SNAPSHOT, clients=(*others, roamed)))
     # The new association's counter starts near zero: a reset, not a 4 GiB wrap.
@@ -131,7 +132,7 @@ def test_a_client_that_roams_to_another_access_point_restarts_its_baseline() -> 
 def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:
     stale = replace(
         next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10"),
-        ap_mac="02:00:00:00:00:02",
+        ap_mac=Mac("02:00:00:00:00:02"),
         inactive_seconds=900,
         signal_quality=10,
     )

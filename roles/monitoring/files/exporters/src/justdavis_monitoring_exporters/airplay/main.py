@@ -14,7 +14,7 @@ from prometheus_client import CollectorRegistry, Counter
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.models import ServiceKey
 from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
-from justdavis_monitoring_exporters.common.loop import run_scrape_loop
+from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import count_error
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
@@ -133,18 +133,13 @@ def main() -> None:
             log.error("could not start mDNS on %s; exiting", settings.lan_ip, exc_info=True)
             shutdown()
             sys.exit(1)
-        thread = threading.Thread(
-            target=run_scrape_loop,
-            kwargs={
-                "scrape": AirplayScraper(settings, resolver, collector, errors),
-                "interval_seconds": settings.interval_seconds,
-                "backoff_cap_seconds": _BACKOFF_CAP_SECONDS,
-                "stop": stop,
-                "status": collector.statuses,
-                "clock": time.time,
-            },
-            name="airplay-scrape",
-            daemon=True,
+        thread = start_scrape_thread(
+            "airplay-scrape",
+            AirplayScraper(settings, resolver, collector, errors),
+            interval_seconds=settings.interval_seconds,
+            backoff_cap_seconds=_BACKOFF_CAP_SECONDS,
+            stop=stop,
+            status=collector.statuses,
         )
     run_until_stopped(
         scrape_thread=thread,

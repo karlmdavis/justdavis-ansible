@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from html.parser import HTMLParser
 
 from justdavis_monitoring_exporters.common.errors import ParseError
+from justdavis_monitoring_exporters.common.text import as_text
 from justdavis_monitoring_exporters.gateway.models import DocsisChannel, GatewayStatus
 
 _LOGIN_FORM_MARKER = 'id="pageForm"'
@@ -35,7 +36,7 @@ _INTERNET_STATUS = {"Active": True, "Inactive": False}
 
 def is_login_page(html: bytes | str) -> bool:
     """Return True when the gateway answered with its login form instead of the requested page."""
-    text = html.decode("utf-8", errors="replace") if isinstance(html, bytes) else html
+    text = as_text(html)
     return _LOGIN_FORM_MARKER in text
 
 
@@ -237,7 +238,7 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
 
 def parse_comcast_network(html: bytes | str) -> GatewayStatus:
     """Parse the "Comcast Network" status page into a `GatewayStatus`."""
-    text = html.decode("utf-8", errors="replace") if isinstance(html, bytes) else html
+    text = as_text(html)
     if is_login_page(text):
         raise ParseError("page: login form returned instead of status page")
     parser = _PageParser()

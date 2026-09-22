@@ -20,6 +20,7 @@ import re
 
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.http import HttpClient, HttpResponse
+from justdavis_monitoring_exporters.common.text import as_text
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def _needs_login(response: HttpResponse) -> bool:
 
 
 def _looks_like_login_form(body: bytes) -> bool:
-    return _LOGIN_TOKEN_RE.search(body.decode("utf-8", errors="replace")) is not None
+    return _LOGIN_TOKEN_RE.search(as_text(body)) is not None
 
 
 class AmplifiClient:
@@ -70,7 +71,7 @@ class AmplifiClient:
 
     @staticmethod
     def _extract(pattern: re.Pattern[str], body: bytes, what: str) -> str:
-        match = pattern.search(body.decode("utf-8", errors="replace"))
+        match = pattern.search(as_text(body))
         if match is None:
             raise LoginError(f"{what} not found (page format changed?)")
         return match.group(1)

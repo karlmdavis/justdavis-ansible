@@ -33,7 +33,7 @@ from justdavis_monitoring_exporters.amplifi.models import (
 )
 from justdavis_monitoring_exporters.common.errors import ParseError
 from justdavis_monitoring_exporters.common.jsonutil import as_bool, as_dict, as_int, as_list, as_str, get
-from justdavis_monitoring_exporters.common.settings import canonical_mac
+from justdavis_monitoring_exporters.common.settings import Mac, canonical_mac
 
 _EXPECTED_ELEMENTS = 6
 _WAN_PORT = "eth-0"
@@ -123,7 +123,7 @@ def _parse_clients(element: object) -> tuple[WifiClient, ...]:
     return tuple(clients)
 
 
-def _parse_wan_port(element: object, router_mac: str) -> WanPort:
+def _parse_wan_port(element: object, router_mac: Mac) -> WanPort:
     ports_by_router = as_dict(element, "[4]")
     ports: Mapping[str, object] | None = None
     for candidate_mac, candidate_value in ports_by_router.items():
@@ -142,9 +142,9 @@ def _parse_wan_port(element: object, router_mac: str) -> WanPort:
     )
 
 
-def _parse_bonjour(element: object) -> dict[str, frozenset[str]]:
+def _parse_bonjour(element: object) -> dict[Mac, frozenset[str]]:
     """Return, per MAC, the set of advertised service types (e.g. "_airplay._tcp.local")."""
-    bonjour: dict[str, frozenset[str]] = {}
+    bonjour: dict[Mac, frozenset[str]] = {}
     for mac, entry_value in as_dict(element, "[5]").items():
         ctx = f"[5].{mac}"
         entry = as_dict(entry_value, ctx)

@@ -22,7 +22,7 @@ from justdavis_monitoring_exporters.common.counters import Unwrapper32
 from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, short_service
 from justdavis_monitoring_exporters.common.metrics import status_families
-from justdavis_monitoring_exporters.common.settings import ClientKind, TrackedClient
+from justdavis_monitoring_exporters.common.settings import ClientKind, Mac, TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 
 _CLIENT_LABELS = ["mac", "name", "kind"]
@@ -35,7 +35,7 @@ type Direction = Literal["rx", "tx"]
 type ClientLabelKind = ClientKind | Literal["backhaul"]
 # The router's byte counters belong to an association, so a client that roams to another access
 # point gets a fresh baseline rather than a spurious 4 GiB "wrap".
-type CounterKey = tuple[str, str, Direction]
+type CounterKey = tuple[Mac, Mac, Direction]
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,13 +44,13 @@ class PublishedSnapshot:
 
     snapshot: AmplifiSnapshot
     clients: tuple[WifiClient, ...]
-    rx_bytes_total: Mapping[str, int]
-    tx_bytes_total: Mapping[str, int]
+    rx_bytes_total: Mapping[Mac, int]
+    tx_bytes_total: Mapping[Mac, int]
 
 
 def dedupe_clients(clients: Sequence[WifiClient]) -> tuple[WifiClient, ...]:
     """Keep one association per MAC: the most recently active one (lowest `inactive_seconds`)."""
-    best: dict[str, WifiClient] = {}
+    best: dict[Mac, WifiClient] = {}
     for client in clients:
         current = best.get(client.mac)
         if current is None or client.inactive_seconds < current.inactive_seconds:

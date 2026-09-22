@@ -6,7 +6,7 @@ import pytest
 
 from justdavis_monitoring_exporters.airplay.main import AirplaySettings
 from justdavis_monitoring_exporters.amplifi.main import AmplifiSettings
-from justdavis_monitoring_exporters.common.settings import SettingsError
+from justdavis_monitoring_exporters.common.settings import SettingsError, parse_fingerprint
 from justdavis_monitoring_exporters.gateway.main import GatewayDevice, GatewaySettings, UnpinnedGateway
 
 TRACKED_JSON = json.dumps([{"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}])
@@ -111,3 +111,19 @@ def test_airplay_settings() -> None:
 
 def test_airplay_settings_lan_ip_blank_means_not_configured() -> None:
     assert AirplaySettings.from_env({}).lan_ip is None
+
+
+def test_gateway_settings_require_both_username_and_password() -> None:
+    with pytest.raises(SettingsError):
+        GatewaySettings.from_env({"MONITORING_GATEWAY_HOST": "10.1.10.1", "GATEWAY_USERNAME": "admin"})
+
+
+@pytest.mark.parametrize("spelling", ["AB:" * 31 + "AB", "ab:" * 31 + "ab", "ab" * 32, "AB" * 32])
+def test_fingerprint_is_accepted_in_every_common_spelling(spelling: str) -> None:
+    assert parse_fingerprint(spelling, "X") == spelling
+
+
+@pytest.mark.parametrize("spelling", ["AB:CD", "sha256:" + "ab" * 32, "zz" * 32])
+def test_fingerprint_rejects_other_forms(spelling: str) -> None:
+    with pytest.raises(SettingsError):
+        parse_fingerprint(spelling, "X")

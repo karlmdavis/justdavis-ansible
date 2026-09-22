@@ -1,5 +1,7 @@
 """Tests for the Comcast gateway (Technicolor CGA4332COM) page parser."""
 
+import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -76,9 +78,33 @@ def test_accepts_bytes_input(comcast_network_html: str) -> None:
     assert status.uptime_seconds == 6149
 
 
-def test_truncated_page_raises_parse_error(comcast_network_html: str) -> None:
-    with pytest.raises(ParseError):
-        parse_comcast_network(comcast_network_html[: len(comcast_network_html) // 2])
+def test_downstream_table_is_found_when_the_upstream_table_comes_first(comcast_network_html: str) -> None:
+    # A firmware update could reorder the page's modules; the downstream table is recognised by
+    # content, not position.
+    head, first, second, rest = comcast_network_html.split('<div class="module netFlow">', 3)
+    reordered = '<div class="module netFlow">'.join([head, second, first, rest])
+    assert parse_comcast_network(reordered) == parse_comcast_network(comcast_network_html)
+
+
+def test_row_labels_closed_with_th_parse_identically(comcast_network_html: str) -> None:
+    # The firmware closes its <th> row labels with </td>; a fixed firmware must parse the same.
+    fixed = re.sub(r'(<th class="row-label ">[^<]*)</td>', r"\1</th>", comcast_network_html)
+    assert parse_comcast_network(fixed) == parse_comcast_network(comcast_network_html)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected_in_message"),
+    [
+        (lambda html: html.replace("WAN IP Address (IPv4)", "WAN IP (IPv4)"), "WAN IP Address (IPv4)"),
+        (lambda html: html.replace("CM Error Codewords", "CM Error Codewordz"), "CM Error Codewords"),
+        (lambda html: _with_cells(html, "Power Level", "10.6 dB"), "Power Level"),
+    ],
+)
+def test_a_changed_page_fails_naming_the_field_that_changed(
+    comcast_network_html: str, mutate: Callable[[str], str], expected_in_message: str
+) -> None:
+    with pytest.raises(ParseError, match=re.escape(expected_in_message)):
+        parse_comcast_network(mutate(comcast_network_html))
 
 
 def test_login_page_raises_parse_error(login_html: str) -> None:

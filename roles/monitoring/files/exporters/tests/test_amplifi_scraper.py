@@ -76,9 +76,10 @@ def test_successful_poll_publishes_snapshot_and_writes_target_files(tmp_path: Pa
 def test_unchanged_poll_does_not_rewrite_target_files(tmp_path: Path) -> None:
     scraper, _collector, _registry = make(tmp_path)
     scraper()
-    before = (tmp_path / "ping-targets.yml").stat().st_mtime_ns
+    # write_if_changed replaces the file, so an unchanged inode means no rewrite happened.
+    before = (tmp_path / "ping-targets.yml").stat().st_ino
     scraper()
-    assert (tmp_path / "ping-targets.yml").stat().st_mtime_ns == before
+    assert (tmp_path / "ping-targets.yml").stat().st_ino == before
 
 
 def test_login_failure_clears_snapshot_and_counts_login_stage(tmp_path: Path) -> None:
@@ -133,3 +134,12 @@ def test_unreachable_router_clears_snapshot_and_counts_fetch_stage(tmp_path: Pat
     assert registry.get_sample_value("amplifi_router_uptime_seconds") is None
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "fetch"}) == 1.0
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "login"}) is None
+
+
+def test_target_files_ok_recovers_once_the_directory_is_writable(tmp_path: Path) -> None:
+    scraper, _collector, registry = make(tmp_path / "missing")
+    scraper()
+    assert registry.get_sample_value("amplifi_target_files_ok") == 0.0
+    (tmp_path / "missing").mkdir()
+    scraper()
+    assert registry.get_sample_value("amplifi_target_files_ok") == 1.0

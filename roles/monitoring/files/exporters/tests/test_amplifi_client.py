@@ -106,3 +106,23 @@ def test_login_that_does_not_stick_raises_login_error() -> None:
     )
     with pytest.raises(LoginError):
         AmplifiClient(http, password="secret").fetch_info_async()
+
+
+def test_expired_session_is_renewed_once_and_the_fetch_succeeds() -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/login.php"): [response(200, LOGIN_HTML)],
+            ("POST", "/login.php"): [response(302, "", location="/index.php")],
+            ("GET", "/info.php"): [
+                response(200, INFO_HTML),
+                response(302, "", location="/login.php"),
+                response(200, INFO_HTML),
+            ],
+            ("POST", "/info-async.php"): [response(200, INFO_JSON)],
+        }
+    )
+    client = AmplifiClient(http, password="secret")
+    assert client.fetch_info_async() == INFO_JSON
+    assert client.fetch_info_async() == INFO_JSON
+    logins = [c for c in http.calls if c.method == "POST" and c.path == "/login.php"]
+    assert len(logins) == 1

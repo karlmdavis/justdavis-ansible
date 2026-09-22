@@ -133,3 +133,18 @@ def test_mac_keys_are_canonicalised(info_async_bytes: bytes) -> None:
     clients["02-00-00-00-00-AB"] = clients.pop("02:00:00:00:00:10")
     snapshot = parse_info_async(json.dumps(data).encode())
     assert any(c.mac == "02:00:00:00:00:ab" for c in snapshot.clients)
+
+
+def test_missing_client_field_names_the_json_path(info_async_bytes: bytes) -> None:
+    data = json.loads(info_async_bytes)
+    del data[1][ROUTER_MAC]["2.4 GHz"]["User network"][SPEAKER_A_MAC]["SignalQuality"]
+    with pytest.raises(ParseError, match=f"{SPEAKER_A_MAC}.SignalQuality"):
+        parse_info_async(json.dumps(data).encode())
+
+
+def test_wan_link_down_has_no_bitrates(info_async_bytes: bytes) -> None:
+    data = json.loads(info_async_bytes)
+    data[4][ROUTER_MAC]["eth-0"] = {"link": False}
+    wan = parse_info_async(json.dumps(data).encode()).wan_port
+    assert wan.link is False
+    assert (wan.link_speed_mbps, wan.rx_bitrate_kbps, wan.tx_bitrate_kbps) == (None, None, None)

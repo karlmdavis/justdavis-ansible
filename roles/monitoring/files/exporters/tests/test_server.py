@@ -4,7 +4,7 @@ import threading
 
 import pytest
 
-from justdavis_monitoring_exporters.common.server import load_settings, run_until_stopped
+from justdavis_monitoring_exporters.common.server import configure_logging, load_settings, run_until_stopped
 from justdavis_monitoring_exporters.common.settings import SettingsError
 
 
@@ -50,3 +50,10 @@ def test_run_until_stopped_raises_when_the_scrape_thread_dies_unexpectedly() -> 
             install_signals=False,
             poll_seconds=0.01,
         )
+
+
+def test_unknown_log_level_exits_with_status_2(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        configure_logging({"MONITORING_LOG_LEVEL": "LOUD"})
+    assert excinfo.value.code == 2
+    assert "MONITORING_LOG_LEVEL" in capsys.readouterr().err

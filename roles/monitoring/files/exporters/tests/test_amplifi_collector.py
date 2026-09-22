@@ -6,7 +6,7 @@ from pathlib import Path
 from prometheus_client import CollectorRegistry, generate_latest
 
 from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, CounterKey
-from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
+from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WanPort
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
 from justdavis_monitoring_exporters.common.counters import Unwrapper32
@@ -218,3 +218,13 @@ def test_tracked_clients_report_whether_they_are_on_the_wifi() -> None:
 def _with_rx_bytes(snapshot: AmplifiSnapshot, mac: str, rx_bytes: int) -> AmplifiSnapshot:
     clients = tuple(replace(c, rx_bytes=rx_bytes) if c.mac == mac else c for c in snapshot.clients)
     return replace(snapshot, clients=clients)
+
+
+def test_wan_rate_gauges_are_absent_while_the_link_is_down() -> None:
+    down = replace(
+        SNAPSHOT,
+        wan_port=WanPort(link=False, link_speed_mbps=None, rx_bitrate_kbps=None, tx_bitrate_kbps=None),
+    )
+    registry, _ = registry_with(down)
+    assert registry.get_sample_value("amplifi_wan_link") == 0.0
+    assert registry.get_sample_value("amplifi_wan_rx_bits_per_second") is None

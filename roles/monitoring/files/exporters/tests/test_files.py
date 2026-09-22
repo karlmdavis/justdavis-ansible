@@ -36,12 +36,14 @@ def test_written_file_is_group_readable_but_not_world_readable(tmp_path: Path) -
     assert mode == 0o640
 
 
-def test_failed_replace_leaves_no_temporary_file(tmp_path: Path) -> None:
-    target = tmp_path / "dir"
-    target.mkdir()
+def test_failed_replace_leaves_no_temporary_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(src: str, dst: str) -> None:
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr("justdavis_monitoring_exporters.common.files.os.replace", refuse)
     with pytest.raises(OSError):
-        write_if_changed(target, b"x")
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["dir"]
+        write_if_changed(tmp_path / "targets.yml", b"x")
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_no_temporary_files_are_left_behind(tmp_path: Path) -> None:

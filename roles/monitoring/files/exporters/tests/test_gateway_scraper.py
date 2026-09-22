@@ -1,11 +1,13 @@
 """Tests for the gateway scraper glue: snapshot publication and error attribution."""
 
+import threading
 from pathlib import Path
 
 import pytest
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.common.loop import run_scrape_loop
 from justdavis_monitoring_exporters.gateway.client import GatewayClient, LoginThrottled
 from justdavis_monitoring_exporters.gateway.main import GatewayScraper, build_registry
 from tests.fakes import FailingHttpClient, FakeClock, FakeHttpClient, response
@@ -89,3 +91,36 @@ def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
     assert registry.get_sample_value("gateway_uptime_seconds") is None
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None
+
+
+def test_failed_poll_serves_up_zero_with_no_device_series_through_the_real_loop() -> None:
+    http = FakeHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+    )
+    registry, collector, errors = build_registry()
+    client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
+    scraper = GatewayScraper(client, collector, errors)
+    stop = threading.Event()
+    waits = 0
+
+    def wait(_seconds: float) -> bool:
+        nonlocal waits
+        waits += 1
+        if waits == 2:
+            stop.set()
+        return stop.is_set()
+
+    run_scrape_loop(
+        scraper,
+        interval_seconds=60,
+        backoff_cap_seconds=300,
+        stop=stop,
+        status=collector.statuses,
+        wait=wait,
+        jitter=lambda: 1.0,
+        clock=lambda: 42.0,
+    )
+    assert registry.get_sample_value("gateway_up") == 0.0
+    assert registry.get_sample_value("gateway_consecutive_failures") == 1.0
+    assert registry.get_sample_value("gateway_last_success_timestamp_seconds") == 42.0
+    assert registry.get_sample_value("gateway_uptime_seconds") is None

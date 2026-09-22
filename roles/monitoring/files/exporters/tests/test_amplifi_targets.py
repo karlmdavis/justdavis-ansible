@@ -1,6 +1,7 @@
 """Tests for the ping_exporter / blackbox target files rendered from the AmpliFi snapshot."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
@@ -68,3 +69,20 @@ def test_airplay_targets_lists_only_present_homepods_on_port_7000() -> None:
 
 def test_airplay_targets_without_snapshot_is_empty_list() -> None:
     assert json.loads(render_airplay_targets(None, TRACKED)) == []
+
+
+def test_the_router_listed_as_a_static_target_is_described_once_as_static() -> None:
+    # In production the router's address is both a static ping target and the topology's router; a
+    # second description with the same ip would break `on (ip)` joins in the dashboards.
+    infos = target_infos(("192.0.2.1", *STATIC), SNAPSHOT, TRACKED)
+    matching = [info for info in infos if info.ip == "192.0.2.1"]
+    assert matching == [TargetInfo(ip="192.0.2.1", name="192.0.2.1", kind="static")]
+
+
+def test_a_client_with_an_unusable_address_is_left_out_of_the_targets() -> None:
+    broken = tuple(replace(c, ip="") if c.mac == "02:00:00:00:00:10" else c for c in SNAPSHOT.clients)
+    snapshot = replace(SNAPSHOT, clients=broken)
+    infos = target_infos(STATIC, snapshot, TRACKED)
+    assert "Speaker A" not in {info.name for info in infos}
+    assert b"\n  - \n" not in render_ping_targets(PING, infos)
+    assert "Speaker A" not in render_airplay_targets(snapshot, TRACKED).decode()

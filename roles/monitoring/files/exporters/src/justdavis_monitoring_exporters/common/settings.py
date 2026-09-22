@@ -95,7 +95,7 @@ def parse_tracked_clients(raw: str) -> tuple[TrackedClient, ...]:
 
 
 def parse_static_targets(raw: str) -> tuple[str, ...]:
-    """Parse the `MONITORING_STATIC_PING_TARGETS` JSON list of IPv4/IPv6 addresses."""
+    """Parse the `MONITORING_STATIC_PING_TARGETS` JSON list of IPv4/IPv6 addresses (duplicates dropped)."""
     if not raw.strip():
         return ()
     try:
@@ -103,7 +103,9 @@ def parse_static_targets(raw: str) -> tuple[str, ...]:
         targets: list[str] = []
         for index, value in enumerate(as_list(decoded, "MONITORING_STATIC_PING_TARGETS")):
             text = as_str(value, f"MONITORING_STATIC_PING_TARGETS[{index}]")
-            targets.append(str(ipaddress.ip_address(text)))
+            address = str(ipaddress.ip_address(text))
+            if address not in targets:
+                targets.append(address)
     except (ValueError, ExporterError) as exc:
         raise SettingsError(f"MONITORING_STATIC_PING_TARGETS: {exc}") from exc
     return tuple(targets)

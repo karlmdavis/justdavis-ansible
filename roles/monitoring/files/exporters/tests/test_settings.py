@@ -59,8 +59,8 @@ def test_parse_tracked_clients_rejects_invalid_json() -> None:
         parse_tracked_clients("[not json")
 
 
-def test_parse_static_targets_accepts_ipv4_list() -> None:
-    assert parse_static_targets(json.dumps(["1.1.1.1", "8.8.8.8"])) == ("1.1.1.1", "8.8.8.8")
+def test_parse_static_targets_accepts_ipv4_list_and_drops_duplicates() -> None:
+    assert parse_static_targets(json.dumps(["1.1.1.1", "8.8.8.8", "1.1.1.1"])) == ("1.1.1.1", "8.8.8.8")
 
 
 def test_parse_static_targets_rejects_non_ip() -> None:

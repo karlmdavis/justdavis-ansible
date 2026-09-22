@@ -63,6 +63,16 @@ groups:
 
   - name: wan
     rules:
+      # The WAN rules below compare against a series that must exist; if the ping target list ever
+      # loses the anchor, they would all fall silent, so say so.
+      - alert: WanProbeMissing
+        expr: absent(ping_loss_ratio{target="{{ wan_target }}"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ping_exporter is not reporting the WAN probe target {{ wan_target }}"
+
       - alert: WanPacketLoss
         expr: >-
           avg_over_time(ping_loss_ratio{target="{{ wan_target }}"}[5m])

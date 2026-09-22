@@ -110,10 +110,23 @@
 - name: Determine Gateway TLS Fingerprint
   ansible.builtin.import_tasks: gateway_tls_fingerprint.yml
 
+# Both files are read by `docker compose` as root; the device names and addresses in .env are kept
+# out of the run log for the same reason they are kept in the vault.
 - name: Create Environment File
   ansible.builtin.template:
     src: env.j2
     dest: "{{ monitoring_base_dir }}/.env"
+    owner: root
+    group: root
+    mode: 'u=rw,g=,o='
+  become: true
+  no_log: "{{ not is_test }}"
+  notify: Restart Monitoring
+
+- name: Create Device Credentials File
+  ansible.builtin.template:
+    src: device-credentials.env.j2
+    dest: "{{ monitoring_base_dir }}/device-credentials.env"
     owner: root
     group: root
     mode: 'u=rw,g=,o='

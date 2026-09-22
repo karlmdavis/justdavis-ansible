@@ -115,6 +115,9 @@ services:
 
   amplifi_exporter:
     <<: *exporter
+    env_file:
+      - .env
+      - device-credentials.env
     command:
       - amplifi-exporter
     environment:
@@ -134,6 +137,9 @@ services:
 
   gateway_exporter:
     <<: *exporter
+    env_file:
+      - .env
+      - device-credentials.env
     command:
       - gateway-exporter
     environment:

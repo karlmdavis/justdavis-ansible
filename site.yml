@@ -70,7 +70,9 @@
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich
-    # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`.
+    # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`. The
+    # Grafana vhost and DNS record belong to the apache and dns_server roles, so the first deploy
+    # needs a full run (or those roles too) for the Grafana hostname to resolve.
     - name: Import role - monitoring
       ansible.builtin.import_role:
         name: monitoring

@@ -5,16 +5,16 @@
 # stray files never reach the server), then removes anything on the server that no longer exists
 # locally. Any change notifies the image build and a stack restart.
 
+# Only `src/` is walked (the package directory next to it holds a virtualenv with thousands of files);
+# the top-level build inputs are named explicitly.
 - name: Find Exporter Source Files
   ansible.builtin.set_fact:
     monitoring_exporter_files: >-
-      {{ query('community.general.filetree', 'exporters/')
-         | selectattr('state', 'equalto', 'file')
-         | selectattr('path', 'match', monitoring_exporter_allowlist)
-         | rejectattr('path', 'search', '(^|/)__pycache__/')
-         | map(attribute='path') | list }}
-  vars:
-    monitoring_exporter_allowlist: '^(Dockerfile|\.dockerignore|pyproject\.toml|uv\.lock|src/.+)$'
+      {{ ['Dockerfile', '.dockerignore', 'pyproject.toml', 'uv.lock']
+         + (query('community.general.filetree', 'exporters/src/')
+            | selectattr('state', 'equalto', 'file')
+            | rejectattr('path', 'search', '(^|/)__pycache__/')
+            | map(attribute='path') | map('regex_replace', '^', 'src/') | list) }}
 
 - name: Create Exporter Source Directories
   ansible.builtin.file:

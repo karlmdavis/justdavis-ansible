@@ -35,10 +35,12 @@
   register: monitoring_user_result
   become: true
 
+# In check mode on a host where the user does not exist yet, the user module returns no ids; the
+# placeholders let the rest of the check-mode run render.
 - name: Set User and Group IDs for Docker Compose
   ansible.builtin.set_fact:
-    monitoring_uid: "{{ monitoring_user_result.uid }}"
-    monitoring_gid: "{{ monitoring_user_result.group }}"
+    monitoring_uid: "{{ monitoring_user_result.uid | default('CHECK_MODE') }}"
+    monitoring_gid: "{{ monitoring_user_result.group | default('CHECK_MODE') }}"
 
 - name: Create Root-Owned Directories
   ansible.builtin.file:

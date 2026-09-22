@@ -1,7 +1,12 @@
+# Ignore the local uv virtual environment (the image builds its own from uv.lock).
 .venv
+
+# Ignore Python and tool caches.
 __pycache__
 .pytest_cache
 .mypy_cache
 .ruff_cache
-tests
 .coverage
+
+# Ignore the test suite; only the runtime package ships in the image.
+tests

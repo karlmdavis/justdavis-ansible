@@ -41,7 +41,9 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.size={{ monitoring_prometheus_retention_size }}
+      # Keep as much history as fits in this much disk, with no time-based cap: at the projected
+      # 0.5-1.5 GB/month that is roughly 4-12 months.
+      - --storage.tsdb.retention.size=6GB
       - --web.listen-address=0.0.0.0:{{ monitoring_prometheus_port }}
     volumes:
       - {{ monitoring_base_dir }}/prometheus:/etc/prometheus:ro
@@ -49,7 +51,8 @@ services:
       - {{ monitoring_base_dir }}/data/prometheus:/prometheus
     ports:
       - "127.0.0.1:{{ monitoring_prometheus_port }}:{{ monitoring_prometheus_port }}"
-    mem_limit: {{ monitoring_prometheus_mem_limit }}
+    # Well above the expected working set for a few thousand series; a hard stop on a leak.
+    mem_limit: 1g
 
   # Grafana gets only its own settings, never the shared .env with the device credentials.
   grafana:
@@ -57,7 +60,7 @@ services:
     image: {{ monitoring_grafana_image }}
     user: "{{ monitoring_uid }}:{{ monitoring_gid }}"
     environment:
-      GF_SERVER_ROOT_URL: {{ monitoring_grafana_root_url }}
+      GF_SERVER_ROOT_URL: https://grafana.intranet.{{ domain }}/
       GF_SECURITY_ADMIN_PASSWORD__FILE: /secrets/grafana_admin_password
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
       GF_LOG_MODE: console
@@ -81,7 +84,8 @@ services:
       - {{ monitoring_base_dir }}/data/grafana:/var/lib/grafana
     ports:
       - "127.0.0.1:{{ monitoring_grafana_port }}:{{ monitoring_grafana_port }}"
-    mem_limit: {{ monitoring_grafana_mem_limit }}
+    # Grafana idles around 100-200 MB with a handful of dashboards.
+    mem_limit: 512m
 
   alertmanager:
     <<: *hardened

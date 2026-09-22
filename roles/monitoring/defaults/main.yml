@@ -1,8 +1,11 @@
 ---
-# Defaults for the monitoring role. Production-specific values (hosts, tracked clients, ping targets)
-# live in host_vars/eddings.justdavis.com/main.yml and the vault; these defaults describe a stack that
-# runs anywhere (including the AWS test instance) with the device scrapers in their "not configured"
-# state.
+# Defaults for the monitoring role. A value is a variable here only when it is shared between files or
+# repeated many times within one, plus the image tags so that upgrades happen in one place. Everything
+# used once (alert thresholds, polling intervals, memory limits, the AmpliFi address, the Slack channel)
+# is written where it is used, with its explanation alongside. The defaults are the production values:
+# the AWS test instance reuses the eddings hostname, and the templates blank the device hosts,
+# substitute dummy credentials, and ping only the public anchors there (`is_test`), so the exporters
+# idle in their "not configured" state.
 
 monitoring_base_dir: /opt/monitoring
 monitoring_user: monitoring
@@ -26,8 +29,9 @@ monitoring_ping_exporter_image: czerwonk/ping_exporter:1.2.3
 # Built locally from roles/monitoring/files/exporters by the `Build Monitoring Exporters` handler.
 monitoring_exporters_image: justdavis-monitoring-exporters:local
 
-# Ports. Bridge-network services publish on 127.0.0.1 only; host-network exporters bind the bridge
-# gateway address.
+# Ports, shared by the Compose file, the Prometheus scrape configuration, the ufw rule, and the tests.
+# Bridge-network services publish on 127.0.0.1 only; host-network exporters bind the bridge gateway
+# address.
 monitoring_prometheus_port: 9090
 monitoring_grafana_port: 3000
 monitoring_alertmanager_port: 9093
@@ -38,56 +42,24 @@ monitoring_amplifi_exporter_port: 9801
 monitoring_gateway_exporter_port: 9802
 monitoring_airplay_exporter_port: 9803
 
-# Prometheus keeps as much history as fits in this much disk (no time-based cap). At the projected
-# ~0.5-1.5 GB/month this is roughly 4-12 months.
-monitoring_prometheus_retention_size: 6GB
-monitoring_scrape_interval: 15s
-monitoring_evaluation_interval: 30s
-monitoring_prometheus_mem_limit: 1g
-monitoring_grafana_mem_limit: 512m
-
-# Device scrapers. An empty host means "not configured": the exporter serves `<name>_up 0` and idles.
-monitoring_amplifi_host: ''
-monitoring_amplifi_interval_seconds: 30
-monitoring_amplifi_mesh_point_count: 0
-monitoring_gateway_host: ''
-monitoring_gateway_interval_seconds: 60
-# Minimum seconds between gateway re-logins, so a person using the gateway GUI is not logged out
-# every poll (the gateway allows a single admin session).
-monitoring_gateway_relogin_min_seconds: 300
-monitoring_airplay_interval_seconds: 30
-monitoring_airplay_resolve_timeout_ms: 3000
+# The Comcast gateway, whose TLS certificate the role fetches at deploy time and whose status page the
+# gateway exporter reads.
+monitoring_gateway_host: 10.1.10.1
 
 # Continuous ping settings (ping_exporter): one packet per second per target, loss and jitter over
-# a 60-sample window.
+# a 60-sample window. Used by both the seeded targets file and the exporter that rewrites it.
 monitoring_ping_interval_seconds: 1
 monitoring_ping_timeout_seconds: 2
 monitoring_ping_history_size: 60
 
-# Devices to track by MAC: list of {mac, name, kind, airplay_name (optional)}; kind is one of
-# homepod, appletv, ipad, phone, laptop, other. Production keeps this in the vault (public repo).
-monitoring_tracked_clients: []
-
-# Always-pinged addresses. Production adds the router, gateway, and ISP first hop in host_vars.
+# Always-pinged addresses, layered from the LAN outwards: the AmpliFi router (LAN and WAN sides), the
+# Comcast gateway (LAN and static-IP sides), the ISP's first hop, and two public anchors. The AmpliFi
+# exporter adds the tracked devices' current addresses to this list.
 monitoring_static_ping_targets:
+  - 10.0.0.1
+  - 96.86.32.141
+  - 10.1.10.1
+  - 96.86.32.142
+  - 69.140.0.1
   - 1.1.1.1
   - 8.8.8.8
-# The target whose loss/latency/jitter represent "the internet" in alert rules.
-monitoring_wan_probe_target: 1.1.1.1
-
-# Alert thresholds, from video-conferencing and DOCSIS guidance (see README).
-monitoring_alert_wan_loss_ratio: 0.05
-monitoring_alert_wan_latency_seconds: 0.1
-monitoring_alert_wan_jitter_seconds: 0.03
-monitoring_alert_docsis_snr_min_db: 33
-monitoring_alert_docsis_power_max_dbmv: 12
-monitoring_alert_docsis_power_min_dbmv: -8
-monitoring_alert_docsis_uncorrectable_increase_15m: 1000
-monitoring_alert_reboot_uptime_seconds: 600
-# The offsite backup runs nightly; 36 hours tolerates one missed or overlong run before alerting.
-monitoring_alert_backup_max_age_seconds: 129600
-
-monitoring_grafana_root_url: "https://grafana.intranet.{{ domain }}/"
-
-# Slack channel that alerts are posted to by the "Home Monitoring" bot (see README).
-monitoring_slack_channel: '#home-alerts'

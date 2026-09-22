@@ -55,9 +55,9 @@ keeps the parsers of untrusted router/gateway output off the host's loopback (wh
 
 ### Storage
 
-Prometheus data lives under `/opt/monitoring/data` on the root volume with a size cap
-(`monitoring_prometheus_retention_size`) and no time cap, so it can never fill the disk and history is
-simply "as much as fits". It is deliberately not backed up.
+Prometheus data lives under `/opt/monitoring/data` on the root volume with a 6 GB size cap (set in
+the Compose template) and no time cap, so it can never fill the disk and history is simply "as much as
+fits". It is deliberately not backed up.
 
 ### Security
 
@@ -84,8 +84,12 @@ simply "as much as fits". It is deliberately not backed up.
 
 ## Role Variables
 
-Defaults are in `defaults/main.yml`. Production values for eddings are in
-`host_vars/eddings.justdavis.com/main.yml`. The following must be set in the Ansible vault:
+`defaults/main.yml` holds only the values shared between files (paths, the service user, the Docker
+network, ports, the gateway address, and the ping targets and settings) plus the image tags, so that
+upgrades happen in one place; everything used once, such as alert thresholds and polling intervals, is
+set in the template that uses it, with its reasoning alongside. The defaults are the production values;
+in the AWS test environment the templates blank the device hosts, substitute dummy credentials, and
+ping only the public anchors. The following must be set in the Ansible vault:
 
 ```yaml
 vault_amplifi_password: <AmpliFi router web UI password>
@@ -116,24 +120,23 @@ get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never
 
 Alerts go to Slack and Discord. The Slack side is the "Home Monitoring" Slack app (app ID
 `A0C1LFW5N9X` in the Davis Family workspace, created and installed with the Slack CLI from a manifest
-requesting `chat:write`, `chat:write.public`, and `incoming-webhook`; the manifest is kept in
+requesting `chat:write` and `chat:write.public`; the manifest is kept in
 `files/slack-app/manifest.json` so the app can be recreated); Alertmanager posts through the
-Web API with the app's bot token into `monitoring_slack_channel` (default `#home-alerts`, a private
-channel the bot was invited to). The bot token is on the app's settings page under OAuth &
-Permissions; regenerate it there and update the vault to rotate it. The Discord side is a channel
-webhook URL from Discord's channel integration settings. Thresholds are role variables; the defaults
-follow common guidance: packet loss above 5%, round trip above 100 ms, or jitter above 30 ms to the
-internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside -8 to +12 dBmV; any
-uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the gateway reporting
-its Internet connection inactive for 2 minutes; HomePods not answering ping, not accepting AirPlay
-connections, or not resolving over mDNS; a mesh point missing from the topology; router, mesh point,
-or gateway reboots; collectors that stop working; exporters whose scrape loop has stalled; and the
-offsite backup (from the `offsite_backups` role's metrics file, read by node_exporter's textfile
-collector): no success for 36 hours, a failed run, or the metrics missing for an hour.
+Web API with the app's bot token into `#home-alerts` (a private channel the bot was invited to,
+named by channel ID in the Alertmanager template). The bot token is on the app's settings page under
+OAuth & Permissions; regenerate it there and update the vault to rotate it. The Discord side is a
+channel webhook URL from Discord's channel integration settings. Thresholds are set at the top of
+`templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
+or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside
+-8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
+gateway reporting its Internet connection inactive for 2 minutes; HomePods not answering ping, not
+accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the topology;
+router, mesh point, or gateway reboots; collectors that stop working; exporters whose scrape loop has
+stalled; and the offsite backup (from the `offsite_backups` role's metrics file, read by node_exporter's
+textfile collector): no success for 36 hours, a failed run, or the metrics missing for an hour.
 
-The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling because, as of
-September 2026, the gateway reads around +10 to +11.5 dBmV with excellent SNR and zero uncorrectables.
-That is a data point for a Comcast conversation, not an alert.
+The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling; the template
+explains why next to the value.
 
 There is intentionally no "HomePod on the wrong mesh point" alert yet: the data is recorded first, and a
 rule can be added once the dashboards show what normal looks like.
@@ -167,8 +170,9 @@ the stack restarts cleanly during a WAN outage.
 ## Known Limitations
 
 - The gateway allows a single admin session and logs every login. The exporter keeps one session alive
-  and re-logs in at most every `monitoring_gateway_relogin_min_seconds`, but using the gateway's web
-  UI yourself will log the exporter out (and vice versa) until then.
+  and re-logs in at most every five minutes (`MONITORING_GATEWAY_RELOGIN_MIN_SECONDS` in the `.env`
+  template), but using the gateway's web UI yourself will log the exporter out (and vice versa) until
+  then.
 - The gateway's firmware does not populate the upstream channel table and its event log has no DOCSIS
   entries, so upstream signal levels and T3/T4 timeouts are not available.
 - AmpliFi reports client signal as a 0-100 quality figure, not dBm.

@@ -30,7 +30,8 @@ receivers:
         http_config:
           authorization:
             credentials_file: /secrets/slack_bot_token
-        channel: '{{ monitoring_slack_channel }}'
+        # The private #home-alerts channel, by ID (names are unreliable for private channels).
+        channel: 'C0C1CB8DUE7'
         send_resolved: true
         title: '[{{ L }} .Status | toUpper {{ R }}] {{ L }} .CommonLabels.alertname {{ R }}'
         text: >-

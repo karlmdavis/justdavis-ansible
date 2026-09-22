@@ -46,9 +46,9 @@ ZFS snapshots for instant rollback are a separate concern (see issue #104).
 - **Prune is a separate unit**: backups and pruning have different failure modes and runtimes, and
   keeping them apart is what makes an append-only credential possible later (see below).
 - **Metrics via textfile**: the backup script writes `offsite_backups_last_success_timestamp_seconds`
-  and friends to `/var/lib/node_exporter/textfile_collector/offsite_backups.prom`, so the monitoring
-  stack can alert when a backup is more than about 36 hours old. Wiring that directory into the
-  monitoring role's node_exporter is a follow-up.
+  and friends to `/var/lib/node_exporter/textfile_collector/offsite_backups.prom`. The `monitoring`
+  role's node_exporter reads that directory and alerts when a backup is more than 36 hours old, the
+  last run failed, or the metrics disappear.
 
 ## One-Time Setup (owner)
 

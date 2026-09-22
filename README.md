@@ -49,6 +49,14 @@ Ensure that the EC2 key to be used is loaded into SSH Agent:
 
     $ ssh-add foo.pem
 
+## Monitoring
+
+The `monitoring` role deploys a Prometheus/Grafana stack on eddings that records WiFi association and
+signal history for every device, layered latency/loss from the LAN to the internet, the cable modem's
+DOCSIS line health, and AirPlay reachability, and alerts to Slack and Discord. See
+[roles/monitoring/README.md](roles/monitoring/README.md) for the design, the vault variables it needs,
+and how to run the exporter tests.
+
 ## Running the Ansible Plays
 
 ### Test

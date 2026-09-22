@@ -1,0 +1,9 @@
+# Ignore the local uv virtual environment.
+.venv/
+
+# Ignore Python and tool caches.
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage

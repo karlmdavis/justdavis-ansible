@@ -1,0 +1,9 @@
+ping:
+  interval: {{ monitoring_ping_interval_seconds }}s
+  timeout: {{ monitoring_ping_timeout_seconds }}s
+  history-size: {{ monitoring_ping_history_size }}
+targets:
+{# The test instance pings only the public anchors, never the home network's addresses. #}
+{% for target in (['1.1.1.1', '8.8.8.8'] if is_test else monitoring_static_ping_targets) %}
+  - {{ target }}
+{% endfor %}

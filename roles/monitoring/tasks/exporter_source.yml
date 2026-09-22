@@ -1,0 +1,65 @@
+---
+# Syncs the custom exporters' source tree (files/exporters) to the server as the image build context.
+#
+# Copies exactly the files the image build consumes (an allowlist, so local tooling caches, tests, and
+# stray files never reach the server), then removes anything on the server that no longer exists
+# locally. Any change notifies the image build and a stack restart.
+
+# Only `src/` is walked (the package directory next to it holds a virtualenv with thousands of files);
+# the top-level build inputs are named explicitly.
+- name: Find Exporter Source Files
+  ansible.builtin.set_fact:
+    monitoring_exporter_files: >-
+      {{ ['Dockerfile', '.dockerignore', 'pyproject.toml', 'uv.lock']
+         + (query('community.general.filetree', 'exporters/src/')
+            | selectattr('state', 'equalto', 'file')
+            | rejectattr('path', 'search', '(^|/)__pycache__/')
+            | map(attribute='path') | map('regex_replace', '^', 'src/') | list) }}
+
+- name: Create Exporter Source Directories
+  ansible.builtin.file:
+    path: "{{ monitoring_base_dir }}/exporters/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  loop: "{{ monitoring_exporter_files | map('dirname') | reject('equalto', '') | unique | sort }}"
+  become: true
+
+- name: Copy Exporter Source Files
+  ansible.builtin.copy:
+    src: "exporters/{{ item }}"
+    dest: "{{ monitoring_base_dir }}/exporters/{{ item }}"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  loop: "{{ monitoring_exporter_files | sort }}"
+  become: true
+  notify:
+    - Build Monitoring Exporters
+    - Restart Monitoring
+
+- name: Find Deployed Exporter Files
+  ansible.builtin.find:
+    paths: "{{ monitoring_base_dir }}/exporters"
+    recurse: true
+    hidden: true
+    file_type: file
+  register: monitoring_deployed_exporter_files
+  become: true
+
+- name: Remove Stale Deployed Exporter Files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ monitoring_deployed_exporter_files.files | map(attribute='path')
+       | map('regex_replace', '^' ~ (monitoring_exporters_dir ~ '/') | regex_escape, '')
+       | difference(monitoring_exporter_files)
+       | map('regex_replace', '^', monitoring_exporters_dir ~ '/') | list }}
+  vars:
+    monitoring_exporters_dir: "{{ monitoring_base_dir }}/exporters"
+  become: true
+  notify:
+    - Build Monitoring Exporters
+    - Restart Monitoring

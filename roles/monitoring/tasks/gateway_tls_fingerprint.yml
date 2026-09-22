@@ -1,0 +1,84 @@
+---
+# Determines the Comcast gateway's TLS certificate fingerprint for the gateway exporter to pin.
+#
+# The gateway serves HTTPS with a self-signed certificate whose name does not match its address, so
+# the exporter pins the certificate's SHA-256 fingerprint, computed here at deploy time and recorded
+# on the server. A gateway that is rebooting must not abort the deploy: the previously recorded
+# fingerprint keeps the exporter working, and without one it idles rather than talking to an
+# unauthenticated HTTPS peer.
+# Re-run the role after a gateway firmware change if `gateway_up` drops to 0 with a TLS error.
+#
+# Sets `monitoring_gateway_tls_fingerprint` (possibly empty) for the environment file template.
+
+- name: Install Python Cryptography for Certificate Inspection
+  ansible.builtin.apt:
+    name: python3-cryptography
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ 60 * 15 }}"
+  become: true
+
+- name: Fetch Gateway TLS Certificate
+  community.crypto.get_certificate:
+    host: "{{ monitoring_gateway_host }}"
+    port: 443
+  register: monitoring_gateway_cert
+  failed_when: false
+  when: not is_test and monitoring_gateway_host | length > 0 and not ansible_check_mode
+
+- name: Inspect Gateway TLS Certificate
+  community.crypto.x509_certificate_info:
+    content: "{{ monitoring_gateway_cert.cert }}"
+  register: monitoring_gateway_cert_info
+  when: monitoring_gateway_cert.cert is defined
+
+- name: Read Previously Recorded Gateway TLS Fingerprint
+  ansible.builtin.slurp:
+    src: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+  register: monitoring_gateway_fingerprint_file
+  failed_when: false
+  become: true
+
+- name: Set Gateway TLS Fingerprint
+  ansible.builtin.set_fact:
+    monitoring_gateway_tls_fingerprint_recorded: >-
+      {{ monitoring_gateway_fingerprint_file.content | b64decode | trim
+         if monitoring_gateway_fingerprint_file.content is defined else '' }}
+    monitoring_gateway_tls_fingerprint_fetched: >-
+      {{ monitoring_gateway_cert_info.fingerprints.sha256
+         if monitoring_gateway_cert_info is not skipped else '' }}
+
+- name: Set Gateway TLS Fingerprint to Use
+  ansible.builtin.set_fact:
+    monitoring_gateway_tls_fingerprint: >-
+      {{ monitoring_gateway_tls_fingerprint_fetched or monitoring_gateway_tls_fingerprint_recorded }}
+
+# Say what happened, since a green deploy would otherwise hide it: the gateway did not answer and the
+# old fingerprint is reused; there is no fingerprint at all (the exporter idles with gateway_up 0); or
+# the certificate changed and is re-pinned (expected after a firmware update, otherwise worth a look,
+# since this is the trust-on-first-use moment).
+- name: Report Gateway TLS Fingerprint Outcome
+  ansible.builtin.debug:
+    msg: >-
+      {% if not fetched and recorded %}Gateway {{ monitoring_gateway_host }} did not answer; keeping
+      the previously recorded certificate fingerprint.
+      {% elif not fetched %}Gateway {{ monitoring_gateway_host }} did not answer and no fingerprint is
+      recorded; the gateway exporter will idle with gateway_up 0 until a deploy can reach it.
+      {% else %}WARNING: the gateway's certificate fingerprint changed from {{ recorded }} to
+      {{ fetched }} and is being re-pinned.{% endif %}
+  vars:
+    fetched: "{{ monitoring_gateway_tls_fingerprint_fetched }}"
+    recorded: "{{ monitoring_gateway_tls_fingerprint_recorded }}"
+  when:
+    - not is_test
+    - not fetched or (recorded and fetched != recorded)
+
+- name: Record Gateway TLS Fingerprint
+  ansible.builtin.copy:
+    content: "{{ monitoring_gateway_tls_fingerprint }}\n"
+    dest: "{{ monitoring_base_dir }}/gateway_tls_fingerprint"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  when: monitoring_gateway_tls_fingerprint | length > 0

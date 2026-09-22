@@ -1,0 +1,67 @@
+<VirtualHost {{ private_ip_address }}:80>
+  ServerName grafana.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Redirect all HTTP traffic to HTTPS.
+  RewriteEngine On
+  RewriteCond %{HTTPS} =off
+  RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
+</VirtualHost>
+
+<VirtualHost {{ private_ip_address }}:443>
+  ServerName grafana.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl)
+  SSLEngine on
+  SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/{{ domain }}/chain.pem
+  SSLCACertificateFile /etc/ssl/certs/ca-certificates.crt
+
+  # Configure mod_proxy to be used for proxying URLs on this site to other URLs/ports on this server.
+  ProxyRequests Off
+  <Proxy *>
+    AddDefaultCharset off
+    Order deny,allow
+    Allow from all
+  </Proxy>
+
+  # Grafana's own metrics endpoint is disabled in its config; deny it here as well.
+  <Location /metrics>
+    Require all denied
+  </Location>
+
+  ProxyVia Off
+  RequestHeader set X-Forwarded-Proto "https"
+  # The port is Grafana's default; the monitoring role's defaults are not visible to this role.
+  ProxyPass / "http://127.0.0.1:3000/" timeout=600 upgrade=websocket
+  ProxyPassReverse / "http://127.0.0.1:3000/"
+  # Grafana's CSRF check compares Origin with the request Host, and its websocket origin check
+  # uses root_url; both need the original Host header.
+  ProxyPreserveHost On
+</VirtualHost>

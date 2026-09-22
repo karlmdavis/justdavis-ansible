@@ -1,0 +1,65 @@
+---
+# Defaults for the monitoring role. A value is a variable here only when it is shared between files or
+# repeated many times within one, plus the image tags so that upgrades happen in one place. Everything
+# used once (alert thresholds, polling intervals, memory limits, the AmpliFi address, the Slack channel)
+# is written where it is used, with its explanation alongside. The defaults are the production values:
+# the AWS test instance reuses the eddings hostname, and the templates blank the device hosts,
+# substitute dummy credentials, and ping only the public anchors there (`is_test`), so the exporters
+# idle in their "not configured" state.
+
+monitoring_base_dir: /opt/monitoring
+monitoring_user: monitoring
+
+# Pre-created bridge network with a fixed subnet, so that host-network containers can bind their
+# metrics endpoints to the bridge gateway address (reachable by Prometheus on the bridge, but not from
+# the LAN). Same pattern as the Immich network / PostgreSQL rule. The subnet deliberately avoids
+# 172.31.0.0/16, which is the AWS default VPC range the test instances live in.
+monitoring_docker_network: monitoring_default
+monitoring_docker_subnet: 172.28.0.0/24
+monitoring_docker_gateway: 172.28.0.1
+
+# Image versions. Bump deliberately, in a PR gated by the AWS test run.
+monitoring_prometheus_image: prom/prometheus:v3.14.0
+monitoring_grafana_image: grafana/grafana-oss:13.0.2
+# Alertmanager >= 0.26 is required for `webhook_url_file` on the Discord receiver.
+monitoring_alertmanager_image: prom/alertmanager:v0.34.0
+monitoring_blackbox_image: prom/blackbox-exporter:v0.28.0
+monitoring_node_exporter_image: prom/node-exporter:v1.12.1
+monitoring_ping_exporter_image: czerwonk/ping_exporter:1.2.3
+# Built locally from roles/monitoring/files/exporters by the `Build Monitoring Exporters` handler.
+monitoring_exporters_image: justdavis-monitoring-exporters:local
+
+# Ports, shared by the Compose file, the Prometheus scrape configuration, the ufw rule, and the tests.
+# Bridge-network services publish on 127.0.0.1 only; host-network exporters bind the bridge gateway
+# address.
+monitoring_prometheus_port: 9090
+monitoring_grafana_port: 3000
+monitoring_alertmanager_port: 9093
+monitoring_blackbox_port: 9115
+monitoring_node_exporter_port: 9100
+monitoring_ping_exporter_port: 9427
+monitoring_amplifi_exporter_port: 9801
+monitoring_gateway_exporter_port: 9802
+monitoring_airplay_exporter_port: 9803
+
+# The Comcast gateway, whose TLS certificate the role fetches at deploy time and whose status page the
+# gateway exporter reads.
+monitoring_gateway_host: 10.1.10.1
+
+# Continuous ping settings (ping_exporter): one packet per second per target, loss and jitter over
+# a 60-sample window. Used by both the seeded targets file and the exporter that rewrites it.
+monitoring_ping_interval_seconds: 1
+monitoring_ping_timeout_seconds: 2
+monitoring_ping_history_size: 60
+
+# Always-pinged addresses, layered from the LAN outwards: the AmpliFi router (LAN and WAN sides), the
+# Comcast gateway (LAN and static-IP sides), the ISP's first hop, and two public anchors. The AmpliFi
+# exporter adds the tracked devices' current addresses to this list.
+monitoring_static_ping_targets:
+  - 10.0.0.1
+  - 96.86.32.141
+  - 10.1.10.1
+  - 96.86.32.142
+  - 69.140.0.1
+  - 1.1.1.1
+  - 8.8.8.8

@@ -9,6 +9,9 @@
   hosts: eddings.justdavis.com
   become: true
   gather_facts: true
+  # A run that fails after notifying a handler must still run it: otherwise the next run, seeing no
+  # change, never rebuilds an image or restarts a service whose inputs already changed on disk.
+  force_handlers: true
   tasks:
     - name: Import role - eddings_base
       ansible.builtin.import_role:
@@ -67,6 +70,14 @@
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich
+    # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`. The
+    # Grafana vhost and DNS record belong to the apache and dns_server roles, so the first deploy
+    # needs a full run (or those roles too) for the Grafana hostname to resolve.
+    - name: Import role - monitoring
+      ansible.builtin.import_role:
+        name: monitoring
+      tags:
+        - monitoring
 
 - name: Apply Common Configuration
   hosts: all

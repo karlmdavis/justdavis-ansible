@@ -46,6 +46,31 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
 - DOCSIS SNR, power, and uncorrectable codewords distinguish a line problem (which a reboot only masks)
   from a router problem.
 
+### What each signal tells you
+
+The signals are layered so that each failure is told apart from its neighbours by one metric. Reading
+down a column is the diagnosis; the last column is the rule that says so.
+
+| Failure | What isolates it | Alert |
+|---|---|---|
+| HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
+| HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1. `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
+| HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
+| HomePod answers on port 7000 but cannot be found | Port open, but the LAN-side mDNS query (`airplay_service_resolved`) fails. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
+| A mesh point has dropped out | Fewer `amplifi_mesh_point_info` series than mesh points; `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointMissing` |
+| The internet is bad | Loss, round trip, or jitter to the public anchor (`ping_*{target="1.1.1.1"}`). | `WanPacketLoss`, `WanLatencyHigh`, `WanJitterHigh` |
+| Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, ISP first hop, public anchors (the layered ping panel). | Covered by the three above. |
+| The cable line, not the router | DOCSIS SNR, receive power, uncorrectable codewords, and `gateway_internet_active`; these persist through a reboot, a router fault does not. | `DocsisSnrLow`, `DocsisPowerOutOfRange`, `DocsisUncorrectableCodewords*`, `GatewayInternetInactive` |
+| Something rebooted (or was power cycled) | Uptime under ten minutes for the router, a mesh point, or the gateway; correlate with the rows above. | `AmpliFiRebooted`, `MeshPointRebooted`, `GatewayRebooted` |
+| The WAN link is saturated | `amplifi_wan_*_bits_per_second` and `node_network_*_bytes_total{device="br-wan"}` against the latency panels. | None: dashboard only. |
+| Prometheus cannot reach an exporter | `up` is 0 for the job. | `CollectorDown` |
+| An exporter runs but cannot read its device | `<name>_up` is 0 and `<name>_scrape_errors_total{stage}` names the step (login, fetch, tls, parse, write, resolve). | `AmpliFiScrapeFailing`, `GatewayScrapeFailing`, `AirPlayProbeFailing` |
+| The router is read but the probe targets cannot be updated | `amplifi_target_files_ok` is 0; probes keep following stale addresses. | `AmpliFiTargetFilesNotWritable` |
+| The WAN probe itself has gone missing | `absent()` of the anchor's ping series, without which the three WAN rules would be silent. | `WanProbeMissing` |
+| Alerts are not being delivered | Alertmanager's failed-notification counter, or Prometheus seeing no Alertmanager. | `AlertmanagerNotificationsFailing`, `PrometheusAlertmanagerUnreachable` |
+| The offsite backup is not happening | `offsite_backups_*` gauges from the `offsite_backups` role. | `OffsiteBackupStale`, `OffsiteBackupFailed`, `OffsiteBackupMetricsMissing` |
+
 ### Why three custom exporters
 
 No existing Prometheus exporter fits any of the three devices; the exporters' README

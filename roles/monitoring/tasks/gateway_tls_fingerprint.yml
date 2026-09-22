@@ -4,7 +4,8 @@
 # The gateway serves HTTPS with a self-signed certificate whose name does not match its address, so
 # the exporter pins the certificate's SHA-256 fingerprint, computed here at deploy time and recorded
 # on the server. A gateway that is rebooting must not abort the deploy: the previously recorded
-# fingerprint keeps the exporter working, and without one it idles rather than using plain HTTP.
+# fingerprint keeps the exporter working, and without one it idles rather than talking to an
+# unauthenticated HTTPS peer.
 # Re-run the role after a gateway firmware change if `gateway_up` drops to 0 with a TLS error.
 #
 # Sets `monitoring_gateway_tls_fingerprint` (possibly empty) for the environment file template.

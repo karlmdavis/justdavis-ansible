@@ -10,15 +10,17 @@ Type=simple
 # No --build/--pull here on purpose: images are built and pulled by Ansible handlers during deploys, so
 # a restart during a WAN outage (exactly when this stack matters most) depends on nothing remote.
 #
-# Always tear the stack down before bringing it up: a restart of a failed unit skips ExecStop, and
-# `compose up` alone does not recreate a container whose mounted config files changed. (`down`
-# exits 0 when nothing is running, so a failure here is real and should stop the start.)
+# Always tear the stack down before bringing it up: ExecStop cannot succeed once docker.service has
+# already stopped (Requires= pulls this unit down with it), containers may survive an unclean host
+# stop, and `compose up` alone does not recreate a container whose mounted config files changed.
+# (`down` exits 0 when nothing is running, so a failure here is real and should stop the start.)
 ExecStartPre=/usr/bin/docker compose down --remove-orphans
 ExecStart=/usr/bin/docker compose up --remove-orphans
 ExecStop=/usr/bin/docker compose down --remove-orphans
 Restart=always
 RestartSec=10
-# Stopping nine containers can exceed systemd's 90 s default.
+# Stopping the stack's containers (one per service in docker-compose.yml.j2) can exceed systemd's
+# 90 s default.
 TimeoutStopSec=180
 
 [Install]

@@ -54,7 +54,9 @@ def _optional_int(mapping: Mapping[str, object], key: str, ctx: str) -> int | No
 
 
 def _mesh_point_name(friendly_name: str) -> str:
-    """AmpliFi appends model and MAC suffix to unnamed mesh points: "Living Room (AFi-P-HD-000003)"."""
+    """AmpliFi appends the model and a MAC suffix to some mesh points' names, as in
+    "Living Room (AFi-P-HD-000003)"; keep the part before it (which also truncates a user-chosen
+    name containing " (")."""
     return friendly_name.split(" (")[0]
 
 

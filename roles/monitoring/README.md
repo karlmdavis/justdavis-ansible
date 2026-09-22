@@ -80,8 +80,9 @@ fits". It is deliberately not backed up.
   HTTP, so the password crosses the LAN in cleartext on each login (roughly once per session expiry).
 - The gateway is scraped over HTTPS with its self-signed certificate pinned by SHA-256 fingerprint,
   computed at deploy time and recorded in `/opt/monitoring/gateway_tls_fingerprint`; if the gateway is
-  unreachable during a deploy the previous fingerprint is kept. After a gateway firmware change,
-  re-run the role if `gateway_up` stays 0.
+  unreachable during a deploy the previous fingerprint is kept, and the deploy output says so, as it
+  does when the fingerprint changed and was re-pinned. After a gateway firmware change, re-run the
+  role if `gateway_up` stays 0.
 
 ## Requirements
 
@@ -161,7 +162,9 @@ README (what they are, why they are custom, and how to develop them). Each expor
 failed, and only serves device metrics from its last successful poll, so nothing goes stale silently.
 An exporter whose device host variable is blank (as in the AWS test environment) serves `<name>_up 0`
 and idles; the gateway exporter does the same when no certificate fingerprint was recorded (it never
-falls back to plain HTTP), and the AirPlay probe when its LAN address is not local to the host.
+talks to an unauthenticated HTTPS peer). The AirPlay probe exits instead when its LAN address is not
+local to the host or mDNS cannot start, since both can be transient at boot and the container's
+restart policy retries.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.

@@ -86,8 +86,8 @@
   check_mode: false
   become: true
 
-# One container per service in docker-compose.yml.j2; update the count here and below when a service
-# is added.
+# One container per service in docker-compose.yml.j2; update the count here and below (and the
+# stop-timeout note in monitoring.service.j2) when a service is added.
 - name: Test - Verify Every Container is Running
   ansible.builtin.assert:
     that:

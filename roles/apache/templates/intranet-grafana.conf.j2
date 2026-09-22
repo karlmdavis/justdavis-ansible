@@ -58,8 +58,10 @@
 
   ProxyVia Off
   RequestHeader set X-Forwarded-Proto "https"
+  # The port is Grafana's default; the monitoring role's defaults are not visible to this role.
   ProxyPass / "http://127.0.0.1:3000/" timeout=600 upgrade=websocket
   ProxyPassReverse / "http://127.0.0.1:3000/"
-  # Grafana checks the Host header against its root_url.
+  # Grafana's CSRF check compares Origin with the request Host, and its websocket origin check
+  # uses root_url; both need the original Host header.
   ProxyPreserveHost On
 </VirtualHost>

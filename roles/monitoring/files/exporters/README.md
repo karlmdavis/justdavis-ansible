@@ -16,7 +16,7 @@ project that builds into one Docker image.
 Each exporter is a `[project.scripts]` entry point in `pyproject.toml`; the shared runtime (settings,
 HTTP client, scrape loop, metrics server, snapshot handling) lives in `src/.../common/`. Parsers are
 pure functions with fixture-based tests under `tests/`; the fixtures are sanitised copies of real device
-responses (fake MAC addresses and documentation IP ranges).
+responses (fake MAC addresses, and documentation IP ranges apart from Comcast's public resolvers).
 
 ## Why this exists
 
@@ -35,8 +35,9 @@ The role copies `Dockerfile`, `pyproject.toml`, `uv.lock`, `.dockerignore`, and 
 Exporters` handler builds the image `justdavis-monitoring-exporters:local` from that directory, and the
 stack's `docker-compose.yml` runs one container per exporter from that image, selecting the entry point
 with the service's `command`. Configuration arrives through environment variables: the listen address
-and port from the Compose service's `environment`, everything else from the stack's `.env` file. Each
-exporter's `main.py` (`*Settings.from_env`) declares the variables it reads.
+and port from the Compose service's `environment`, the device credentials from
+`device-credentials.env` (given only to the AmpliFi and gateway scrapers), and everything else from the
+stack's `.env` file. Each exporter's `main.py` (`*Settings.from_env`) declares the variables it reads.
 
 ## Development
 

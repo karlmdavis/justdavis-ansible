@@ -140,8 +140,8 @@ or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; dow
 -8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the
-topology; router, mesh point, or gateway reboots; collectors that stop working; exporters whose scrape
-loop has stalled; the WAN probe series or the AirPlay probe's targets going missing; the offsite backup
+topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
+going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which

@@ -39,21 +39,6 @@ groups:
         annotations:
           summary: "Scrape target {{ L }} $labels.job {{ R }} ({{ L }} $labels.instance {{ R }}) is down"
 
-      # A scrape loop that stops returning keeps its last `_up 1`; catch that by staleness.
-      - alert: AmpliFiExporterStalled
-        expr: amplifi_up == 1 and time() - amplifi_last_success_timestamp_seconds > 600
-        labels:
-          severity: warning
-        annotations:
-          summary: "The AmpliFi exporter has not completed a poll in 10 minutes"
-
-      - alert: GatewayExporterStalled
-        expr: gateway_up == 1 and time() - gateway_last_success_timestamp_seconds > 900
-        labels:
-          severity: warning
-        annotations:
-          summary: "The gateway exporter has not completed a poll in 15 minutes"
-
       - alert: AirPlayProbeFailing
         expr: airplay_up == 0
         for: 10m
@@ -61,13 +46,6 @@ groups:
           severity: warning
         annotations:
           summary: "The AirPlay mDNS probe is not running (check MONITORING_LAN_IP and host networking)"
-
-      - alert: AirPlayProbeStalled
-        expr: airplay_up == 1 and time() - airplay_last_success_timestamp_seconds > 600
-        labels:
-          severity: warning
-        annotations:
-          summary: "The AirPlay mDNS probe has not completed a poll in 10 minutes"
 
       # The notification path itself: a rotated Slack token or a deleted Discord webhook would
       # otherwise turn every alert into a silent one. Two receivers means a failure of one is still
@@ -201,15 +179,6 @@ groups:
           severity: warning
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} does not answer AirPlay mDNS queries"
-
-      # A running probe with nothing to probe means the tracked-client list has no HomePods.
-      - alert: AirPlayProbeNoTargets
-        expr: absent(airplay_service_resolved) and on () airplay_up == 1
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "The AirPlay probe is running but no HomePod is configured to be probed"
 
   - name: amplifi
     rules:

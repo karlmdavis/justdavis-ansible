@@ -53,39 +53,25 @@
     monitoring_gateway_tls_fingerprint: >-
       {{ monitoring_gateway_tls_fingerprint_fetched or monitoring_gateway_tls_fingerprint_recorded }}
 
-# The three outcomes that a green deploy would otherwise hide: the gateway was unreachable and the old
-# fingerprint is being reused, there is no fingerprint at all (the exporter will idle with gateway_up
-# 0), or the certificate changed and is being re-pinned (expected after a firmware update; otherwise
-# worth a look, since this is the trust-on-first-use moment).
-- name: Report Reused Gateway TLS Fingerprint
+# Say what happened, since a green deploy would otherwise hide it: the gateway did not answer and the
+# old fingerprint is reused; there is no fingerprint at all (the exporter idles with gateway_up 0); or
+# the certificate changed and is re-pinned (expected after a firmware update, otherwise worth a look,
+# since this is the trust-on-first-use moment).
+- name: Report Gateway TLS Fingerprint Outcome
   ansible.builtin.debug:
     msg: >-
-      The gateway at {{ monitoring_gateway_host }} did not answer; the gateway exporter keeps using the
-      previously recorded certificate fingerprint.
+      {% if not fetched and recorded %}Gateway {{ monitoring_gateway_host }} did not answer; keeping
+      the previously recorded certificate fingerprint.
+      {% elif not fetched %}Gateway {{ monitoring_gateway_host }} did not answer and no fingerprint is
+      recorded; the gateway exporter will idle with gateway_up 0 until a deploy can reach it.
+      {% else %}WARNING: the gateway's certificate fingerprint changed from {{ recorded }} to
+      {{ fetched }} and is being re-pinned.{% endif %}
+  vars:
+    fetched: "{{ monitoring_gateway_tls_fingerprint_fetched }}"
+    recorded: "{{ monitoring_gateway_tls_fingerprint_recorded }}"
   when:
     - not is_test
-    - not monitoring_gateway_tls_fingerprint_fetched
-    - monitoring_gateway_tls_fingerprint_recorded | length > 0
-
-- name: Report Missing Gateway TLS Fingerprint
-  ansible.builtin.debug:
-    msg: >-
-      The gateway at {{ monitoring_gateway_host }} did not answer and no certificate fingerprint has
-      been recorded yet; the gateway exporter will idle with gateway_up 0 until a deploy can reach it.
-  when:
-    - not is_test
-    - not monitoring_gateway_tls_fingerprint
-
-- name: Report Changed Gateway TLS Fingerprint
-  ansible.builtin.debug:
-    msg: >-
-      WARNING: the gateway's certificate fingerprint changed from
-      {{ monitoring_gateway_tls_fingerprint_recorded }} to {{ monitoring_gateway_tls_fingerprint_fetched }}
-      and is being re-pinned.
-  when:
-    - monitoring_gateway_tls_fingerprint_fetched | length > 0
-    - monitoring_gateway_tls_fingerprint_recorded | length > 0
-    - monitoring_gateway_tls_fingerprint_fetched != monitoring_gateway_tls_fingerprint_recorded
+    - not fetched or (recorded and fetched != recorded)
 
 - name: Record Gateway TLS Fingerprint
   ansible.builtin.copy:

@@ -134,13 +134,17 @@
   no_log: "{{ not is_test }}"
   notify: Restart Monitoring
 
-- name: Create Device Credentials File
+# One file per device, so that each scraper holds only the credential it uses.
+- name: Create Device Credentials Files
   ansible.builtin.template:
-    src: device-credentials.env.j2
-    dest: "{{ monitoring_base_dir }}/device-credentials.env"
+    src: "{{ item }}.j2"
+    dest: "{{ monitoring_base_dir }}/{{ item }}"
     owner: root
     group: root
     mode: 'u=rw,g=,o='
+  loop:
+    - amplifi-credentials.env
+    - gateway-credentials.env
   become: true
   no_log: "{{ not is_test }}"
   notify: Restart Monitoring

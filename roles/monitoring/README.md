@@ -75,9 +75,10 @@ fits". It is deliberately not backed up.
 - Containers run as the unprivileged `monitoring` user with read-only root filesystems and dropped
   capabilities (`ping_exporter` keeps `NET_RAW`; `node_exporter` uses its image's `nobody` user).
 - The AmpliFi password is the router's only admin credential; compromise of
-  `/opt/monitoring/device-credentials.env` equals control of the LAN. That file reaches only the two
-  device scrapers on the bridge network, never the host-network AirPlay probe. The AmpliFi UI is plain
-  HTTP, so the password crosses the LAN in cleartext on each login (roughly once per session expiry).
+  `/opt/monitoring/amplifi-credentials.env` equals control of the LAN. Each device scraper receives
+  only its own device's credentials file, and the host-network AirPlay probe receives none. The
+  AmpliFi UI is plain HTTP, so the password crosses the LAN in cleartext on each login (roughly once
+  per session expiry).
 - The gateway is scraped over HTTPS with its self-signed certificate pinned by SHA-256 fingerprint,
   computed at deploy time and recorded in `/opt/monitoring/gateway_tls_fingerprint`; if the gateway is
   unreachable during a deploy the previous fingerprint is kept, and the deploy output says so, as it

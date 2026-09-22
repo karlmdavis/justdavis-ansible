@@ -1,9 +1,9 @@
 """A small, hardened HTTP client used to talk to the router and gateway.
 
-All requests carry a timeout and never follow redirects (the device clients only use a redirect as a
-"session expired" signal and never fetch its `Location`). Bodies are streamed with a size cap so a hung
-or misbehaving device cannot block the scrape thread forever or exhaust memory, and 4xx/5xx statuses
-raise `HttpStatusError` so an outage is reported as such rather than as a parse failure. The
+All requests carry a timeout and never follow redirects (the AmpliFi client only uses a redirect as a
+"session expired" signal and never fetches its `Location`). Bodies are streamed with a size cap so a
+hung or misbehaving device cannot block the scrape thread forever or exhaust memory, and 4xx/5xx
+statuses raise `HttpStatusError` so an outage is reported as such rather than as a parse failure. The
 `HttpClient` protocol lets tests drive the device clients with scripted responses.
 """
 
@@ -47,7 +47,11 @@ class HttpResponse:
 
 
 class HttpClient(Protocol):
-    def get(self, path: str, *, params: Mapping[str, str] | None = None) -> HttpResponse: ...
+    """The contract the device clients rely on: a returned response always has a status below 400
+    (4xx/5xx raise `HttpStatusError`), redirects are never followed (3xx responses are returned as
+    they are), and bodies are complete but capped (`ResponseTooLarge` otherwise)."""
+
+    def get(self, path: str) -> HttpResponse: ...
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse: ...
 
@@ -84,12 +88,8 @@ class RequestsHttpClient:
         self._max_body_bytes = max_body_bytes
         self._verify = verify
 
-    @property
-    def base_url(self) -> str:
-        return self._base_url
-
-    def get(self, path: str, *, params: Mapping[str, str] | None = None) -> HttpResponse:
-        return self._request("GET", path, params=params)
+    def get(self, path: str) -> HttpResponse:
+        return self._request("GET", path)
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse:
         return self._request("POST", path, data=data)
@@ -144,5 +144,8 @@ class FingerprintAdapter(HTTPAdapter):
 def pinned_session(fingerprint_sha256: str) -> requests.Session:
     """A `requests.Session` whose HTTPS connections must present the pinned certificate."""
     session = requests.Session()
+    # A proxy from the environment would get its own, unpinned connection pool; the gateway is on
+    # the LAN, so never consult HTTPS_PROXY and friends.
+    session.trust_env = False
     session.mount("https://", FingerprintAdapter(fingerprint_sha256))
     return session

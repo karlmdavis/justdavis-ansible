@@ -10,7 +10,6 @@ from justdavis_monitoring_exporters.common.http import CaseInsensitiveHeaders, H
 class Call:
     method: str
     path: str
-    params: Mapping[str, str] | None = None
     data: Mapping[str, str] | None = None
 
 
@@ -34,8 +33,8 @@ class FakeHttpClient:
     script: dict[tuple[str, str], list[HttpResponse]]
     calls: list[Call] = field(default_factory=list)
 
-    def get(self, path: str, *, params: Mapping[str, str] | None = None) -> HttpResponse:
-        self.calls.append(Call("GET", path, params=params))
+    def get(self, path: str) -> HttpResponse:
+        self.calls.append(Call("GET", path))
         return self._next("GET", path)
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse:

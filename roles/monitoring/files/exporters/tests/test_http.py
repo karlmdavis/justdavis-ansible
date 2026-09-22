@@ -10,7 +10,12 @@ from typing import Any
 import pytest
 
 from justdavis_monitoring_exporters.common.errors import HttpStatusError, ResponseTooLarge
-from justdavis_monitoring_exporters.common.http import CaseInsensitiveHeaders, RequestsHttpClient
+from justdavis_monitoring_exporters.common.http import (
+    CaseInsensitiveHeaders,
+    FingerprintAdapter,
+    RequestsHttpClient,
+    pinned_session,
+)
 
 
 @dataclass
@@ -85,12 +90,15 @@ def test_verify_option_is_passed_through() -> None:
 
 
 def test_fingerprint_pinning_mounts_an_https_adapter_that_asserts_the_fingerprint() -> None:
-    from justdavis_monitoring_exporters.common.http import FingerprintAdapter, pinned_session
-
     session = pinned_session("ab:cd:ef")
     adapter = session.get_adapter("https://10.1.10.1/")
     assert isinstance(adapter, FingerprintAdapter)
     assert adapter.poolmanager.connection_pool_kw["assert_fingerprint"] == "ab:cd:ef"
+
+
+def test_pinned_session_ignores_proxy_settings_from_the_environment() -> None:
+    # requests would route through HTTPS_PROXY on a separate, unpinned pool.
+    assert pinned_session("ab:cd:ef").trust_env is False
 
 
 def test_error_status_raises_http_status_error() -> None:

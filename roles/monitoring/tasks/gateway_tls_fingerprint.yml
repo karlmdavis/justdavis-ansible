@@ -16,8 +16,8 @@
   ansible.builtin.shell:
     cmd: >-
       set -o pipefail;
-      timeout 15 openssl s_client -connect {{ monitoring_gateway_host }}:443 </dev/null 2>/dev/null
-      | openssl x509 -noout -fingerprint -sha256
+      timeout 15 openssl s_client -connect {{ (monitoring_gateway_host ~ ':443') | quote }}
+      </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
     executable: /bin/bash
   register: monitoring_gateway_cert
   changed_when: false

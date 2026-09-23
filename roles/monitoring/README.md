@@ -104,7 +104,8 @@ fits". It is deliberately not backed up.
   only its own device's credentials file, and the host-network AirPlay probe receives none. The
   AmpliFi UI is plain HTTP, so the password crosses the LAN in cleartext on each login (roughly once
   per session expiry).
-- The gateway is scraped over HTTPS with its self-signed certificate pinned by SHA-256 fingerprint,
+- The gateway is scraped over HTTPS with its certificate (Comcast's, for `myrouter.io`, so it does not
+  name the gateway's address) pinned by SHA-256 fingerprint,
   computed at deploy time and recorded in `/opt/monitoring/gateway_tls_fingerprint`; if the gateway is
   unreachable during a deploy the previous fingerprint is kept, and the deploy output says so, as it
   does when the fingerprint changed and was re-pinned. After a gateway firmware change, re-run the

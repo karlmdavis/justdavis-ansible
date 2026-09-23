@@ -127,8 +127,9 @@ class RequestsHttpClient:
 class FingerprintAdapter(HTTPAdapter):
     """HTTPS adapter that pins the server certificate by SHA-256 fingerprint.
 
-    Used for the gateway, whose self-signed certificate does not name its address: chain and hostname
-    verification cannot pass, but pinning the exact certificate still authenticates the peer.
+    Used for the gateway, whose certificate (Comcast's, for `myrouter.io`) does not name its address:
+    hostname verification cannot pass, and the same certificate and key ship on every gateway of the
+    model, so pinning the exact certificate is as good as it gets.
     """
 
     def __init__(self, fingerprint: str) -> None:

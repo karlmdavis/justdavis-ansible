@@ -9,10 +9,12 @@ Login flow:
 4. `POST /info-async.php` with form fields `do=full` and `token`; the body is the JSON feed parsed by
    `amplifi.parser`.
 
-The session expires after inactivity: `GET /info.php` then redirects to `/login.php` (or serves the
-login form directly), which triggers a fresh login. The redirect is only used as a signal; its
-`Location` is never fetched. The UI is plain HTTP, so the password crosses the LAN in cleartext on
-each login. HTTP error statuses surface as `HttpStatusError` from the HTTP client.
+Without a valid session, `GET /info.php` answers in one of three ways, all of which trigger a fresh
+login: an HTTP redirect to `/login.php` (an expired cookie), a 200 with a tiny page whose
+`<meta http-equiv="refresh">` points at `login.php` (no cookie at all, as on the exporter's first
+poll), or the login form itself. The redirect is only used as a signal; its target is never fetched.
+The UI is plain HTTP, so the password crosses the LAN in cleartext on each login. HTTP error statuses
+surface as `HttpStatusError` from the HTTP client.
 """
 
 import logging
@@ -26,6 +28,7 @@ log = logging.getLogger(__name__)
 
 _LOGIN_TOKEN_RE = re.compile(r"name=['\"]token['\"][^>]*value=['\"]([A-Za-z0-9]{16})['\"]")
 _INFO_TOKEN_RE = re.compile(r"token=['\"]([A-Za-z0-9]{16})['\"]")
+_META_REFRESH_TO_LOGIN_RE = re.compile(r"http-equiv=['\"]refresh['\"][^>]*login\.php", re.IGNORECASE)
 _LOGIN_PATH = "/login.php"
 _INFO_PATH = "/info.php"
 _INFO_ASYNC_PATH = "/info-async.php"
@@ -35,7 +38,8 @@ def _needs_login(response: HttpResponse) -> bool:
     location = response.headers.get("location", "")
     if 300 <= response.status < 400 and "login.php" in location:
         return True
-    return _looks_like_login_form(response.body)
+    text = as_text(response.body)
+    return _META_REFRESH_TO_LOGIN_RE.search(text) is not None or _looks_like_login_form(response.body)
 
 
 def _looks_like_login_form(body: bytes) -> bool:

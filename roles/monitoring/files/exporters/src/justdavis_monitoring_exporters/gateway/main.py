@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import requests
 from prometheus_client import CollectorRegistry, Counter
 
-from justdavis_monitoring_exporters.common.errors import LoginError
+from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient, pinned_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
@@ -127,7 +127,7 @@ class GatewayScraper:
 
     def __call__(self) -> None:
         try:
-            body = self._client.fetch_comcast_network()
+            page = self._client.fetch_comcast_network()
         except LoginThrottled:
             self._collector.clear()
             log.info(
@@ -156,8 +156,24 @@ class GatewayScraper:
             # which is what the gateway's single admin session is tied to, is unaffected.
             self._client.close_connections()
         try:
-            snapshot = parse_comcast_network(body)
+            snapshot = parse_comcast_network(page.body)
             self._collector.publish(snapshot)
+        except ParseError:
+            # The gateway sometimes serves a half-rendered status page. Whether HTTP framed it as
+            # complete (content-length present and honoured) or it arrived as read-until-close is
+            # what separates "the gateway rendered it short" from "the connection was cut", and the
+            # body itself is never logged (it carries WAN addresses and the device serial).
+            log.warning(
+                "status page did not parse: status=%d bytes=%d content-length=%s transfer-encoding=%s "
+                "connection=%s",
+                page.status,
+                len(page.body),
+                page.headers.get("content-length"),
+                page.headers.get("transfer-encoding"),
+                page.headers.get("connection"),
+            )
+            self._fail("parse")
+            raise
         except Exception:
             self._fail("parse")
             raise

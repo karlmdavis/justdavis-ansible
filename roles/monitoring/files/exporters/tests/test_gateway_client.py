@@ -25,7 +25,7 @@ def fresh_session_http() -> FakeHttpClient:
 def test_login_page_triggers_login_then_retry() -> None:
     http = fresh_session_http()
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
-    body = client.fetch_comcast_network()
+    body = client.fetch_comcast_network().body
     assert body == STATUS_HTML.encode()
     assert [(c.method, c.path) for c in http.calls] == [
         ("GET", "/comcast_network.jst"),
@@ -48,7 +48,7 @@ def test_unrecognised_page_instead_of_the_status_page_triggers_login() -> None:
         }
     )
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
-    assert client.fetch_comcast_network() == STATUS_HTML.encode()
+    assert client.fetch_comcast_network().body == STATUS_HTML.encode()
     assert [c.method for c in http.calls] == ["GET", "POST", "GET"]
 
 
@@ -95,7 +95,7 @@ def test_relogin_allowed_once_the_throttle_window_passes() -> None:
     with pytest.raises(LoginError):
         client.fetch_comcast_network()
     clock.advance(301)
-    assert client.fetch_comcast_network() == STATUS_HTML.encode()
+    assert client.fetch_comcast_network().body == STATUS_HTML.encode()
 
 
 def test_rejected_credentials_raise_login_error() -> None:
@@ -128,5 +128,5 @@ def test_redirected_status_page_triggers_login_like_the_login_form_does() -> Non
         }
     )
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
-    assert client.fetch_comcast_network() == STATUS_HTML.encode()
+    assert client.fetch_comcast_network().body == STATUS_HTML.encode()
     assert [c.method for c in http.calls] == ["GET", "POST", "GET"]

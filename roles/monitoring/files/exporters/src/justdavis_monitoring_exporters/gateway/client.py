@@ -59,17 +59,18 @@ class GatewayClient:
     def __repr__(self) -> str:
         return f"{type(self).__name__}(http={self._http!r}, username={self._username!r})"
 
-    def fetch_comcast_network(self) -> bytes:
-        """Return the raw status page body, logging in (subject to the throttle) when needed."""
+    def fetch_comcast_network(self) -> HttpResponse:
+        """Return the status page response (headers included, for diagnosing a page that does not
+        parse), logging in (subject to the throttle) when needed."""
         page = self._http.get(_STATUS_PATH)
         if not _needs_login(page):
-            return page.body
+            return page
         self._login()
         page = self._http.get(_STATUS_PATH)
         if _needs_login(page):
             raise LoginError("gateway still did not return the status page after logging in")
         log.info("logged in to the gateway")
-        return page.body
+        return page
 
     def close_connections(self) -> None:
         """Drop the kept-alive connection to the gateway; the session cookie is unaffected."""

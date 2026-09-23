@@ -59,6 +59,26 @@ def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "parse"}) == 1.0
 
 
+def test_parse_failure_logs_the_response_framing_but_not_the_body(caplog: pytest.LogCaptureFixture) -> None:
+    http = FakeHttpClient(
+        {
+            ("GET", "/comcast_network.jst"): [
+                response(
+                    200, HALF_RENDERED_HTML, content_length=str(len(HALF_RENDERED_HTML)), connection="close"
+                )
+            ]
+        }
+    )
+    scraper, _ = make(http)
+    with caplog.at_level("WARNING"), pytest.raises(ParseError):
+        scraper()
+    line = next(r.getMessage() for r in caplog.records if "did not parse" in r.getMessage())
+    assert f"bytes={len(HALF_RENDERED_HTML)}" in line
+    assert f"content-length={len(HALF_RENDERED_HTML)}" in line
+    assert "connection=close" in line
+    assert "System Uptime" not in line
+
+
 def test_rejected_login_counts_login_stage() -> None:
     http = FakeHttpClient(
         {

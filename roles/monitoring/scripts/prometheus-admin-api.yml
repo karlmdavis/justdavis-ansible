@@ -2,9 +2,11 @@
 # admin API is deliberately off in the deployed stack (any local login on eddings could otherwise
 # wipe the TSDB through the loopback port), so use this only for the duration of a cleanup:
 #
-#   sudo docker compose -f docker-compose.yml -f prometheus-admin-api.yml up -d prometheus
-#   ... delete series ...
-#   sudo docker compose up -d prometheus
+#   scp roles/monitoring/scripts/prometheus-admin-api.yml eddings.justdavis.com:/tmp/
+#   ssh eddings.justdavis.com 'cd /opt/monitoring &&
+#       sudo docker compose -f docker-compose.yml -f /tmp/prometheus-admin-api.yml up -d prometheus'
+#   ... delete series from the controller over an SSH port forward (see tsdb_cleanup_2026_09_23.py) ...
+#   ssh eddings.justdavis.com 'cd /opt/monitoring && sudo docker compose up -d prometheus'
 #
 # Compose replaces the whole `command` list, so this must mirror templates/docker-compose.yml.j2.
 services:

@@ -215,8 +215,9 @@ the stack restarts cleanly during a WAN outage.
 - Delete series that tell a false story (a mislabelled metric, a dead probe target, an alert that flapped
   on a bug): do not leave them to age out, or the dashboards will mislead later. Prometheus's admin API
   is off in the deployed stack; `scripts/prometheus-admin-api.yml` turns it on for the duration of a
-  cleanup, and `scripts/tsdb_cleanup_2026_09_23.py` is a worked example (one row per false story, each
-  with a matcher and an end bound read from Prometheus itself).
+  cleanup, and `scripts/tsdb_cleanup_2026_09_23.py` is a worked example (one deletion per false story,
+  each with its matchers and an end bound read from Prometheus itself), run from the controller with
+  `uv run` over an SSH port forward so nothing is installed on eddings.
 
 ## Known Limitations
 

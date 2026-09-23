@@ -1,36 +1,28 @@
 ---
 # Determines the Comcast gateway's TLS certificate fingerprint for the gateway exporter to pin.
 #
-# The gateway serves HTTPS with a self-signed certificate whose name does not match its address, so
-# the exporter pins the certificate's SHA-256 fingerprint, computed here at deploy time and recorded
-# on the server. A gateway that is rebooting must not abort the deploy: the previously recorded
-# fingerprint keeps the exporter working, and without one it idles rather than talking to an
-# unauthenticated HTTPS peer.
-# Re-run the role after a gateway firmware change if `gateway_up` drops to 0 with a TLS error.
+# The gateway serves HTTPS with Comcast's certificate for `myrouter.io` (the same certificate ships on
+# every gateway of this model), which does not name its address, so the exporter pins the
+# certificate's SHA-256 fingerprint, computed here at deploy time and recorded on the server. A gateway
+# that is rebooting must not abort the deploy: the previously recorded fingerprint keeps the exporter
+# working, and without one it idles rather than talking to an unauthenticated HTTPS peer. Re-run the
+# role after a certificate change (Comcast's expires yearly) if `gateway_up` drops to 0 with a TLS error.
 #
 # Sets `monitoring_gateway_tls_fingerprint` (possibly empty) for the environment file template.
 
-- name: Install Python Cryptography for Certificate Inspection
-  ansible.builtin.apt:
-    name: python3-cryptography
-    state: present
-    update_cache: true
-    cache_valid_time: "{{ 60 * 15 }}"
-  become: true
-
-- name: Fetch Gateway TLS Certificate
-  community.crypto.get_certificate:
-    host: "{{ monitoring_gateway_host }}"
-    port: 443
+# openssl rather than community.crypto.get_certificate: that module's reply for this certificate is
+# rejected by the controller as non-UTF-8 JSON. Output is `sha256 Fingerprint=AB:CD:...`.
+- name: Fetch Gateway TLS Certificate Fingerprint
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      timeout 15 openssl s_client -connect {{ (monitoring_gateway_host ~ ':443') | quote }}
+      </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
+    executable: /bin/bash
   register: monitoring_gateway_cert
+  changed_when: false
   failed_when: false
   when: not is_test and monitoring_gateway_host | length > 0 and not ansible_check_mode
-
-- name: Inspect Gateway TLS Certificate
-  community.crypto.x509_certificate_info:
-    content: "{{ monitoring_gateway_cert.cert }}"
-  register: monitoring_gateway_cert_info
-  when: monitoring_gateway_cert.cert is defined
 
 - name: Read Previously Recorded Gateway TLS Fingerprint
   ansible.builtin.slurp:
@@ -45,8 +37,8 @@
       {{ monitoring_gateway_fingerprint_file.content | b64decode | trim
          if monitoring_gateway_fingerprint_file.content is defined else '' }}
     monitoring_gateway_tls_fingerprint_fetched: >-
-      {{ monitoring_gateway_cert_info.fingerprints.sha256
-         if monitoring_gateway_cert_info is not skipped else '' }}
+      {{ (monitoring_gateway_cert.stdout | default('')).partition('=')[2] | trim
+         if (monitoring_gateway_cert.rc | default(1)) == 0 else '' }}
 
 - name: Set Gateway TLS Fingerprint to Use
   ansible.builtin.set_fact:

@@ -12,6 +12,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "amplifi_login.html").read_text()
 INFO_HTML = (FIXTURES / "amplifi_info.html").read_text()
 INFO_JSON = (FIXTURES / "amplifi_info_async.json").read_bytes()
+INFO_REDIRECT_HTML = (FIXTURES / "amplifi_info_redirect.html").read_text()
 
 LOGIN_TOKEN = "AbCdEfGhIjKlMnOp"
 INFO_TOKEN = "QrStUvWxYz012345"
@@ -126,3 +127,23 @@ def test_expired_session_is_renewed_once_and_the_fetch_succeeds() -> None:
     assert client.fetch_info_async() == INFO_JSON
     logins = [c for c in http.calls if c.method == "POST" and c.path == "/login.php"]
     assert len(logins) == 1
+
+
+def test_meta_refresh_to_the_login_page_triggers_login() -> None:
+    # With no cookie at all the router answers /info.php with HTTP 200 and an HTML meta refresh to
+    # login.php rather than an HTTP redirect; seen on the first production poll.
+    http = FakeHttpClient(
+        {
+            ("GET", "/login.php"): [response(200, LOGIN_HTML)],
+            ("POST", "/login.php"): [response(302, "", location="/index.php")],
+            ("GET", "/info.php"): [response(200, INFO_REDIRECT_HTML), response(200, INFO_HTML)],
+            ("POST", "/info-async.php"): [response(200, INFO_JSON)],
+        }
+    )
+    client = AmplifiClient(http, password="secret")
+    assert client.fetch_info_async() == INFO_JSON
+    assert [(c.method, c.path) for c in http.calls][:3] == [
+        ("GET", "/info.php"),
+        ("GET", "/login.php"),
+        ("POST", "/login.php"),
+    ]

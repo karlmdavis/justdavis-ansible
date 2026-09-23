@@ -209,6 +209,11 @@ the stack restarts cleanly during a WAN outage.
 - Rotate the Grafana admin password: the password file only applies on first start, so run
   `sudo docker compose exec grafana grafana cli admin reset-admin-password <new>` from
   `/opt/monitoring`.
+- Delete series that tell a false story (a mislabelled metric, a dead probe target, an alert that flapped
+  on a bug): do not leave them to age out, or the dashboards will mislead later. Prometheus's admin API
+  is off in the deployed stack; `scripts/prometheus-admin-api.yml` turns it on for the duration of a
+  cleanup, and `scripts/tsdb_cleanup_2026_09_23.py` is a worked example (one row per false story, each
+  with a matcher and an end bound read from Prometheus itself).
 
 ## Known Limitations
 

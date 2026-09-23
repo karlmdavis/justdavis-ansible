@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 # Kept below the gateway GUI's inactivity timeout (observed to be at least 10 minutes) so the session
 # survives a backoff period.
 _BACKOFF_CAP_SECONDS = 300
+# The start of urllib3's message when the pinned certificate is not the one presented.
+_FINGERPRINT_MISMATCH = "Fingerprints did not match"
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,10 +138,11 @@ class GatewayScraper:
         except LoginError:
             self._fail("login")
             raise
-        except requests.exceptions.SSLError:
-            # The pinned fingerprint no longer matches: the certificate changed (re-run the role) or
-            # something else answered.
-            self._fail("tls")
+        except requests.exceptions.SSLError as exc:
+            # requests wraps every TLS-layer failure in SSLError: a connection cut mid-handshake or
+            # mid-response as much as the pinned fingerprint no longer matching. Only the latter means
+            # "the certificate changed, re-run the role", so only it counts as the tls stage.
+            self._fail("tls" if _FINGERPRINT_MISMATCH in str(exc) else "fetch")
             raise
         except Exception:
             self._fail("fetch")

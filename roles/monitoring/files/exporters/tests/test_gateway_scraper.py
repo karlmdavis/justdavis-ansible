@@ -4,6 +4,8 @@ import threading
 from pathlib import Path
 
 import pytest
+import requests
+import urllib3
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
@@ -105,6 +107,36 @@ def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
     assert registry.get_sample_value("gateway_uptime_seconds") is None
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None
+
+
+def _tls_failure(message: str) -> requests.exceptions.SSLError:
+    return requests.exceptions.SSLError(urllib3.exceptions.SSLError(message))
+
+
+def test_fingerprint_mismatch_counts_tls_stage() -> None:
+    http = FailingHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]},
+        error=_tls_failure('Fingerprints did not match. Expected "aa", got "bb"'),
+    )
+    scraper, registry = make(http)
+    http.arm()
+    with pytest.raises(requests.exceptions.SSLError):
+        scraper()
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "tls"}) == 1.0
+
+
+def test_other_tls_failures_count_fetch_stage() -> None:
+    # A connection cut mid-handshake is not "the certificate changed".
+    http = FailingHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]},
+        error=_tls_failure("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol"),
+    )
+    scraper, registry = make(http)
+    http.arm()
+    with pytest.raises(requests.exceptions.SSLError):
+        scraper()
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "tls"}) is None
 
 
 def test_failed_poll_serves_up_zero_with_no_device_series_through_the_real_loop() -> None:

@@ -154,7 +154,36 @@ def test_mesh_point_and_router_metrics() -> None:
         )
         == 1.0
     )
+    assert registry.get_sample_value("amplifi_mesh_point_online", kitchen) == 1.0
+    assert (
+        registry.get_sample_value("amplifi_mesh_point_connections_total", {**kitchen, "direction": "to"})
+        == 11.0
+    )
+    assert registry.get_sample_value("amplifi_mesh_point_last_disconnected_age_seconds", kitchen) == 2029.0
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
+
+
+def test_offline_mesh_point_keeps_identity_and_counters_but_no_backhaul_metrics() -> None:
+    living_room = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Living Room")
+    offline = replace(living_room, online=False, backhaul_band=None, rssi_min_dbm=None, uptime_seconds=None)
+    snapshot = replace(
+        SNAPSHOT, mesh_points=tuple(offline if mp is living_room else mp for mp in SNAPSHOT.mesh_points)
+    )
+    registry, _ = registry_with(snapshot)
+    labels = {"mac": living_room.mac, "name": "Living Room"}
+    assert registry.get_sample_value("amplifi_mesh_point_online", labels) == 0.0
+    assert (
+        registry.get_sample_value(
+            "amplifi_mesh_point_info", {**labels, "backhaul_band": "", "platform": "AFi-P-HD"}
+        )
+        == 1.0
+    )
+    assert registry.get_sample_value("amplifi_mesh_point_rssi_min_dbm", labels) is None
+    assert registry.get_sample_value("amplifi_mesh_point_uptime_seconds", labels) is None
+    assert (
+        registry.get_sample_value("amplifi_mesh_point_connections_total", {**labels, "direction": "from"})
+        == 1.0
+    )
 
 
 def test_wan_port_metrics() -> None:

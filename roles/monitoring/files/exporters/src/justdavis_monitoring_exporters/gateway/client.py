@@ -1,12 +1,14 @@
 """HTTP client for the Comcast Business gateway admin UI (Technicolor CGA4332COM, verified 2026-09).
 
 Login is `POST /check.jst` with form fields `username` and `password`; success is a 302 to
-`at_a_glance.jst` and a session cookie. Any page requested without a valid session returns the login
-form with HTTP 200, so "needs login" is detected by content (`gateway.parser.is_login_page`).
+`at_a_glance.jst` and a session cookie. A page requested without a valid session comes back as HTTP 200
+with the login form or a logged-out script stub, so "needs login" is detected by content: anything
+that is not the status page (`gateway.parser.is_status_page`) counts, which also covers a logged-out
+shape this code has not seen yet.
 
 The gateway allows a single admin session and writes a system-log entry on every login, so this client
-keeps one session alive across polls and re-logs in only when the login form (or a redirect) comes back
-instead of the page. Re-logins are additionally rate limited (`relogin_min_seconds`) so that a person
+keeps one session alive across polls and re-logs in only when something other than the status page
+comes back. Re-logins are additionally rate limited (`relogin_min_seconds`) so that a person
 using the GUI is not logged out every poll; a throttled attempt raises `LoginThrottled`, which the
 exporter reports as `gateway_up 0` without counting a login error (the shared scrape loop still logs it
 and backs off). The throttle counts from the attempt, not from success, so rejected credentials produce
@@ -18,7 +20,7 @@ from collections.abc import Callable
 
 from justdavis_monitoring_exporters.common.errors import ExporterError, LoginError
 from justdavis_monitoring_exporters.common.http import HttpClient, HttpResponse
-from justdavis_monitoring_exporters.gateway.parser import is_login_page
+from justdavis_monitoring_exporters.gateway.parser import is_login_page, is_status_page
 
 log = logging.getLogger(__name__)
 
@@ -31,9 +33,10 @@ class LoginThrottled(ExporterError):
 
 
 def _needs_login(page: HttpResponse) -> bool:
-    """The gateway answers a session-less request with the login form (200) or, on some paths, a
-    redirect; either way the status page did not come back."""
-    return page.status != 200 or is_login_page(page.body)
+    """The gateway answers a session-less request with the login form (200), a logged-out script stub
+    (200), or, on some paths, a redirect. Anything that is not the status page counts, so that a
+    logged-out shape not seen before gets a re-login rather than a parse error on every poll."""
+    return page.status != 200 or is_login_page(page.body) or not is_status_page(page.body)
 
 
 class GatewayClient:
@@ -56,17 +59,22 @@ class GatewayClient:
     def __repr__(self) -> str:
         return f"{type(self).__name__}(http={self._http!r}, username={self._username!r})"
 
-    def fetch_comcast_network(self) -> bytes:
-        """Return the raw status page body, logging in (subject to the throttle) when needed."""
+    def fetch_comcast_network(self) -> HttpResponse:
+        """Return the status page response (headers included, for diagnosing a page that does not
+        parse), logging in (subject to the throttle) when needed."""
         page = self._http.get(_STATUS_PATH)
         if not _needs_login(page):
-            return page.body
+            return page
         self._login()
         page = self._http.get(_STATUS_PATH)
         if _needs_login(page):
-            raise LoginError("gateway still shows the login form after logging in")
+            raise LoginError("gateway still did not return the status page after logging in")
         log.info("logged in to the gateway")
-        return page.body
+        return page
+
+    def close_connections(self) -> None:
+        """Drop the kept-alive connection to the gateway; the session cookie is unaffected."""
+        self._http.close_connections()
 
     def _login(self) -> None:
         now = self._clock()

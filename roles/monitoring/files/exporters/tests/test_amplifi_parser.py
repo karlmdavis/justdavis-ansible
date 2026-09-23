@@ -43,6 +43,41 @@ def test_parses_mesh_points(info_async_bytes: bytes) -> None:
     assert kitchen.rssi_min_dbm == -44
     assert kitchen.uptime_seconds == 2008337
     assert kitchen.platform == "AFi-P-HD"
+    assert kitchen.online is True
+    assert (kitchen.connections_to, kitchen.connections_from) == (11, 4)
+    assert (kitchen.last_connected_age_seconds, kitchen.last_disconnected_age_seconds) == (2024, 2029)
+
+
+def _with_living_room_offline(info_async_bytes: bytes) -> bytes:
+    # Seen in production: a mesh point the router has lost moves to `children.offline`, keeping its
+    # identity, address, and connection counters but not its backhaul fields.
+    data = json.loads(info_async_bytes)
+    router = data[0]["02:00:00:00:00:01"]
+    living_room = router["children"]["wifi"].pop("02:00:00:00:00:03")
+    for key in ("active_band", "overriden_active_band", "rssi_min", "uptime", "level", "cost", "master_peer"):
+        del living_room[key]
+    router["children"]["offline"] = {"02:00:00:00:00:03": {**living_room, "offline": True}}
+    return json.dumps(data).encode()
+
+
+def test_offline_mesh_point_is_kept_with_its_counters(info_async_bytes: bytes) -> None:
+    snapshot = parse_info_async(_with_living_room_offline(info_async_bytes))
+    living_room = next(mp for mp in snapshot.mesh_points if mp.mac == "02:00:00:00:00:03")
+    assert living_room.online is False
+    assert living_room.ip == "192.0.2.234"
+    assert (living_room.backhaul_band, living_room.rssi_min_dbm, living_room.uptime_seconds) == (None,) * 3
+    assert (living_room.connections_to, living_room.connections_from) == (2, 1)
+    assert living_room.last_disconnected_age_seconds == 105
+
+
+def test_online_mesh_point_without_backhaul_fields_still_parses(info_async_bytes: bytes) -> None:
+    # Also seen in production, for one poll, while a mesh point was on its way to `offline`.
+    data = json.loads(info_async_bytes)
+    del data[0]["02:00:00:00:00:01"]["children"]["wifi"]["02:00:00:00:00:03"]["active_band"]
+    snapshot = parse_info_async(json.dumps(data).encode())
+    living_room = next(mp for mp in snapshot.mesh_points if mp.mac == "02:00:00:00:00:03")
+    assert living_room.online is True
+    assert living_room.backhaul_band is None
 
 
 def test_mesh_point_display_name_drops_model_suffix(info_async_bytes: bytes) -> None:

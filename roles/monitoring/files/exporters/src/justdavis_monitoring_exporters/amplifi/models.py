@@ -23,9 +23,18 @@ class MeshPoint:
     name: str
     ip: str
     platform: str
-    backhaul_band: str
-    rssi_min_dbm: int
-    uptime_seconds: int
+    online: bool
+    # The router reports the backhaul link and uptime only while the mesh point is online.
+    backhaul_band: str | None
+    rssi_min_dbm: int | None
+    uptime_seconds: int | None
+    # The router's own counters of backhaul connections since it booted, and how long ago the last
+    # connect and disconnect were. AmpliFi does not document the two counters' exact meanings; a
+    # mesh point that keeps re-joining the mesh moves both.
+    connections_to: int
+    connections_from: int
+    last_connected_age_seconds: int
+    last_disconnected_age_seconds: int
 
 
 @dataclass(frozen=True, slots=True)

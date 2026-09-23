@@ -55,6 +55,10 @@ class HttpClient(Protocol):
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse: ...
 
+    def close_connections(self) -> None:
+        """Drop any kept-alive connections; the next request opens a fresh one. Cookies survive."""
+        ...
+
 
 class _RawResponse(Protocol):
     @property
@@ -70,6 +74,8 @@ class _RawResponse(Protocol):
 
 class _Session(Protocol):
     def request(self, method: str, url: str, **kwargs: object) -> _RawResponse: ...
+
+    def close(self) -> None: ...
 
 
 class RequestsHttpClient:
@@ -93,6 +99,11 @@ class RequestsHttpClient:
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse:
         return self._request("POST", path, data=data)
+
+    def close_connections(self) -> None:
+        # requests' Session.close() empties the adapters' connection pools and nothing else: the
+        # session, its cookie jar, and the mounted adapters stay usable.
+        self._session.close()
 
     def _request(self, method: str, path: str, **kwargs: object) -> HttpResponse:
         url = urljoin(self._base_url + "/", path.lstrip("/"))

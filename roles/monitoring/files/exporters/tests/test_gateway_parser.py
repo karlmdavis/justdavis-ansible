@@ -26,6 +26,28 @@ def test_login_page_is_detected(login_html: str) -> None:
     assert is_login_page(login_html) is True
 
 
+def test_duplicated_first_codeword_column_is_dropped(comcast_network_html: str) -> None:
+    # The firmware repeats the last channel's codeword counts in column 1; the fixture shows it.
+    channels = {c.index: c for c in parse_comcast_network(comcast_network_html).downstream}
+    assert (channels[1].unerrored, channels[1].correctable, channels[1].uncorrectable) == (None, None, None)
+    assert channels[34].unerrored == 209921024
+
+
+def test_first_codeword_column_is_kept_when_it_differs_from_the_last(comcast_network_html: str) -> None:
+    html = _with_cells(comcast_network_html, "Unerrored Codewords", "123456")
+    assert parse_comcast_network(html).downstream[0].unerrored == 123456
+
+
+def test_all_zero_codeword_columns_do_not_count_as_the_duplicate(comcast_network_html: str) -> None:
+    # Right after a gateway reboot every counter reads 0, which is not the firmware quirk.
+    html = comcast_network_html
+    for row in ("Unerrored Codewords", "Correctable Codewords", "Uncorrectable Codewords"):
+        html = _with_cells(html, row, "0", cell=0)
+        html = _with_cells(html, row, "0", cell=33)
+    first = parse_comcast_network(html).downstream[0]
+    assert (first.unerrored, first.correctable, first.uncorrectable) == (0, 0, 0)
+
+
 def test_status_page_is_not_a_login_page(comcast_network_html: str) -> None:
     assert is_login_page(comcast_network_html) is False
 
@@ -63,9 +85,8 @@ def test_parses_a_qam_downstream_channel(comcast_network_html: str) -> None:
     assert first.snr_db == 44.0
     assert first.power_dbmv == 10.6
     assert first.modulation == "256 QAM"
-    assert first.unerrored == 209921024
-    assert first.correctable == 182816061
-    assert first.uncorrectable == 0
+    second = status.downstream[1]
+    assert (second.unerrored, second.correctable, second.uncorrectable) == (275852012, 0, 0)
 
 
 def test_parses_an_ofdm_downstream_channel(comcast_network_html: str) -> None:
@@ -139,12 +160,14 @@ def test_uptime_text_garbage_raises_parse_error() -> None:
         parse_uptime("forever")
 
 
-def _with_cells(html: str, row_label: str, first_cell: str) -> str:
-    """Replace the first data cell of the given downstream-table row."""
-    start = html.index(f'<th class="row-label ">{row_label}</td>')
-    cell_start = html.index('<div class="netWidth">', start) + len('<div class="netWidth">')
+def _with_cells(html: str, row_label: str, text: str, cell: int = 0) -> str:
+    """Replace one data cell (the first by default) of the given channel-table row."""
+    marker = '<div class="netWidth">'
+    cell_start = html.index(f'<th class="row-label ">{row_label}</td>')
+    for _ in range(cell + 1):
+        cell_start = html.index(marker, cell_start) + len(marker)
     cell_end = html.index("</div>", cell_start)
-    return html[:cell_start] + first_cell + html[cell_end:]
+    return html[:cell_start] + text + html[cell_end:]
 
 
 def test_unlocked_channel_with_placeholder_values_is_kept_with_missing_numbers(

@@ -10,10 +10,10 @@ from dataclasses import dataclass, field
 import requests
 from prometheus_client import CollectorRegistry, Counter
 
-from justdavis_monitoring_exporters.common.errors import LoginError
+from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient, pinned_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
-from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
+from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 # Kept below the gateway GUI's inactivity timeout (observed to be at least 10 minutes) so the session
 # survives a backoff period.
 _BACKOFF_CAP_SECONDS = 300
+# The start of urllib3's message when the pinned certificate is not the one presented.
+_FINGERPRINT_MISMATCH = "Fingerprints did not match"
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +115,7 @@ def build_registry() -> tuple[CollectorRegistry, GatewayCollector, Counter]:
     statuses.set(ScrapeStatus.initial())
     collector = GatewayCollector(statuses)
     registry.register(collector)
-    errors = Counter("gateway_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
+    errors = error_counter("gateway", ("login", "fetch", "tls", "parse"), registry)
     return registry, collector, errors
 
 
@@ -125,7 +127,7 @@ class GatewayScraper:
 
     def __call__(self) -> None:
         try:
-            body = self._client.fetch_comcast_network()
+            page = self._client.fetch_comcast_network()
         except LoginThrottled:
             self._collector.clear()
             log.info(
@@ -136,17 +138,43 @@ class GatewayScraper:
         except LoginError:
             self._fail("login")
             raise
-        except requests.exceptions.SSLError:
-            # The pinned fingerprint no longer matches: the certificate changed (re-run the role) or
-            # something else answered.
-            self._fail("tls")
+        except requests.exceptions.SSLError as exc:
+            # requests wraps every TLS-layer failure in SSLError: a connection cut mid-handshake or
+            # mid-response as much as the pinned fingerprint no longer matching. Only the latter means
+            # "the certificate changed, re-run the role", so only it counts as the tls stage.
+            self._fail("tls" if _FINGERPRINT_MISMATCH in str(exc) else "fetch")
             raise
         except Exception:
             self._fail("fetch")
             raise
+        finally:
+            # Every poll uses a fresh TCP/TLS connection. The first night showed read timeouts while
+            # waiting for the response headers, which a stalled page renderer on the gateway and a
+            # kept-alive connection the far side had silently dropped would both produce; opening a
+            # new connection each time rules the second out, and re-checks the pinned certificate on
+            # every poll. One handshake a minute on the LAN costs nothing, and the session cookie,
+            # which is what the gateway's single admin session is tied to, is unaffected.
+            self._client.close_connections()
         try:
-            snapshot = parse_comcast_network(body)
+            snapshot = parse_comcast_network(page.body)
             self._collector.publish(snapshot)
+        except ParseError:
+            # A status page that does not parse was, on the first night (2026-09-23), a half-rendered
+            # one. Whether HTTP framed it as complete (content-length present and honoured) or it
+            # arrived as read-until-close is what separates "the gateway rendered it short" from
+            # "the connection was cut". Only fixed, named headers are logged: never the body (WAN
+            # addresses, device serial) and never the cookie.
+            log.warning(
+                "status page did not parse: status=%d bytes=%d content-length=%s transfer-encoding=%s "
+                "connection=%s",
+                page.status,
+                len(page.body),
+                page.headers.get("content-length"),
+                page.headers.get("transfer-encoding"),
+                page.headers.get("connection"),
+            )
+            self._fail("parse")
+            raise
         except Exception:
             self._fail("parse")
             raise

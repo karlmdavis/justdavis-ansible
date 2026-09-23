@@ -5,7 +5,11 @@ September 2026. The response is a JSON array of six elements:
 
 0. Topology: `{router_mac: {friendly_name, ip, mac, platform_name, role, uptime, children: {wifi:
    {mesh_point_mac: {friendly_name, ip, mac, platform_name, active_band, overriden_active_band,
-   rssi_min, uptime, ...}}}}}`.
+   rssi_min, uptime, connections_to, connections_from, last_connected, last_disconnected, ...}},
+   offline: {mesh_point_mac: {...}}}}}`. A mesh point the router has lost moves from `wifi` to
+   `offline`, keeping its identity, address, and connection counters but losing `active_band`,
+   `rssi_min`, and `uptime`; those three can also be missing from a `wifi` entry for one poll while
+   the mesh point is on its way out. The `last_*` fields are ages in seconds, not timestamps.
 1. WiFi associations: `{ap_mac: {band: {network_type: {client_mac: {Address?, HostName?, Mode?,
    SignalQuality, HappinessScore, RxBitrate, TxBitrate (kbit/s), RxBytes, TxBytes (32-bit counters),
    Inactive, ...}}}}}`. Band is "2.4 GHz" or "5 GHz"; network type is "User network", "Guest network"
@@ -75,22 +79,35 @@ def _parse_topology(element: object) -> tuple[Router, tuple[MeshPoint, ...]]:
         uptime_seconds=as_int(get(router_map, "uptime", ctx), f"{ctx}.uptime"),
     )
     children = as_dict(router_map.get("children", {}), f"{ctx}.children")
-    wifi_children = as_dict(children.get("wifi", {}), f"{ctx}.children.wifi")
     mesh_points: list[MeshPoint] = []
-    for mp_mac, mp_value in wifi_children.items():
-        mp_ctx = f"{ctx}.children.wifi.{mp_mac}"
-        mp = as_dict(mp_value, mp_ctx)
-        mesh_points.append(
-            MeshPoint(
-                mac=canonical_mac(as_str(get(mp, "mac", mp_ctx), f"{mp_ctx}.mac")),
-                name=_mesh_point_name(as_str(get(mp, "friendly_name", mp_ctx), f"{mp_ctx}.friendly_name")),
-                ip=as_str(get(mp, "ip", mp_ctx), f"{mp_ctx}.ip"),
-                platform=as_str(get(mp, "platform_name", mp_ctx), f"{mp_ctx}.platform_name"),
-                backhaul_band=as_str(get(mp, "active_band", mp_ctx), f"{mp_ctx}.active_band"),
-                rssi_min_dbm=as_int(get(mp, "rssi_min", mp_ctx), f"{mp_ctx}.rssi_min"),
-                uptime_seconds=as_int(get(mp, "uptime", mp_ctx), f"{mp_ctx}.uptime"),
+    for group, online in (("wifi", True), ("offline", False)):
+        for mp_mac, mp_value in as_dict(children.get(group, {}), f"{ctx}.children.{group}").items():
+            mp_ctx = f"{ctx}.children.{group}.{mp_mac}"
+            mp = as_dict(mp_value, mp_ctx)
+            mesh_points.append(
+                MeshPoint(
+                    mac=canonical_mac(as_str(get(mp, "mac", mp_ctx), f"{mp_ctx}.mac")),
+                    name=_mesh_point_name(
+                        as_str(get(mp, "friendly_name", mp_ctx), f"{mp_ctx}.friendly_name")
+                    ),
+                    ip=as_str(get(mp, "ip", mp_ctx), f"{mp_ctx}.ip"),
+                    platform=as_str(get(mp, "platform_name", mp_ctx), f"{mp_ctx}.platform_name"),
+                    online=online,
+                    backhaul_band=_optional_str(mp, "active_band", mp_ctx) if online else None,
+                    rssi_min_dbm=_optional_int(mp, "rssi_min", mp_ctx) if online else None,
+                    uptime_seconds=_optional_int(mp, "uptime", mp_ctx) if online else None,
+                    connections_to=as_int(get(mp, "connections_to", mp_ctx), f"{mp_ctx}.connections_to"),
+                    connections_from=as_int(
+                        get(mp, "connections_from", mp_ctx), f"{mp_ctx}.connections_from"
+                    ),
+                    last_connected_age_seconds=as_int(
+                        get(mp, "last_connected", mp_ctx), f"{mp_ctx}.last_connected"
+                    ),
+                    last_disconnected_age_seconds=as_int(
+                        get(mp, "last_disconnected", mp_ctx), f"{mp_ctx}.last_disconnected"
+                    ),
+                )
             )
-        )
     return router, tuple(mesh_points)
 
 

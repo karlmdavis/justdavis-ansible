@@ -133,7 +133,7 @@ def test_unreachable_router_clears_snapshot_and_counts_fetch_stage(tmp_path: Pat
         scraper()
     assert registry.get_sample_value("amplifi_router_uptime_seconds") is None
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "fetch"}) == 1.0
-    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "login"}) is None
+    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "login"}) == 0.0
 
 
 def test_target_files_ok_recovers_once_the_directory_is_writable(tmp_path: Path) -> None:

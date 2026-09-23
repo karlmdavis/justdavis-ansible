@@ -41,8 +41,8 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
 - AirPlay "cannot find / cannot connect" failures are often mDNS discovery problems rather than radio
   problems. The active mDNS resolve, the TCP port probe, and the ping data separate those cases.
 - Video-call trouble is localised by pinging each hop separately: the AmpliFi router, the Comcast
-  gateway (both sides), the ISP's first hop, and public anchors. Whichever hop first shows loss or
-  latency is where the problem is.
+  gateway (both sides), Comcast's resolver inside the ISP network, and public anchors. Whichever hop
+  first shows loss or latency is where the problem is.
 - DOCSIS SNR, power, and uncorrectable codewords distinguish a line problem (which a reboot only masks)
   from a router problem.
 
@@ -58,9 +58,10 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
 | HomePod answers on port 7000 but cannot be found | Port open, but the LAN-side mDNS query (`airplay_service_resolved`) fails. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
-| A mesh point has dropped out | Fewer `amplifi_mesh_point_info` series than mesh points; `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointMissing` |
+| A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
+| A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds`; the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
 | The internet is bad | Loss, round trip, or jitter to the public anchor (`ping_*{target="1.1.1.1"}`). | `WanPacketLoss`, `WanLatencyHigh`, `WanJitterHigh` |
-| Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, ISP first hop, public anchors (the layered ping panel). | Covered by the three above. |
+| Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, Comcast's resolver, public anchors (the layered ping panel). | Covered by the three above. |
 | The cable line, not the router | DOCSIS SNR, receive power, uncorrectable codewords, and `gateway_internet_active`; these persist through a reboot, a router fault does not. | `DocsisSnrLow`, `DocsisPowerOutOfRange`, `DocsisUncorrectableCodewords*`, `GatewayInternetInactive` |
 | Something rebooted (or was power cycled) | Uptime under ten minutes for the router, a mesh point, or the gateway; correlate with the rows above. | `AmpliFiRebooted`, `MeshPointRebooted`, `GatewayRebooted` |
 | The WAN link is saturated | `amplifi_wan_*_bits_per_second` and `node_network_*_bytes_total{device="br-wan"}` against the latency panels. | None: dashboard only. |
@@ -162,11 +163,13 @@ named by channel ID in the Alertmanager template). The bot token is on the app's
 OAuth & Permissions; regenerate it there and update the vault to rotate it. The Discord side is a
 channel webhook URL from Discord's channel integration settings. Thresholds are set at the top of
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
-or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside
--8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
+or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB or downstream power outside
+-15 to +15 dBmV (one alert with a channel count, kept firing across the short series gaps that a
+failed gateway scrape leaves);
+any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
-ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the
-topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
+ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
+from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
 going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
@@ -174,8 +177,10 @@ Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or D
 still reaches the other). What no rule can cover is the whole stack being down at once; a dead-man's
 switch to an outside heartbeat service would, and is a possible follow-up.
 
-The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling; the template
-explains why next to the value.
+The downstream power rule alerts at the receiver's specified -15..+15 dBmV input range, not at the
+-7..+7 dBmV ideal: this plant sits 3 to 6.5 dB above the ideal ceiling with excellent SNR and no
+uncorrectable codewords, which is a data point for Comcast rather than an alert. The template states the
+measured figures next to the value.
 
 There is intentionally no "HomePod on the wrong mesh point" alert yet: the data is recorded first, and a
 rule can be added once the dashboards show what normal looks like.
@@ -207,6 +212,12 @@ the stack restarts cleanly during a WAN outage.
 - Rotate the Grafana admin password: the password file only applies on first start, so run
   `sudo docker compose exec grafana grafana cli admin reset-admin-password <new>` from
   `/opt/monitoring`.
+- Delete series that tell a false story (a mislabelled metric, a dead probe target, an alert that flapped
+  on a bug): do not leave them to age out, or the dashboards will mislead later. Prometheus's admin API
+  is off in the deployed stack; `scripts/prometheus-admin-api.yml` turns it on for the duration of a
+  cleanup, and `scripts/tsdb_cleanup_2026_09_23.py` is a worked example (one deletion per false story,
+  each with its matchers and an end bound read from Prometheus itself), run from the controller with
+  `uv run` over an SSH port forward so nothing is installed on eddings.
 
 ## Known Limitations
 

@@ -41,6 +41,9 @@ class FakeSession:
         self.calls.append({"method": method, "url": url, **kwargs})
         return self.responses.pop(0)
 
+    def close(self) -> None:
+        self.calls.append({"method": "close"})
+
 
 def test_get_sets_timeout_disables_redirects_and_streams() -> None:
     session = FakeSession([FakeRawResponse(200, {"Content-Type": "text/html"}, [b"ok"])])

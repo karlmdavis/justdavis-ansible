@@ -12,6 +12,8 @@ in September 2026. The page is server-rendered (no AJAX) and uses two shapes:
   has a populated Index row but every other cell is empty on this firmware, so it is ignored: the
   downstream table is recognised as the first table whose Lock Status row has values.
 
+The first column of the codeword table repeats the last column's counts (a firmware quirk, present
+in the fixture too), so when the two match exactly, channel 1's codeword counts are treated as absent.
 Numeric cells that show a placeholder (blank, `----`, `N/A`) become `None` rather than failing the
 whole page, so a single unlocked channel cannot blank every gateway metric; wording changes in the
 Lock Status or Internet fields do raise `ParseError`, because silently misreading them would be worse.
@@ -31,6 +33,7 @@ from justdavis_monitoring_exporters.gateway.models import DocsisChannel, Gateway
 
 _LOGIN_FORM_MARKER = 'id="pageForm"'
 _LOGGED_OUT_MARKER = 'alert("Please Login First!")'
+_STATUS_PAGE_MARKER = "System Uptime"
 _UPTIME_RE = re.compile(r"(\d+)\s*days?\s+(\d+)h:\s*(\d+)m:\s*(\d+)s")
 _PLACEHOLDERS = frozenset({"", "-", "--", "---", "----", "n/a", "na", "none"})
 _LOCK_STATUS = {"Locked": True, "Not Locked": False, "Unlocked": False}
@@ -42,6 +45,13 @@ def is_login_page(html: bytes | str) -> bool:
     instead of the requested page."""
     text = as_text(html)
     return _LOGIN_FORM_MARKER in text or _LOGGED_OUT_MARKER in text
+
+
+def is_status_page(html: bytes | str) -> bool:
+    """Return True when the body carries the status page's first field. The two logged-out shapes
+    above are the ones seen so far; a third (a firmware update, a maintenance page) would otherwise
+    be taken for a status page and fail to parse on every poll without a re-login."""
+    return _STATUS_PAGE_MARKER in as_text(html)
 
 
 def parse_uptime(text: str) -> int:
@@ -200,6 +210,15 @@ def _choice(text: str, choices: dict[str, bool], ctx: str) -> bool:
     raise ParseError(f"{ctx}: unrecognised value")
 
 
+def _first_column_repeats_last(*rows: list[str]) -> bool:
+    """True when every row's first cell is a copy of its last cell: the firmware quirk that puts the
+    last channel's codeword counts in channel 1's column. Only that one pair is compared, placeholders
+    do not match, and all-zero cells do not count (right after a reboot every counter reads 0)."""
+    return all(row[0] == row[-1] and not _is_placeholder(row[0]) for row in rows) and any(
+        row[0] != "0" for row in rows
+    )
+
+
 def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...]:
     indexes = downstream.rows["Index"]
     count = len(indexes)
@@ -211,6 +230,10 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
     unerrored = _row(codewords, "Unerrored Codewords", count)
     correctable = _row(codewords, "Correctable Codewords", count)
     uncorrectable = _row(codewords, "Uncorrectable Codewords", count)
+    if count > 1 and _first_column_repeats_last(unerrored, correctable, uncorrectable):
+        # Channel 1 would otherwise report (and double-count) the last channel's counts, an OFDM
+        # channel's in the hundreds of millions.
+        unerrored[0] = correctable[0] = uncorrectable[0] = ""
     channels: list[DocsisChannel] = []
     seen: set[int] = set()
     for i in range(count):

@@ -164,7 +164,8 @@ OAuth & Permissions; regenerate it there and update the vault to rotate it. The 
 channel webhook URL from Discord's channel integration settings. Thresholds are set at the top of
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
 or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB or downstream power outside
--15 to +15 dBmV (one alert with a channel count, kept firing across the gateway's hourly web UI stall);
+-15 to +15 dBmV (one alert with a channel count, kept firing across the short series gaps that a
+failed gateway scrape leaves);
 any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing

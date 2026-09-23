@@ -25,9 +25,10 @@
 {% set docsis_power_min_dbmv = -15 %}
 {% set docsis_power_max_dbmv = 15 %}
 {% set docsis_uncorrectable_increase_15m = 1000 %}
-{# The gateway's web UI stalls for about 15 seconds once an hour, which costs one scrape and, with the
-   exporter's backoff, two to three minutes of DOCSIS series. Channel rules keep firing across that gap
-   instead of resolving and re-firing every hour. #}
+{# Single gateway scrapes fail a few times a day (the page not arriving within the exporter's 15 s
+   read timeout, or arriving half-rendered), and each failure leaves a two-to-three-minute hole in
+   every DOCSIS series while the exporter backs off. A hole resets a rule's `for` clock, so the channel
+   rules keep firing across one instead of resolving and re-firing. #}
 {% set docsis_keep_firing_for = '15m' %}
 {# Uptime below this means the device rebooted in the last ten minutes: long enough for the rule to be
    evaluated and the alert delivered, short enough that it does not linger. #}

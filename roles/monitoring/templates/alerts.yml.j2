@@ -33,8 +33,6 @@
 {# Uptime below this means the device rebooted in the last ten minutes: long enough for the rule to be
    evaluated and the alert delivered, short enough that it does not linger. #}
 {% set reboot_uptime_seconds = 600 %}
-{# The AmpliFi network has two mesh points. #}
-{% set mesh_point_count = 2 %}
 {# The offsite backup runs nightly; 36 hours tolerates one missed or overlong run before alerting. #}
 {% set backup_max_age_seconds = 129600 %}
 groups:
@@ -213,17 +211,21 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Mesh point {{ L }} $labels.name {{ R }} has dropped out of the mesh"
+          summary: "Mesh point {{ L }} $labels.name {{ R }} is offline: the router lists it as lost from the mesh"
 
+      # Every mesh point seen in the last week, minus those the router lists now, so the alert names
+      # the missing one without a hard-coded list; after a week of absence it resolves on its own.
       - alert: MeshPointMissing
         expr: >-
-          ((count(amplifi_mesh_point_info) or vector(0)) < {{ mesh_point_count }})
+          max_over_time(amplifi_mesh_point_online[7d]) unless on (mac) amplifi_mesh_point_online
           and on () amplifi_up == 1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "A mesh point has disappeared from the AmpliFi topology"
+          summary: >-
+            Mesh point {{ L }} $labels.name {{ R }} is no longer in the router's topology at all,
+            online or offline
 
       - alert: AmpliFiScrapeFailing
         expr: amplifi_up == 0

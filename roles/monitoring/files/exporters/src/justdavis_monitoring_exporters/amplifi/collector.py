@@ -188,7 +188,7 @@ class AmplifiCollector(Collector):
                 {
                     "backhaul_band": sanitise_label(mp.backhaul_band or ""),
                     "platform": sanitise_label(mp.platform),
-                    "uplink": sanitise_label(names.get(mp.uplink_mac or Mac(""), "")),
+                    "uplink": "" if mp.uplink_mac is None else sanitise_label(names.get(mp.uplink_mac, "")),
                     "level": "" if mp.level is None else str(mp.level),
                 },
             )

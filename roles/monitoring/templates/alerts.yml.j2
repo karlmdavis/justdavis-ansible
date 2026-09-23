@@ -25,10 +25,11 @@
 {% set docsis_power_min_dbmv = -15 %}
 {% set docsis_power_max_dbmv = 15 %}
 {% set docsis_uncorrectable_increase_15m = 1000 %}
-{# Single gateway scrapes fail a few times a day (the page not arriving within the exporter's 15 s
-   read timeout, or arriving half-rendered), and each failure leaves a two-to-three-minute hole in
-   every DOCSIS series while the exporter backs off. A hole resets a rule's `for` clock, so the channel
-   rules keep firing across one instead of resolving and re-firing. #}
+{# A failed gateway scrape leaves a two-to-three-minute hole in every DOCSIS series while the
+   exporter backs off, and a hole resets a rule's `for` clock, so the channel rules keep firing across
+   one instead of resolving and re-firing. (On the first night, 2026-09-23, six scrapes failed: four
+   read timeouts waiting for the page and two half-rendered pages; whether that continues is for the
+   logs to say.) #}
 {% set docsis_keep_firing_for = '15m' %}
 {# Uptime below this means the device rebooted in the last ten minutes: long enough for the rule to be
    evaluated and the alert delivered, short enough that it does not linger. #}

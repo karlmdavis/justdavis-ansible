@@ -159,10 +159,11 @@ class GatewayScraper:
             snapshot = parse_comcast_network(page.body)
             self._collector.publish(snapshot)
         except ParseError:
-            # The gateway sometimes serves a half-rendered status page. Whether HTTP framed it as
-            # complete (content-length present and honoured) or it arrived as read-until-close is
-            # what separates "the gateway rendered it short" from "the connection was cut", and the
-            # body itself is never logged (it carries WAN addresses and the device serial).
+            # A status page that does not parse was, on the first night (2026-09-23), a half-rendered
+            # one. Whether HTTP framed it as complete (content-length present and honoured) or it
+            # arrived as read-until-close is what separates "the gateway rendered it short" from
+            # "the connection was cut". Only fixed, named headers are logged: never the body (WAN
+            # addresses, device serial) and never the cookie.
             log.warning(
                 "status page did not parse: status=%d bytes=%d content-length=%s transfer-encoding=%s "
                 "connection=%s",

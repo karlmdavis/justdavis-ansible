@@ -32,6 +32,10 @@ class FakeHttpClient:
 
     script: dict[tuple[str, str], list[HttpResponse]]
     calls: list[Call] = field(default_factory=list)
+    connection_closes: int = 0
+
+    def close_connections(self) -> None:
+        self.connection_closes += 1
 
     def get(self, path: str) -> HttpResponse:
         self.calls.append(Call("GET", path))

@@ -144,6 +144,14 @@ class GatewayScraper:
         except Exception:
             self._fail("fetch")
             raise
+        finally:
+            # Every poll uses a fresh TCP/TLS connection. The first night showed read timeouts while
+            # waiting for the response headers, which a stalled page renderer on the gateway and a
+            # kept-alive connection the far side had silently dropped would both produce; opening a
+            # new connection each time rules the second out, and re-checks the pinned certificate on
+            # every poll. One handshake a minute on the LAN costs nothing, and the session cookie,
+            # which is what the gateway's single admin session is tied to, is unaffected.
+            self._client.close_connections()
         try:
             snapshot = parse_comcast_network(body)
             self._collector.publish(snapshot)

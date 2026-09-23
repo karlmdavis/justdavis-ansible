@@ -31,6 +31,17 @@ def test_successful_poll_publishes_snapshot() -> None:
     assert registry.get_sample_value("gateway_uptime_seconds") == 6149.0
 
 
+def test_every_poll_drops_the_kept_alive_connection_afterwards() -> None:
+    http = FakeHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+    )
+    scraper, _ = make(http)
+    scraper()
+    with pytest.raises(ParseError):
+        scraper()
+    assert http.connection_closes == 2
+
+
 def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
     http = FakeHttpClient(
         {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}

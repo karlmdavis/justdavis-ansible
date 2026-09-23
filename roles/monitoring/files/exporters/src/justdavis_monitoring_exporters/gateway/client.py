@@ -68,6 +68,10 @@ class GatewayClient:
         log.info("logged in to the gateway")
         return page.body
 
+    def close_connections(self) -> None:
+        """Drop the kept-alive connection to the gateway; the session cookie is unaffected."""
+        self._http.close_connections()
+
     def _login(self) -> None:
         now = self._clock()
         if (

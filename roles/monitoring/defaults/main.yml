@@ -52,16 +52,20 @@ monitoring_ping_interval_seconds: 1
 monitoring_ping_timeout_seconds: 2
 monitoring_ping_history_size: 60
 
-# Always-pinged addresses, layered from the LAN outwards: the AmpliFi router (LAN and WAN sides), the
-# Comcast gateway (LAN and static-IP sides), Comcast's anycast DNS resolver (the nearest thing inside
-# the ISP's network that answers ping: the gateway's first hop drops ICMP, and its address changes with
-# the WAN DHCP lease), and two public anchors. The AmpliFi exporter adds the tracked devices' current
-# addresses to this list.
+# Always-pinged addresses, layered from the LAN outwards. The AmpliFi exporter adds the tracked
+# devices' current addresses to this list.
 monitoring_static_ping_targets:
+  # The AmpliFi router, LAN side.
   - 10.0.0.1
+  # The AmpliFi router, WAN side.
   - 96.86.32.141
+  # The Comcast gateway, LAN side.
   - 10.1.10.1
+  # The Comcast gateway, static-IP side (eddings' default gateway).
   - 96.86.32.142
+  # Comcast's anycast DNS resolver: the nearest thing inside the ISP's network that answers ping. The
+  # gateway's first hop drops ICMP, and its address changes with the WAN DHCP lease.
   - 75.75.75.75
+  # Public anchors.
   - 1.1.1.1
   - 8.8.8.8

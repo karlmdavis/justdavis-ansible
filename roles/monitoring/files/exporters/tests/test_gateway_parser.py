@@ -30,6 +30,12 @@ def test_status_page_is_not_a_login_page(comcast_network_html: str) -> None:
     assert is_login_page(comcast_network_html) is False
 
 
+def test_logged_out_script_stub_counts_as_the_login_page() -> None:
+    # With no session cookie the gateway answers the status URL with a script that sends a browser to
+    # home_loggedout.jst; seen on the first production poll.
+    assert is_login_page((FIXTURES / "gateway_loggedout_stub.html").read_text()) is True
+
+
 def test_parses_system_uptime_into_seconds(comcast_network_html: str) -> None:
     status = parse_comcast_network(comcast_network_html)
     assert status.uptime_seconds == 1 * 3600 + 42 * 60 + 29

@@ -14,12 +14,15 @@
 {% set wan_loss_ratio = 0.05 %}
 {% set wan_latency_seconds = 0.1 %}
 {% set wan_jitter_seconds = 0.03 %}
-{# DOCSIS guidance: SNR below 33 dB and power outside -8..+15 dBmV are line problems. The power bounds
-   are the DOCSIS specification's receive range rather than the commonly cited -7..+7 dBmV ideal,
-   because this gateway reads +10 to +13.5 dBmV (hotter on the low channels, ~1.5 dB higher overnight)
-   with excellent SNR and no uncorrectable codewords: a data point for Comcast, not an alert. #}
+{# DOCSIS guidance: SNR below 33 dB is a line problem, and the rule uses that figure as is. Downstream
+   power has two figures: the ideal range is -7..+7 dBmV, and the receiver's specified input range is
+   -15..+15 dBmV. This plant reads +10 to +13.5 dBmV (September 2026; hottest on the 381-441 MHz
+   channels, ~1.5 dB higher overnight than by day), i.e. 3 to 6.5 dB above the ideal ceiling, with
+   43-45 dB SNR and no uncorrectable codewords, so the excess costs nothing measurable. The rule
+   therefore alerts at the spec limit, and the gap to the ideal is a data point for a call to Comcast,
+   not an alert. #}
 {% set docsis_snr_min_db = 33 %}
-{% set docsis_power_min_dbmv = -8 %}
+{% set docsis_power_min_dbmv = -15 %}
 {% set docsis_power_max_dbmv = 15 %}
 {% set docsis_uncorrectable_increase_15m = 1000 %}
 {# The gateway's web UI stalls for about 15 seconds once an hour, which costs one scrape and, with the

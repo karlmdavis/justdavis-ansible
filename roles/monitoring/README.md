@@ -163,8 +163,9 @@ named by channel ID in the Alertmanager template). The bot token is on the app's
 OAuth & Permissions; regenerate it there and update the vault to rotate it. The Discord side is a
 channel webhook URL from Discord's channel integration settings. Thresholds are set at the top of
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
-or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside
--8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
+or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB or downstream power outside
+-8 to +15 dBmV (one alert with a channel count, kept firing across the gateway's hourly web UI stall);
+any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
@@ -175,8 +176,8 @@ Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or D
 still reaches the other). What no rule can cover is the whole stack being down at once; a dead-man's
 switch to an outside heartbeat service would, and is a possible follow-up.
 
-The downstream power threshold is deliberately above the commonly cited +7 dBmV ceiling; the template
-explains why next to the value.
+The downstream power bounds are the DOCSIS receive range rather than the commonly cited -7..+7 dBmV
+ideal; the template explains why next to the value.
 
 There is intentionally no "HomePod on the wrong mesh point" alert yet: the data is recorded first, and a
 rule can be added once the dashboards show what normal looks like.

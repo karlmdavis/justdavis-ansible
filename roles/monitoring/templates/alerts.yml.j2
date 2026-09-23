@@ -14,13 +14,18 @@
 {% set wan_loss_ratio = 0.05 %}
 {% set wan_latency_seconds = 0.1 %}
 {% set wan_jitter_seconds = 0.03 %}
-{# DOCSIS guidance: SNR below 33 dB and power outside -8..+12 dBmV are line problems. The upper power
-   bound is deliberately above the commonly cited +7 dBmV, because this gateway reads +10 to +11.5 dBmV
-   with excellent SNR and no uncorrectable codewords (a data point for Comcast, not an alert). #}
+{# DOCSIS guidance: SNR below 33 dB and power outside -8..+15 dBmV are line problems. The power bounds
+   are the DOCSIS specification's receive range rather than the commonly cited -7..+7 dBmV ideal,
+   because this gateway reads +10 to +13.5 dBmV (hotter on the low channels, ~1.5 dB higher overnight)
+   with excellent SNR and no uncorrectable codewords: a data point for Comcast, not an alert. #}
 {% set docsis_snr_min_db = 33 %}
 {% set docsis_power_min_dbmv = -8 %}
-{% set docsis_power_max_dbmv = 12 %}
+{% set docsis_power_max_dbmv = 15 %}
 {% set docsis_uncorrectable_increase_15m = 1000 %}
+{# The gateway's web UI stalls for about 15 seconds once an hour, which costs one scrape and, with the
+   exporter's backoff, two to three minutes of DOCSIS series. Channel rules keep firing across that gap
+   instead of resolving and re-firing every hour. #}
+{% set docsis_keep_firing_for = '15m' %}
 {# Uptime below this means the device rebooted in the last ten minutes: long enough for the rule to be
    evaluated and the alert delivered, short enough that it does not linger. #}
 {% set reboot_uptime_seconds = 600 %}
@@ -254,6 +259,7 @@ groups:
       - alert: DocsisUncorrectableCodewords
         expr: rate(gateway_docsis_downstream_uncorrectable_codewords_total[5m]) > 0
         for: 5m
+        keep_firing_for: {{ docsis_keep_firing_for }}
         labels:
           severity: warning
         annotations:
@@ -270,23 +276,33 @@ groups:
             Downstream channel {{ L }} $labels.channel {{ R }}: {{ L }} $value | humanize {{ R }}
             uncorrectable codewords in 15m
 
+      # Line conditions (tilt, ingress, a loose connector) move blocks of channels together, so SNR and
+      # power alert once with a channel count rather than once per channel; the dashboard has the
+      # per-channel view.
       - alert: DocsisSnrLow
-        expr: gateway_docsis_downstream_snr_db < {{ docsis_snr_min_db }}
+        expr: count(gateway_docsis_downstream_snr_db < {{ docsis_snr_min_db }}) > 0
         for: 10m
+        keep_firing_for: {{ docsis_keep_firing_for }}
         labels:
           severity: warning
         annotations:
-          summary: "Downstream channel {{ L }} $labels.channel {{ R }} SNR is {{ L }} $value {{ R }} dB"
+          summary: >-
+            {{ L }} $value {{ R }} downstream channel(s) have SNR below {{ docsis_snr_min_db }} dB
 
       - alert: DocsisPowerOutOfRange
         expr: >-
-          gateway_docsis_downstream_power_dbmv > {{ docsis_power_max_dbmv }}
-          or gateway_docsis_downstream_power_dbmv < {{ docsis_power_min_dbmv }}
+          count(
+            gateway_docsis_downstream_power_dbmv > {{ docsis_power_max_dbmv }}
+            or gateway_docsis_downstream_power_dbmv < {{ docsis_power_min_dbmv }}
+          ) > 0
         for: 10m
+        keep_firing_for: {{ docsis_keep_firing_for }}
         labels:
           severity: warning
         annotations:
-          summary: "Downstream channel {{ L }} $labels.channel {{ R }} power is {{ L }} $value {{ R }} dBmV"
+          summary: >-
+            {{ L }} $value {{ R }} downstream channel(s) have power outside
+            {{ docsis_power_min_dbmv }}..+{{ docsis_power_max_dbmv }} dBmV
 
       - alert: GatewayScrapeFailing
         expr: gateway_up == 0

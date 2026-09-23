@@ -13,7 +13,7 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Layered ping: mean round trip (LAN router, gateway, ISP first hop, internet)",
+      "title": "Layered ping: mean round trip (LAN router, gateway, ISP resolver, internet)",
       "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [

@@ -41,8 +41,8 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
 - AirPlay "cannot find / cannot connect" failures are often mDNS discovery problems rather than radio
   problems. The active mDNS resolve, the TCP port probe, and the ping data separate those cases.
 - Video-call trouble is localised by pinging each hop separately: the AmpliFi router, the Comcast
-  gateway (both sides), the ISP's first hop, and public anchors. Whichever hop first shows loss or
-  latency is where the problem is.
+  gateway (both sides), Comcast's resolver inside the ISP network, and public anchors. Whichever hop
+  first shows loss or latency is where the problem is.
 - DOCSIS SNR, power, and uncorrectable codewords distinguish a line problem (which a reboot only masks)
   from a router problem.
 
@@ -61,7 +61,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or fewer `amplifi_mesh_point_info` series than mesh points. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds`; the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
 | The internet is bad | Loss, round trip, or jitter to the public anchor (`ping_*{target="1.1.1.1"}`). | `WanPacketLoss`, `WanLatencyHigh`, `WanJitterHigh` |
-| Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, ISP first hop, public anchors (the layered ping panel). | Covered by the three above. |
+| Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, Comcast's resolver, public anchors (the layered ping panel). | Covered by the three above. |
 | The cable line, not the router | DOCSIS SNR, receive power, uncorrectable codewords, and `gateway_internet_active`; these persist through a reboot, a router fault does not. | `DocsisSnrLow`, `DocsisPowerOutOfRange`, `DocsisUncorrectableCodewords*`, `GatewayInternetInactive` |
 | Something rebooted (or was power cycled) | Uptime under ten minutes for the router, a mesh point, or the gateway; correlate with the rows above. | `AmpliFiRebooted`, `MeshPointRebooted`, `GatewayRebooted` |
 | The WAN link is saturated | `amplifi_wan_*_bits_per_second` and `node_network_*_bytes_total{device="br-wan"}` against the latency panels. | None: dashboard only. |

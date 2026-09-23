@@ -202,9 +202,13 @@ def _choice(text: str, choices: dict[str, bool], ctx: str) -> bool:
     raise ParseError(f"{ctx}: unrecognised value")
 
 
-def _same_column(a: int, b: int, *rows: list[str]) -> bool:
-    """True when columns `a` and `b` hold the same non-placeholder text in every row."""
-    return all(row[a] == row[b] and not _is_placeholder(row[a]) for row in rows)
+def _first_column_repeats_last(*rows: list[str]) -> bool:
+    """True when every row's first cell is a copy of its last cell: the firmware quirk that puts the
+    last channel's codeword counts in channel 1's column. Only that one pair is compared, placeholders
+    do not match, and all-zero cells do not count (right after a reboot every counter reads 0)."""
+    return all(row[0] == row[-1] and not _is_placeholder(row[0]) for row in rows) and any(
+        row[0] != "0" for row in rows
+    )
 
 
 def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...]:
@@ -218,9 +222,9 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
     unerrored = _row(codewords, "Unerrored Codewords", count)
     correctable = _row(codewords, "Correctable Codewords", count)
     uncorrectable = _row(codewords, "Uncorrectable Codewords", count)
-    if count > 1 and _same_column(0, count - 1, unerrored, correctable, uncorrectable):
-        # Firmware quirk: the first codeword column repeats the last channel's counts (an OFDM
-        # channel's, in the hundreds of millions), so channel 1 would double-count it.
+    if count > 1 and _first_column_repeats_last(unerrored, correctable, uncorrectable):
+        # Channel 1 would otherwise report (and double-count) the last channel's counts, an OFDM
+        # channel's in the hundreds of millions.
         unerrored[0] = correctable[0] = uncorrectable[0] = ""
     channels: list[DocsisChannel] = []
     seen: set[int] = set()

@@ -13,7 +13,7 @@ from prometheus_client import CollectorRegistry, Counter
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient, pinned_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
-from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
+from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -115,7 +115,7 @@ def build_registry() -> tuple[CollectorRegistry, GatewayCollector, Counter]:
     statuses.set(ScrapeStatus.initial())
     collector = GatewayCollector(statuses)
     registry.register(collector)
-    errors = Counter("gateway_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
+    errors = error_counter("gateway", ("login", "fetch", "tls", "parse"), registry)
     return registry, collector, errors
 
 

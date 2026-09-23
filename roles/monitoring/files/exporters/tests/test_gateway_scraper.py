@@ -91,7 +91,7 @@ def test_throttled_relogin_clears_snapshot_without_counting_an_error() -> None:
     with pytest.raises(LoginThrottled):
         scraper()
     assert registry.get_sample_value("gateway_uptime_seconds") is None
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) == 0.0
 
 
 def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
@@ -106,7 +106,7 @@ def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
         scraper()
     assert registry.get_sample_value("gateway_uptime_seconds") is None
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "login"}) == 0.0
 
 
 def _tls_failure(message: str) -> requests.exceptions.SSLError:
@@ -136,7 +136,7 @@ def test_other_tls_failures_count_fetch_stage() -> None:
     with pytest.raises(requests.exceptions.SSLError):
         scraper()
     assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "fetch"}) == 1.0
-    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "tls"}) is None
+    assert registry.get_sample_value("gateway_scrape_errors_total", {"stage": "tls"}) == 0.0
 
 
 def test_failed_poll_serves_up_zero_with_no_device_series_through_the_real_loop() -> None:

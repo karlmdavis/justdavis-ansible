@@ -24,7 +24,7 @@ from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.files import write_if_changed
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
-from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error
+from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -106,7 +106,7 @@ def build_registry(tracked: tuple[TrackedClient, ...]) -> tuple[CollectorRegistr
     statuses.set(ScrapeStatus.initial())
     collector = AmplifiCollector(statuses, tracked, Unwrapper32[CounterKey]())
     registry.register(collector)
-    errors = Counter("amplifi_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
+    errors = error_counter("amplifi", ("login", "fetch", "parse", "write"), registry)
     return registry, collector, errors
 
 

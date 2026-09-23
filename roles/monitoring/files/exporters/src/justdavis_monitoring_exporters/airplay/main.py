@@ -15,7 +15,7 @@ from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.models import ServiceKey
 from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
-from justdavis_monitoring_exporters.common.metrics import count_error
+from justdavis_monitoring_exporters.common.metrics import count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -70,7 +70,7 @@ def build_registry() -> tuple[CollectorRegistry, AirplayCollector, Counter]:
     statuses.set(ScrapeStatus.initial())
     collector = AirplayCollector(statuses)
     registry.register(collector)
-    errors = Counter("airplay_scrape_errors", "Scrape errors by stage.", ["stage"], registry=registry)
+    errors = error_counter("airplay", ("resolve",), registry)
     return registry, collector, errors
 
 

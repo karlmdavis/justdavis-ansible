@@ -44,8 +44,25 @@ def test_parses_mesh_points(info_async_bytes: bytes) -> None:
     assert kitchen.uptime_seconds == 2008337
     assert kitchen.platform == "AFi-P-HD"
     assert kitchen.online is True
+    assert (kitchen.uplink_mac, kitchen.level) == (ROUTER_MAC, 2)
     assert (kitchen.connections_to, kitchen.connections_from) == (11, 4)
     assert (kitchen.last_connected_age_seconds, kitchen.last_disconnected_age_seconds) == (2024, 2029)
+
+
+def test_daisy_chained_mesh_point_is_found_under_its_uplink(info_async_bytes: bytes) -> None:
+    # Seen in production after a reboot: the router lists a mesh point whose backhaul goes through
+    # another mesh point under that mesh point's own children, one level deeper.
+    data = json.loads(info_async_bytes)
+    router = data[0]["02:00:00:00:00:01"]
+    living_room = router["children"]["wifi"].pop("02:00:00:00:00:03")
+    living_room.update(master_peer=KITCHEN_MP_MAC, level=3)
+    router["children"]["wifi"][KITCHEN_MP_MAC]["children"] = {"wifi": {"02:00:00:00:00:03": living_room}}
+    snapshot = parse_info_async(json.dumps(data).encode())
+    by_mac = {mp.mac: mp for mp in snapshot.mesh_points}
+    assert set(by_mac) == {KITCHEN_MP_MAC, "02:00:00:00:00:03"}
+    chained = by_mac[Mac("02:00:00:00:00:03")]
+    assert (chained.uplink_mac, chained.level, chained.online) == (KITCHEN_MP_MAC, 3, True)
+    assert chained.backhaul_band == "5 GHz"
 
 
 def _with_living_room_offline(info_async_bytes: bytes) -> bytes:
@@ -66,6 +83,7 @@ def test_offline_mesh_point_is_kept_with_its_counters(info_async_bytes: bytes) -
     assert living_room.online is False
     assert living_room.ip == "192.0.2.234"
     assert (living_room.backhaul_band, living_room.rssi_min_dbm, living_room.uptime_seconds) == (None,) * 3
+    assert (living_room.uplink_mac, living_room.level) == (None, None)
     assert (living_room.connections_to, living_room.connections_from) == (2, 1)
     assert living_room.last_disconnected_age_seconds == 105
 

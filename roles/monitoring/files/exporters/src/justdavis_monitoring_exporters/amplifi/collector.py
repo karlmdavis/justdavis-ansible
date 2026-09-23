@@ -148,9 +148,12 @@ class AmplifiCollector(Collector):
     def _mesh_point_families(snapshot: AmplifiSnapshot) -> Iterator[Metric]:
         info = InfoMetricFamily(
             "amplifi_mesh_point",
-            "Mesh point identity and backhaul band (empty while the mesh point is offline).",
+            "Mesh point identity, backhaul band, and uplink (the router or another mesh point); band, "
+            "uplink, and level are empty while the mesh point is offline.",
             labels=_MESH_POINT_LABELS,
         )
+        names = {snapshot.router.mac: snapshot.router.name}
+        names.update({mp.mac: mp.name for mp in snapshot.mesh_points})
         online = GaugeMetricFamily(
             "amplifi_mesh_point_online",
             "1 while the router lists the mesh point as part of the mesh, 0 once it has lost it.",
@@ -185,6 +188,8 @@ class AmplifiCollector(Collector):
                 {
                     "backhaul_band": sanitise_label(mp.backhaul_band or ""),
                     "platform": sanitise_label(mp.platform),
+                    "uplink": sanitise_label(names.get(mp.uplink_mac or Mac(""), "")),
+                    "level": "" if mp.level is None else str(mp.level),
                 },
             )
             online.add_metric(labels, 1.0 if mp.online else 0.0)

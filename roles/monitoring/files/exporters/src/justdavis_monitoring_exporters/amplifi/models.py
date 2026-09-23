@@ -24,6 +24,10 @@ class MeshPoint:
     ip: str
     platform: str
     online: bool
+    # The device this mesh point's backhaul connects to (the router, or another mesh point when
+    # daisy-chained) and its depth in the mesh (the router is level 1); unknown while offline.
+    uplink_mac: Mac | None
+    level: int | None
     # The router reports the backhaul link and uptime only while the mesh point is online.
     backhaul_band: str | None
     rssi_min_dbm: int | None

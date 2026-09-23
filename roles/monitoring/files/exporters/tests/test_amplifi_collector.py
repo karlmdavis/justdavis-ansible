@@ -150,7 +150,14 @@ def test_mesh_point_and_router_metrics() -> None:
     assert registry.get_sample_value("amplifi_mesh_point_uptime_seconds", kitchen) == 2008337.0
     assert (
         registry.get_sample_value(
-            "amplifi_mesh_point_info", {**kitchen, "backhaul_band": "2.4 GHz", "platform": "AFi-P-HD"}
+            "amplifi_mesh_point_info",
+            {
+                **kitchen,
+                "backhaul_band": "2.4 GHz",
+                "platform": "AFi-P-HD",
+                "uplink": "test-router",
+                "level": "2",
+            },
         )
         == 1.0
     )
@@ -163,9 +170,36 @@ def test_mesh_point_and_router_metrics() -> None:
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
 
 
+def test_daisy_chained_mesh_point_names_its_uplink_mesh_point() -> None:
+    kitchen = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Kitchen")
+    living_room = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Living Room")
+    chained = replace(living_room, uplink_mac=kitchen.mac, level=3)
+    snapshot = replace(
+        SNAPSHOT, mesh_points=tuple(chained if mp is living_room else mp for mp in SNAPSHOT.mesh_points)
+    )
+    registry, _ = registry_with(snapshot)
+    info = {
+        "mac": living_room.mac,
+        "name": "Living Room",
+        "backhaul_band": "5 GHz",
+        "platform": "AFi-P-HD",
+        "uplink": "Kitchen",
+        "level": "3",
+    }
+    assert registry.get_sample_value("amplifi_mesh_point_info", info) == 1.0
+
+
 def test_offline_mesh_point_keeps_identity_and_counters_but_no_backhaul_metrics() -> None:
     living_room = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Living Room")
-    offline = replace(living_room, online=False, backhaul_band=None, rssi_min_dbm=None, uptime_seconds=None)
+    offline = replace(
+        living_room,
+        online=False,
+        uplink_mac=None,
+        level=None,
+        backhaul_band=None,
+        rssi_min_dbm=None,
+        uptime_seconds=None,
+    )
     snapshot = replace(
         SNAPSHOT, mesh_points=tuple(offline if mp is living_room else mp for mp in SNAPSHOT.mesh_points)
     )
@@ -174,7 +208,8 @@ def test_offline_mesh_point_keeps_identity_and_counters_but_no_backhaul_metrics(
     assert registry.get_sample_value("amplifi_mesh_point_online", labels) == 0.0
     assert (
         registry.get_sample_value(
-            "amplifi_mesh_point_info", {**labels, "backhaul_band": "", "platform": "AFi-P-HD"}
+            "amplifi_mesh_point_info",
+            {**labels, "backhaul_band": "", "platform": "AFi-P-HD", "uplink": "", "level": ""},
         )
         == 1.0
     )
@@ -230,7 +265,13 @@ def test_names_and_bands_from_the_router_are_sanitised_in_every_family() -> None
     registry, _ = registry_with(snapshot)
     labels = {"mac": kitchen.mac, "name": "Karl's Kitchen"}
     assert registry.get_sample_value("amplifi_mesh_point_uptime_seconds", labels) is not None
-    info = {**labels, "backhaul_band": "2.4 GHz", "platform": "AFi-P-HD"}
+    info = {
+        **labels,
+        "backhaul_band": "2.4 GHz",
+        "platform": "AFi-P-HD",
+        "uplink": "test-router",
+        "level": "2",
+    }
     assert registry.get_sample_value("amplifi_mesh_point_info", info) == 1.0
     assert "\x07" not in generate_latest(registry).decode()
 

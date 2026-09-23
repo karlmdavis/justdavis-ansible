@@ -33,6 +33,7 @@ from justdavis_monitoring_exporters.gateway.models import DocsisChannel, Gateway
 
 _LOGIN_FORM_MARKER = 'id="pageForm"'
 _LOGGED_OUT_MARKER = 'alert("Please Login First!")'
+_STATUS_PAGE_MARKER = "System Uptime"
 _UPTIME_RE = re.compile(r"(\d+)\s*days?\s+(\d+)h:\s*(\d+)m:\s*(\d+)s")
 _PLACEHOLDERS = frozenset({"", "-", "--", "---", "----", "n/a", "na", "none"})
 _LOCK_STATUS = {"Locked": True, "Not Locked": False, "Unlocked": False}
@@ -44,6 +45,13 @@ def is_login_page(html: bytes | str) -> bool:
     instead of the requested page."""
     text = as_text(html)
     return _LOGIN_FORM_MARKER in text or _LOGGED_OUT_MARKER in text
+
+
+def is_status_page(html: bytes | str) -> bool:
+    """Return True when the body carries the status page's first field. The two logged-out shapes
+    above are the ones seen so far; a third (a firmware update, a maintenance page) would otherwise
+    be taken for a status page and fail to parse on every poll without a re-login."""
+    return _STATUS_PAGE_MARKER in as_text(html)
 
 
 def parse_uptime(text: str) -> int:

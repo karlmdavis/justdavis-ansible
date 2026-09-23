@@ -15,6 +15,9 @@ from tests.fakes import FailingHttpClient, FakeClock, FakeHttpClient, response
 FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "gateway_login.html").read_text()
 STATUS_HTML = (FIXTURES / "gateway_comcast_network.html").read_text()
+# The status page with its tables missing, as the gateway served it once on the first night: a real
+# status page (so no re-login), which fails to parse.
+HALF_RENDERED_HTML = STATUS_HTML[: STATUS_HTML.index("<table")]
 
 
 def make(http: FakeHttpClient, clock: FakeClock | None = None) -> tuple[GatewayScraper, CollectorRegistry]:
@@ -33,7 +36,7 @@ def test_successful_poll_publishes_snapshot() -> None:
 
 def test_every_poll_drops_the_kept_alive_connection_afterwards() -> None:
     http = FakeHttpClient(
-        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, HALF_RENDERED_HTML)]}
     )
     scraper, _ = make(http)
     scraper()
@@ -44,7 +47,7 @@ def test_every_poll_drops_the_kept_alive_connection_afterwards() -> None:
 
 def test_parse_failure_clears_snapshot_and_counts_parse_stage() -> None:
     http = FakeHttpClient(
-        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, HALF_RENDERED_HTML)]}
     )
     scraper, registry = make(http)
     scraper()
@@ -106,7 +109,7 @@ def test_unreachable_gateway_clears_snapshot_and_counts_fetch_stage() -> None:
 
 def test_failed_poll_serves_up_zero_with_no_device_series_through_the_real_loop() -> None:
     http = FakeHttpClient(
-        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, "<html></html>")]}
+        {("GET", "/comcast_network.jst"): [response(200, STATUS_HTML), response(200, HALF_RENDERED_HTML)]}
     )
     registry, collector, errors = build_registry()
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())

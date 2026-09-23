@@ -35,6 +35,23 @@ def test_login_page_triggers_login_then_retry() -> None:
     assert http.calls[1].data == {"username": "admin", "password": "pw"}
 
 
+def test_unrecognised_page_instead_of_the_status_page_triggers_login() -> None:
+    # A logged-out shape not seen before (say, after a firmware update) must not be mistaken for the
+    # status page and fail to parse on every poll without a re-login.
+    http = FakeHttpClient(
+        {
+            ("GET", "/comcast_network.jst"): [
+                response(200, "<html><body>Session expired. Please sign in again.</body></html>"),
+                response(200, STATUS_HTML),
+            ],
+            ("POST", "/check.jst"): [response(302, "", location="/at_a_glance.jst")],
+        }
+    )
+    client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
+    assert client.fetch_comcast_network() == STATUS_HTML.encode()
+    assert [c.method for c in http.calls] == ["GET", "POST", "GET"]
+
+
 def test_live_session_fetches_without_logging_in() -> None:
     http = FakeHttpClient({("GET", "/comcast_network.jst"): [response(200, STATUS_HTML)]})
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())

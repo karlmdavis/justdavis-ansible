@@ -52,14 +52,18 @@ def test_downstream_channel_info_carries_frequency_and_modulation() -> None:
 
 def test_codeword_counters() -> None:
     registry = registry_with(SNAPSHOT)
+    ch34 = {"channel": "34"}
+    assert (
+        registry.get_sample_value("gateway_docsis_downstream_unerrored_codewords_total", ch34) == 209921024.0
+    )
+    assert (
+        registry.get_sample_value("gateway_docsis_downstream_correctable_codewords_total", ch34)
+        == 182816061.0
+    )
+    assert registry.get_sample_value("gateway_docsis_downstream_uncorrectable_codewords_total", ch34) == 0.0
+    # Channel 1's counts are the firmware's copy of channel 34's, so the parser blanks them.
     ch1 = {"channel": "1"}
-    assert (
-        registry.get_sample_value("gateway_docsis_downstream_unerrored_codewords_total", ch1) == 209921024.0
-    )
-    assert (
-        registry.get_sample_value("gateway_docsis_downstream_correctable_codewords_total", ch1) == 182816061.0
-    )
-    assert registry.get_sample_value("gateway_docsis_downstream_uncorrectable_codewords_total", ch1) == 0.0
+    assert registry.get_sample_value("gateway_docsis_downstream_unerrored_codewords_total", ch1) is None
 
 
 def test_wan_addresses_are_exported_as_an_info_metric() -> None:

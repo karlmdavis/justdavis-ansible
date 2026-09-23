@@ -26,6 +26,13 @@ def test_login_page_is_detected(login_html: str) -> None:
     assert is_login_page(login_html) is True
 
 
+def test_duplicated_first_codeword_column_is_dropped(comcast_network_html: str) -> None:
+    # The firmware repeats the last channel's codeword counts in column 1; the fixture shows it.
+    channels = {c.index: c for c in parse_comcast_network(comcast_network_html).downstream}
+    assert (channels[1].unerrored, channels[1].correctable, channels[1].uncorrectable) == (None, None, None)
+    assert channels[34].unerrored == 209921024
+
+
 def test_status_page_is_not_a_login_page(comcast_network_html: str) -> None:
     assert is_login_page(comcast_network_html) is False
 
@@ -63,9 +70,8 @@ def test_parses_a_qam_downstream_channel(comcast_network_html: str) -> None:
     assert first.snr_db == 44.0
     assert first.power_dbmv == 10.6
     assert first.modulation == "256 QAM"
-    assert first.unerrored == 209921024
-    assert first.correctable == 182816061
-    assert first.uncorrectable == 0
+    second = status.downstream[1]
+    assert (second.unerrored, second.correctable, second.uncorrectable) == (275852012, 0, 0)
 
 
 def test_parses_an_ofdm_downstream_channel(comcast_network_html: str) -> None:

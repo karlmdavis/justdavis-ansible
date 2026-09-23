@@ -12,6 +12,8 @@ in September 2026. The page is server-rendered (no AJAX) and uses two shapes:
   has a populated Index row but every other cell is empty on this firmware, so it is ignored: the
   downstream table is recognised as the first table whose Lock Status row has values.
 
+The first column of the codeword table repeats the last column's counts (a firmware quirk, present
+in the fixture too), so when the two match exactly, channel 1's codeword counts are treated as absent.
 Numeric cells that show a placeholder (blank, `----`, `N/A`) become `None` rather than failing the
 whole page, so a single unlocked channel cannot blank every gateway metric; wording changes in the
 Lock Status or Internet fields do raise `ParseError`, because silently misreading them would be worse.
@@ -200,6 +202,11 @@ def _choice(text: str, choices: dict[str, bool], ctx: str) -> bool:
     raise ParseError(f"{ctx}: unrecognised value")
 
 
+def _same_column(a: int, b: int, *rows: list[str]) -> bool:
+    """True when columns `a` and `b` hold the same non-placeholder text in every row."""
+    return all(row[a] == row[b] and not _is_placeholder(row[a]) for row in rows)
+
+
 def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...]:
     indexes = downstream.rows["Index"]
     count = len(indexes)
@@ -211,6 +218,10 @@ def _channels(downstream: _Table, codewords: _Table) -> tuple[DocsisChannel, ...
     unerrored = _row(codewords, "Unerrored Codewords", count)
     correctable = _row(codewords, "Correctable Codewords", count)
     uncorrectable = _row(codewords, "Uncorrectable Codewords", count)
+    if count > 1 and _same_column(0, count - 1, unerrored, correctable, uncorrectable):
+        # Firmware quirk: the first codeword column repeats the last channel's counts (an OFDM
+        # channel's, in the hundreds of millions), so channel 1 would double-count it.
+        unerrored[0] = correctable[0] = uncorrectable[0] = ""
     channels: list[DocsisChannel] = []
     seen: set[int] = set()
     for i in range(count):

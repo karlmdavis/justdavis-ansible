@@ -15,7 +15,9 @@ in September 2026. The page is server-rendered (no AJAX) and uses two shapes:
 Numeric cells that show a placeholder (blank, `----`, `N/A`) become `None` rather than failing the
 whole page, so a single unlocked channel cannot blank every gateway metric; wording changes in the
 Lock Status or Internet fields do raise `ParseError`, because silently misreading them would be worse.
-Unauthenticated requests get the login page (HTTP 200) instead, recognised by its `id="pageForm"`.
+Unauthenticated requests get HTTP 200 with either the login form (recognised by its `id="pageForm"`)
+or, when there is no session cookie at all, a short script that alerts "Please Login First!" and
+sends a browser to `home_loggedout.jst`; both mean "log in first".
 This module is pure: stdlib only, no I/O, and it never returns partial results.
 """
 
@@ -28,6 +30,7 @@ from justdavis_monitoring_exporters.common.text import as_text
 from justdavis_monitoring_exporters.gateway.models import DocsisChannel, GatewayStatus
 
 _LOGIN_FORM_MARKER = 'id="pageForm"'
+_LOGGED_OUT_MARKER = 'alert("Please Login First!")'
 _UPTIME_RE = re.compile(r"(\d+)\s*days?\s+(\d+)h:\s*(\d+)m:\s*(\d+)s")
 _PLACEHOLDERS = frozenset({"", "-", "--", "---", "----", "n/a", "na", "none"})
 _LOCK_STATUS = {"Locked": True, "Not Locked": False, "Unlocked": False}
@@ -35,9 +38,10 @@ _INTERNET_STATUS = {"Active": True, "Inactive": False}
 
 
 def is_login_page(html: bytes | str) -> bool:
-    """Return True when the gateway answered with its login form instead of the requested page."""
+    """Return True when the gateway answered with its login form, or its logged-out redirect stub,
+    instead of the requested page."""
     text = as_text(html)
-    return _LOGIN_FORM_MARKER in text
+    return _LOGIN_FORM_MARKER in text or _LOGGED_OUT_MARKER in text
 
 
 def parse_uptime(text: str) -> int:

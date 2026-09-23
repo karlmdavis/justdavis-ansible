@@ -6,7 +6,10 @@ September 2026. The response is a JSON array of six elements:
 0. Topology: `{router_mac: {friendly_name, ip, mac, platform_name, role, uptime, children: {wifi:
    {mesh_point_mac: {friendly_name, ip, mac, platform_name, active_band, overriden_active_band,
    rssi_min, uptime, connections_to, connections_from, last_connected, last_disconnected, ...}},
-   offline: {mesh_point_mac: {...}}}}}`. A mesh point the router has lost moves from `wifi` to
+   offline: {mesh_point_mac: {...}}}}}`. A mesh point whose backhaul goes through another mesh
+   point (daisy-chained) is nested under that mesh point's own `children.wifi`, with `master_peer`
+   naming its uplink and `level` its depth (the router is 1), so the tree is walked recursively.
+   A mesh point the router has lost moves from `wifi` to
    `offline`, keeping its identity, address, and connection counters but losing `active_band`,
    `rssi_min`, and `uptime`; those three can also be missing from a `wifi` entry for one poll while
    the mesh point is on its way out. The `last_*` fields are ages in seconds, not timestamps.
@@ -78,12 +81,19 @@ def _parse_topology(element: object) -> tuple[Router, tuple[MeshPoint, ...]]:
         platform=as_str(get(router_map, "platform_name", ctx), f"{ctx}.platform_name"),
         uptime_seconds=as_int(get(router_map, "uptime", ctx), f"{ctx}.uptime"),
     )
-    children = as_dict(router_map.get("children", {}), f"{ctx}.children")
+    return router, tuple(_parse_mesh_points(router_map, ctx))
+
+
+def _parse_mesh_points(node: Mapping[str, object], ctx: str) -> list[MeshPoint]:
+    """The mesh points under `node` (the router, or a mesh point with daisy-chained children), and
+    recursively theirs."""
+    children = as_dict(node.get("children", {}), f"{ctx}.children")
     mesh_points: list[MeshPoint] = []
     for group, online in (("wifi", True), ("offline", False)):
         for mp_mac, mp_value in as_dict(children.get(group, {}), f"{ctx}.children.{group}").items():
             mp_ctx = f"{ctx}.children.{group}.{mp_mac}"
             mp = as_dict(mp_value, mp_ctx)
+            uplink = _optional_str(mp, "master_peer", mp_ctx) if online else None
             mesh_points.append(
                 MeshPoint(
                     mac=canonical_mac(as_str(get(mp, "mac", mp_ctx), f"{mp_ctx}.mac")),
@@ -93,6 +103,8 @@ def _parse_topology(element: object) -> tuple[Router, tuple[MeshPoint, ...]]:
                     ip=as_str(get(mp, "ip", mp_ctx), f"{mp_ctx}.ip"),
                     platform=as_str(get(mp, "platform_name", mp_ctx), f"{mp_ctx}.platform_name"),
                     online=online,
+                    uplink_mac=None if uplink is None else canonical_mac(uplink),
+                    level=_optional_int(mp, "level", mp_ctx) if online else None,
                     backhaul_band=_optional_str(mp, "active_band", mp_ctx) if online else None,
                     rssi_min_dbm=_optional_int(mp, "rssi_min", mp_ctx) if online else None,
                     uptime_seconds=_optional_int(mp, "uptime", mp_ctx) if online else None,
@@ -108,7 +120,8 @@ def _parse_topology(element: object) -> tuple[Router, tuple[MeshPoint, ...]]:
                     ),
                 )
             )
-    return router, tuple(mesh_points)
+            mesh_points.extend(_parse_mesh_points(mp, mp_ctx))
+    return mesh_points
 
 
 def _parse_clients(element: object) -> tuple[WifiClient, ...]:

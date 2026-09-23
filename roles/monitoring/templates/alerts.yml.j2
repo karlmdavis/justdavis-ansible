@@ -196,6 +196,16 @@ groups:
         annotations:
           summary: "Mesh point {{ L }} $labels.name {{ R }} rebooted"
 
+      # The router keeps listing a mesh point it has lost, under "offline", so this is the usual form
+      # of a dropped mesh point; MeshPointMissing below covers one that vanishes altogether.
+      - alert: MeshPointOffline
+        expr: amplifi_mesh_point_online == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mesh point {{ L }} $labels.name {{ R }} has dropped out of the mesh"
+
       - alert: MeshPointMissing
         expr: >-
           ((count(amplifi_mesh_point_info) or vector(0)) < {{ mesh_point_count }})

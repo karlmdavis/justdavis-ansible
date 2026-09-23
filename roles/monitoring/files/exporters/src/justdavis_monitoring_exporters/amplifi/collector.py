@@ -147,7 +147,14 @@ class AmplifiCollector(Collector):
     @staticmethod
     def _mesh_point_families(snapshot: AmplifiSnapshot) -> Iterator[Metric]:
         info = InfoMetricFamily(
-            "amplifi_mesh_point", "Mesh point identity and backhaul band.", labels=_MESH_POINT_LABELS
+            "amplifi_mesh_point",
+            "Mesh point identity and backhaul band (empty while the mesh point is offline).",
+            labels=_MESH_POINT_LABELS,
+        )
+        online = GaugeMetricFamily(
+            "amplifi_mesh_point_online",
+            "1 while the router lists the mesh point as part of the mesh, 0 once it has lost it.",
+            labels=_MESH_POINT_LABELS,
         )
         rssi = GaugeMetricFamily(
             "amplifi_mesh_point_rssi_min_dbm", "Mesh point backhaul minimum RSSI.", labels=_MESH_POINT_LABELS
@@ -155,17 +162,47 @@ class AmplifiCollector(Collector):
         uptime = GaugeMetricFamily(
             "amplifi_mesh_point_uptime_seconds", "Mesh point uptime.", labels=_MESH_POINT_LABELS
         )
+        connections = CounterMetricFamily(
+            "amplifi_mesh_point_connections",
+            "The router's count of backhaul connections since it booted (its connections_to and "
+            "connections_from fields; a re-joining mesh point moves both).",
+            labels=[*_MESH_POINT_LABELS, "direction"],
+        )
+        last_connected = GaugeMetricFamily(
+            "amplifi_mesh_point_last_connected_age_seconds",
+            "Seconds since the mesh point last joined the mesh.",
+            labels=_MESH_POINT_LABELS,
+        )
+        last_disconnected = GaugeMetricFamily(
+            "amplifi_mesh_point_last_disconnected_age_seconds",
+            "Seconds since the mesh point last dropped out of the mesh.",
+            labels=_MESH_POINT_LABELS,
+        )
         for mp in snapshot.mesh_points:
             labels = [mp.mac, sanitise_label(mp.name)]
             info.add_metric(
                 labels,
-                {"backhaul_band": sanitise_label(mp.backhaul_band), "platform": sanitise_label(mp.platform)},
+                {
+                    "backhaul_band": sanitise_label(mp.backhaul_band or ""),
+                    "platform": sanitise_label(mp.platform),
+                },
             )
-            rssi.add_metric(labels, float(mp.rssi_min_dbm))
-            uptime.add_metric(labels, float(mp.uptime_seconds))
+            online.add_metric(labels, 1.0 if mp.online else 0.0)
+            if mp.rssi_min_dbm is not None:
+                rssi.add_metric(labels, float(mp.rssi_min_dbm))
+            if mp.uptime_seconds is not None:
+                uptime.add_metric(labels, float(mp.uptime_seconds))
+            connections.add_metric([*labels, "to"], float(mp.connections_to))
+            connections.add_metric([*labels, "from"], float(mp.connections_from))
+            last_connected.add_metric(labels, float(mp.last_connected_age_seconds))
+            last_disconnected.add_metric(labels, float(mp.last_disconnected_age_seconds))
         yield info
+        yield online
         yield rssi
         yield uptime
+        yield connections
+        yield last_connected
+        yield last_disconnected
 
     def _client_labels(self, client: WifiClient) -> list[str]:
         tracked = self._tracked.get(client.mac)

@@ -58,7 +58,8 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
 | HomePod answers on port 7000 but cannot be found | Port open, but the LAN-side mDNS query (`airplay_service_resolved`) fails. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
-| A mesh point has dropped out | Fewer `amplifi_mesh_point_info` series than mesh points; `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointMissing` |
+| A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or fewer `amplifi_mesh_point_info` series than mesh points. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
+| A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds`; the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
 | The internet is bad | Loss, round trip, or jitter to the public anchor (`ping_*{target="1.1.1.1"}`). | `WanPacketLoss`, `WanLatencyHigh`, `WanJitterHigh` |
 | Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, ISP first hop, public anchors (the layered ping panel). | Covered by the three above. |
 | The cable line, not the router | DOCSIS SNR, receive power, uncorrectable codewords, and `gateway_internet_active`; these persist through a reboot, a router fault does not. | `DocsisSnrLow`, `DocsisPowerOutOfRange`, `DocsisUncorrectableCodewords*`, `GatewayInternetInactive` |
@@ -165,8 +166,8 @@ channel webhook URL from Discord's channel integration settings. Thresholds are 
 or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB; downstream power outside
 -8 to +12 dBmV; any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
-ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point missing from the
-topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
+ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
+from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
 going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:

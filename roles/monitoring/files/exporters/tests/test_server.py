@@ -42,11 +42,32 @@ def test_run_until_stopped_joins_then_cleans_up_then_shuts_down_server() -> None
 def test_run_until_stopped_raises_when_the_scrape_thread_dies_unexpectedly() -> None:
     stop = threading.Event()
     thread = threading.Thread(target=lambda: None)
-    with pytest.raises(RuntimeError):
+    order: list[str] = []
+    with pytest.raises(RuntimeError, match="scrape thread exited unexpectedly"):
         run_until_stopped(
             scrape_thread=thread,
             stop=stop,
-            shutdown_server=lambda: None,
+            shutdown_server=lambda: order.append("server"),
+            cleanup=lambda: order.append("cleanup"),
+            install_signals=False,
+            poll_seconds=0.01,
+        )
+    # Cleanup and shutdown still run on the error path, in the usual order.
+    assert order == ["cleanup", "server"]
+
+
+def test_shutdown_steps_that_raise_are_logged_and_do_not_mask_the_real_error() -> None:
+    def broken() -> None:
+        raise OSError("already closed")
+
+    stop = threading.Event()
+    thread = threading.Thread(target=lambda: None)
+    with pytest.raises(RuntimeError, match="scrape thread exited unexpectedly"):
+        run_until_stopped(
+            scrape_thread=thread,
+            stop=stop,
+            shutdown_server=broken,
+            cleanup=broken,
             install_signals=False,
             poll_seconds=0.01,
         )

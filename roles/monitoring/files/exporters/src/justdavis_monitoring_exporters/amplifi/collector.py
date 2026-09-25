@@ -231,10 +231,16 @@ class AmplifiCollector(Collector):
             labels=_CLIENT_LABELS,
         )
         rx_rate = GaugeMetricFamily(
-            "amplifi_client_rx_bits_per_second", "Negotiated receive rate.", labels=_CLIENT_LABELS
+            "amplifi_client_rx_link_bits_per_second",
+            "Negotiated PHY link rate toward the client (RxBitrate); not throughput, see "
+            "amplifi_client_rx_bytes_total.",
+            labels=_CLIENT_LABELS,
         )
         tx_rate = GaugeMetricFamily(
-            "amplifi_client_tx_bits_per_second", "Negotiated transmit rate.", labels=_CLIENT_LABELS
+            "amplifi_client_tx_link_bits_per_second",
+            "Negotiated PHY link rate from the client (TxBitrate); not throughput, see "
+            "amplifi_client_tx_bytes_total.",
+            labels=_CLIENT_LABELS,
         )
         inactive = GaugeMetricFamily(
             "amplifi_client_inactive_seconds",

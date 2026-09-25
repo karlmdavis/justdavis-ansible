@@ -58,8 +58,8 @@ def test_tracked_client_gauges_carry_configured_name_and_kind() -> None:
     registry, _ = registry_with(SNAPSHOT)
     assert registry.get_sample_value("amplifi_client_signal_quality", SPEAKER_A) == 74.0
     assert registry.get_sample_value("amplifi_client_happiness_score", SPEAKER_A) == 75.0
-    assert registry.get_sample_value("amplifi_client_rx_bits_per_second", SPEAKER_A) == 52_000_000.0
-    assert registry.get_sample_value("amplifi_client_tx_bits_per_second", SPEAKER_A) == 11_000_000.0
+    assert registry.get_sample_value("amplifi_client_rx_link_bits_per_second", SPEAKER_A) == 52_000_000.0
+    assert registry.get_sample_value("amplifi_client_tx_link_bits_per_second", SPEAKER_A) == 11_000_000.0
     assert registry.get_sample_value("amplifi_client_inactive_seconds", SPEAKER_A) == 30.0
 
 

@@ -106,7 +106,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "DOCSIS uncorrectable codewords per second (any non-zero is a line problem)",
+      "title": "DOCSIS uncorrectable codewords per second (alerts above 0.1% of a channel's codewords over 15 min)",
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 33},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [

@@ -166,8 +166,9 @@ channel webhook URL from Discord's channel integration settings. Thresholds are 
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
 or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB or downstream power outside
 -15 to +15 dBmV (one alert with a channel count, kept firing across the short series gaps that a
-failed gateway scrape leaves);
-any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
+failed gateway scrape leaves); uncorrectable codewords above 0.1% of a channel's codewords over 15 minutes
+(warning) or above 1% (critical), a share rather than a count because an OFDM channel carries ~16,000
+codewords a second and the first two days showed harmless 0.02% episodes; the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series

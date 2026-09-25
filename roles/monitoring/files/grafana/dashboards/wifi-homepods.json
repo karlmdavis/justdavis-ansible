@@ -9,6 +9,21 @@
   "editable": true,
   "refresh": "30s",
   "time": {"from": "now-6h", "to": "now"},
+  "annotations": {
+    "list": [
+      {
+        "name": "Audio stopped",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "enable": true,
+        "hide": false,
+        "iconColor": "orange",
+        "expr": "homepod:audio_ended == 1",
+        "step": "30s",
+        "titleFormat": "{{name}}: audio stopped",
+        "useValueForTime": false
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -102,10 +117,39 @@
       }
     },
     {
+      "id": 10,
+      "type": "state-timeline",
+      "title": "Audio playing to each HomePod (download above 40 kbit/s, 3-minute average; from homepod:audio_active)",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 34},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "homepod:audio_active", "legendFormat": "{{name}}"}
+      ],
+      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "transparent", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "HomePod download rate (AirPlay group members move in lockstep; a curve that diverges has left the group)",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 43},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "homepod:download_bits_per_second:rate1m", "legendFormat": "{{name}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bps", "min": 0}, "overrides": []}
+    },
+    {
       "id": 7,
       "type": "timeseries",
       "title": "Mesh point backhaul minimum RSSI",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 51},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "amplifi_mesh_point_rssi_min_dbm", "legendFormat": "{{name}}"}],
       "fieldConfig": {"defaults": {"unit": "dBm"}, "overrides": []}
@@ -114,7 +158,7 @@
       "id": 8,
       "type": "table",
       "title": "Mesh points",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 51},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "amplifi_mesh_point_info", "format": "table", "instant": true},
@@ -136,7 +180,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "Every WiFi client: signal quality (untracked devices shown by MAC)",
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 42},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 59},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "amplifi_client_signal_quality{kind!=\"backhaul\"}", "legendFormat": "{{name}} {{mac}} ({{kind}})"}

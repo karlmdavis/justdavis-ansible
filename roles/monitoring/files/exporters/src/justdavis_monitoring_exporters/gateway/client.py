@@ -12,13 +12,17 @@ comes back. Re-logins are additionally rate limited (`relogin_min_seconds`) so t
 using the GUI is not logged out every poll; a throttled attempt raises `LoginThrottled`, which the
 exporter reports as `gateway_up 0` without counting a login error (the shared scrape loop still logs it
 and backs off). The throttle counts from the attempt, not from success, so rejected credentials produce
-one login error and then throttled attempts until the window passes, rather than a login-log flood.
+one login error and then throttled attempts until the window passes, rather than a login-log flood. The
+cost is a gap after any failed login: the window plus one poll interval, about six minutes with the
+deployed settings (5 minutes and 60 seconds), before the next attempt.
 """
 
 import logging
 from collections.abc import Callable
 
-from justdavis_monitoring_exporters.common.errors import ExporterError, LoginError
+import requests
+
+from justdavis_monitoring_exporters.common.errors import ExporterError, HttpStatusError, LoginError
 from justdavis_monitoring_exporters.common.http import HttpClient, HttpResponse
 from justdavis_monitoring_exporters.gateway.parser import is_login_page, is_status_page
 
@@ -86,7 +90,14 @@ class GatewayClient:
         ):
             raise LoginThrottled("session lost; re-login suppressed by the rate limit")
         self._last_login_attempt = now
-        result = self._http.post(_LOGIN_PATH, data={"username": self._username, "password": self._password})
+        try:
+            result = self._http.post(
+                _LOGIN_PATH, data={"username": self._username, "password": self._password}
+            )
+        except (requests.RequestException, HttpStatusError) as exc:
+            # A login that never got an answer is still a failed login: counted against that stage, and
+            # subject to the throttle like any other attempt.
+            raise LoginError(f"login request failed: {type(exc).__name__}") from exc
         if 300 <= result.status < 400 and _LOGIN_SUCCESS_LOCATION in result.headers.get("location", ""):
             return
         if result.status == 200 and is_login_page(result.body):

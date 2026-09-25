@@ -1,8 +1,10 @@
 """Tests for the Comcast gateway client (session reuse, rate-limited re-login)."""
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+import requests
 
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.http import HttpResponse
@@ -134,6 +136,24 @@ def test_login_response_other_than_the_success_redirect_raises_login_error(
     with pytest.raises(LoginError, match="unexpected response to login"):
         client.fetch_comcast_network()
     assert [c.method for c in http.calls] == ["GET", "POST"]
+
+
+class PostFailsHttpClient(FakeHttpClient):
+    """The status fetch works; the login POST raises as a dropped connection would."""
+
+    def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse:
+        raise requests.ConnectionError("connection reset by peer")
+
+
+def test_transport_error_during_login_is_a_login_error() -> None:
+    http = PostFailsHttpClient({("GET", "/comcast_network.jst"): [response(200, LOGIN_HTML)]})
+    client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
+    with pytest.raises(LoginError, match="login request failed") as excinfo:
+        client.fetch_comcast_network()
+    assert isinstance(excinfo.value.__cause__, requests.ConnectionError)
+    # The attempt counts against the throttle like any other.
+    with pytest.raises(LoginThrottled):
+        client.fetch_comcast_network()
 
 
 def test_password_never_appears_in_repr() -> None:

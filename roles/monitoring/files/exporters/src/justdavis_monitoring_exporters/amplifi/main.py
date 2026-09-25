@@ -22,7 +22,7 @@ from justdavis_monitoring_exporters.amplifi.targets import (
 from justdavis_monitoring_exporters.common.counters import Unwrapper32
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.files import write_if_changed
-from justdavis_monitoring_exporters.common.http import RequestsHttpClient
+from justdavis_monitoring_exporters.common.http import RequestsHttpClient, lan_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
@@ -198,7 +198,8 @@ def main() -> None:
         log.warning("MONITORING_AMPLIFI_HOST is not set; serving amplifi_up 0 and idling")
     else:
         client = AmplifiClient(
-            RequestsHttpClient(settings.device.base_url), password=settings.device.password
+            RequestsHttpClient(settings.device.base_url, session=lan_session()),
+            password=settings.device.password,
         )
         scraper = AmplifiScraper(settings, client, collector, errors)
         try:

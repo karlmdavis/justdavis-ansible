@@ -24,9 +24,13 @@ class FakeRawResponse:
     headers: dict[str, str]
     chunks: list[bytes]
     closed: bool = False
+    # Raised after the chunks, as a connection cut mid-body would be.
+    error: Exception | None = None
 
     def iter_content(self, chunk_size: int) -> Iterator[bytes]:
         yield from self.chunks
+        if self.error is not None:
+            raise self.error
 
     def close(self) -> None:
         self.closed = True
@@ -74,6 +78,14 @@ def test_body_over_cap_raises_and_closes_response() -> None:
     client = RequestsHttpClient("http://10.1.10.1", session=session, max_body_bytes=1000)
     with pytest.raises(ResponseTooLarge):
         client.get("/big")
+    assert raw.closed is True
+
+
+def test_error_while_streaming_the_body_propagates_and_closes_response() -> None:
+    raw = FakeRawResponse(200, {}, [b"partial"], error=ConnectionError("connection reset"))
+    client = RequestsHttpClient("http://10.1.10.1", session=FakeSession([raw]))
+    with pytest.raises(ConnectionError):
+        client.get("/comcast_network.jst")
     assert raw.closed is True
 
 

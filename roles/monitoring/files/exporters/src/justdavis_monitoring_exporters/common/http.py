@@ -153,11 +153,16 @@ class FingerprintAdapter(HTTPAdapter):
         super().init_poolmanager(*args, **kwargs)  # type: ignore[arg-type]
 
 
-def pinned_session(fingerprint_sha256: str) -> requests.Session:
-    """A `requests.Session` whose HTTPS connections must present the pinned certificate."""
+def lan_session() -> requests.Session:
+    """A `requests.Session` for a device on the LAN: never consults HTTP_PROXY, HTTPS_PROXY, and friends,
+    which would send the device's traffic (and credentials) off the LAN through a proxy's own pool."""
     session = requests.Session()
-    # A proxy from the environment would get its own, unpinned connection pool; the gateway is on
-    # the LAN, so never consult HTTPS_PROXY and friends.
     session.trust_env = False
+    return session
+
+
+def pinned_session(fingerprint_sha256: str) -> requests.Session:
+    """A LAN session whose HTTPS connections must present the pinned certificate."""
+    session = lan_session()
     session.mount("https://", FingerprintAdapter(fingerprint_sha256))
     return session

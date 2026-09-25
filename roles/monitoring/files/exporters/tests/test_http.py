@@ -14,6 +14,7 @@ from justdavis_monitoring_exporters.common.http import (
     CaseInsensitiveHeaders,
     FingerprintAdapter,
     RequestsHttpClient,
+    lan_session,
     pinned_session,
 )
 
@@ -114,6 +115,10 @@ def test_fingerprint_pinning_mounts_an_https_adapter_that_asserts_the_fingerprin
 def test_pinned_session_ignores_proxy_settings_from_the_environment() -> None:
     # requests would route through HTTPS_PROXY on a separate, unpinned pool.
     assert pinned_session("ab:cd:ef").trust_env is False
+
+
+def test_lan_session_ignores_proxy_settings_from_the_environment() -> None:
+    assert lan_session().trust_env is False
 
 
 def test_error_status_raises_http_status_error() -> None:

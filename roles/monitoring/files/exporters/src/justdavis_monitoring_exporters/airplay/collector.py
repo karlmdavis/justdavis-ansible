@@ -39,17 +39,26 @@ class AirplayCollector(Collector):
             "1 when the passive mDNS browser currently lists the service.",
             labels=_LABELS,
         )
+        unicast = GaugeMetricFamily(
+            "airplay_service_unicast_resolved",
+            "1 when an mDNS query sent straight to the HomePod's address answered this poll; compare with "
+            "airplay_service_resolved (multicast) to tell a missing device from a broken multicast path.",
+            labels=_LABELS,
+        )
         last_seen = GaugeMetricFamily(
             "airplay_service_last_seen_timestamp_seconds",
-            "Unix time the service was last resolved or announced.",
+            "Unix time the service was last resolved (by multicast or unicast) or announced.",
             labels=_LABELS,
         )
         for key, seen in snapshot.services.items():
             labels = [sanitise_label(key.name), key.service]
             resolved.add_metric(labels, float(seen.resolved))
             discovered.add_metric(labels, float(seen.discovered))
+            if seen.unicast_resolved is not None:
+                unicast.add_metric(labels, float(seen.unicast_resolved))
             if seen.last_seen is not None:
                 last_seen.add_metric(labels, seen.last_seen)
         yield resolved
         yield discovered
+        yield unicast
         yield last_seen

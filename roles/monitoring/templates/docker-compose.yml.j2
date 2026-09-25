@@ -164,6 +164,10 @@ services:
     environment:
       MONITORING_LISTEN_ADDR: {{ monitoring_docker_gateway }}
       MONITORING_AIRPLAY_PORT: "{{ monitoring_airplay_exporter_port }}"
+    # Read-only: the AmpliFi exporter writes the target files here, and this one reads the HomePods'
+    # addresses back from airplay-targets.json for its unicast queries.
+    volumes:
+      - {{ monitoring_base_dir }}/shared:/shared:ro
     healthcheck:
       test:
         - CMD-SHELL

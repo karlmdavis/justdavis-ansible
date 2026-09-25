@@ -27,12 +27,15 @@ class ServiceKey:
 
 @dataclass(frozen=True, slots=True)
 class ServiceObservation:
-    """What one poll found out about a service: whether an active query resolved it, whether the passive
-    browser currently lists it, and when it was last seen either way (None if never)."""
+    """What one poll found out about a service: whether an active multicast query resolved it, whether the
+    passive browser currently lists it, when it was last seen any way (None if never), and whether a
+    unicast query sent straight to the device answered (None when its address is unknown or the service
+    is not queried by unicast)."""
 
     resolved: bool
     discovered: bool
     last_seen: float | None
+    unicast_resolved: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

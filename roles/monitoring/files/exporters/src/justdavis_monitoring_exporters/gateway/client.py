@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 
 _LOGIN_PATH = "/check.jst"
 _STATUS_PATH = "/comcast_network.jst"
+# A successful login redirects here (verified 2026-09; "/at_a_glance.jst").
+_LOGIN_SUCCESS_LOCATION = "at_a_glance"
 
 
 class LoginThrottled(ExporterError):
@@ -85,5 +87,10 @@ class GatewayClient:
             raise LoginThrottled("session lost; re-login suppressed by the rate limit")
         self._last_login_attempt = now
         result = self._http.post(_LOGIN_PATH, data={"username": self._username, "password": self._password})
+        if 300 <= result.status < 400 and _LOGIN_SUCCESS_LOCATION in result.headers.get("location", ""):
+            return
         if result.status == 200 and is_login_page(result.body):
             raise LoginError("gateway rejected the credentials")
+        # Anything else is not a login this code understands; failing here names the login step rather
+        # than leaving the next status fetch to fail with "still did not return the status page".
+        raise LoginError(f"unexpected response to login: HTTP {result.status}")

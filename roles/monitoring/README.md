@@ -243,6 +243,23 @@ sudo docker compose -f /opt/monitoring/docker-compose.yml logs --tail=100 amplif
 curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"job"|"health"'
 ```
 
+The scripts in `scripts/` go deeper than the dashboards. Each docstring carries its exact invocation; the
+Prometheus ones run on the controller with `uv run` over `ssh -N -L 19090:127.0.0.1:9090
+eddings.justdavis.com`, so nothing is installed on eddings.
+
+- `airplay_mdns_probe.py`: a HomePod alert is firing, or a phone's AirPlay picker is missing one. Asks
+  each HomePod by multicast (the exporter's view) and by unicast straight to its address. Unicast-only
+  means the wired-LAN multicast path has lost it; neither means the AirPlay service itself is down. Runs
+  inside the `airplay_exporter` container.
+- `homepod_traffic.py`: when did audio to a HomePod start or stop, and did it drop out of a group? The
+  download rate per HomePod from the AmpliFi byte counters, with the traffic shapes that tell AirPlay
+  from Apple Music playing on the HomePod.
+- `docsis_uncorrectables.py`: a DOCSIS codeword alert fired. The alert episodes, each channel's
+  uncorrectables as a share of its codewords, and the WAN loss, RTT, and SNR seen in the same 5-minute
+  buckets.
+- `tsdb_cleanup_2026_09_23.py` with `prometheus-admin-api.yml`: delete series that tell a false story
+  (see Deploying and Upgrading).
+
 ## References
 
 - [Prometheus](https://prometheus.io/docs/), [Grafana provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/),

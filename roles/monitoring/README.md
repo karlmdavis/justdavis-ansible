@@ -56,7 +56,8 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
 | HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1. `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
-| HomePod answers on port 7000 but cannot be found | Port open, but the LAN-side mDNS query (`airplay_service_resolved`) fails. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds`; the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
@@ -234,6 +235,10 @@ the stack restarts cleanly during a WAN outage.
   learned from passive discovery, so its resolved gauge stays 0 until the HomePod has announced once.
 - The ping and AirPlay target files keep their last contents across exporter restarts, so a HomePod
   that moved while the stack was down is probed at its old address until the first successful poll.
+  The AirPlay exporter's unicast queries read the same file, so they follow the same lag.
+- The mDNS probes originate on the router's wired LAN port (eddings), which is the worst case for the
+  multicast path to 5 GHz clients: a phone on the WiFi can list a HomePod the multicast gauge shows as
+  lost. The unicast gauge tells that case from a HomePod whose AirPlay service is actually down.
 
 ## Troubleshooting
 

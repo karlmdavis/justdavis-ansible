@@ -85,11 +85,12 @@
     {
       "id": 6,
       "type": "state-timeline",
-      "title": "AirPlay reachability: mDNS resolves (active query) and TCP port 7000 accepts",
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 25},
+      "title": "AirPlay reachability: mDNS resolves by multicast, by unicast to the HomePod, and TCP port 7000 accepts",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 25},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "airplay_service_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS"},
+        {"refId": "A", "expr": "airplay_service_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS multicast"},
+        {"refId": "C", "expr": "airplay_service_unicast_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS unicast"},
         {"refId": "B", "expr": "probe_success{job=\"airplay_tcp\"}", "legendFormat": "{{name}}: port 7000"}
       ],
       "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},

@@ -199,6 +199,13 @@ talks to an unauthenticated HTTPS peer). The AirPlay probe exits instead when it
 local to the host or mDNS cannot start, since both can be transient at boot and the container's
 restart policy retries.
 
+The AmpliFi client byte counters (`amplifi_client_{rx,tx}_bytes_total`) are one monotonic series per
+client, folded from the router's per-association counters, which restart at every roam or band switch
+and sit at 2^32-1 for hours when unavailable. The first version read those restarts as 32-bit wraps and
+credited a phone with 10 GB in a day (2026-09-24); `common/counters.py` documents the observed behaviour
+and the rules now applied. The `amplifi_client_{rx,tx}_link_bits_per_second` gauges are the negotiated
+PHY link rates, not throughput.
+
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.
 

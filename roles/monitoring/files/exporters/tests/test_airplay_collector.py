@@ -1,5 +1,8 @@
 """Tests for the AirPlay mDNS probe: polling logic against a fake resolver, the scraper, and the collector."""
 
+from dataclasses import replace
+from pathlib import Path
+
 import pytest
 from prometheus_client import CollectorRegistry
 
@@ -26,17 +29,27 @@ SETTINGS = AirplaySettings(
     interval_seconds=30,
     resolve_timeout_ms=10,
     tracked_clients=TRACKED,
+    shared_dir=Path("/nonexistent"),
 )
+NO_ADDRESSES: dict[str, str] = {}
 
 
 class FakeResolver:
-    """`resolvable` holds full mDNS instance names that resolve; `discovered` maps (type, instance)
-    pairs, as the passive browser would record them, to last-seen times."""
+    """`resolvable` holds full mDNS instance names that resolve by multicast and `unicast_resolvable`
+    those that answer a unicast query; `discovered` maps (type, instance) pairs, as the passive browser
+    would record them, to last-seen times."""
 
-    def __init__(self, resolvable: set[str], discovered: dict[tuple[str, str], float] | None = None) -> None:
+    def __init__(
+        self,
+        resolvable: set[str],
+        discovered: dict[tuple[str, str], float] | None = None,
+        unicast_resolvable: set[str] | None = None,
+    ) -> None:
         self.resolvable = resolvable
+        self.unicast_resolvable = unicast_resolvable or set()
         self._discovered = discovered or {}
         self.requests: list[tuple[str, str]] = []
+        self.unicast_requests: list[tuple[str, str, str]] = []
         self.error: Exception | None = None
 
     def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
@@ -45,13 +58,19 @@ class FakeResolver:
             raise self.error
         return instance_name in self.resolvable
 
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+        self.unicast_requests.append((ip, service_type, instance_name))
+        if self.error is not None:
+            raise self.error
+        return instance_name in self.unicast_resolvable
+
     def discovered(self) -> dict[tuple[str, str], float]:
         return dict(self._discovered)
 
 
 def test_airplay_instances_are_resolved_by_name() -> None:
     resolver = FakeResolver({"Speaker A"})
-    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
+    snapshot = poll(resolver, TRACKED, addresses=NO_ADDRESSES, timeout_ms=10, now=100.0, last_seen={})
     assert (AIRPLAY_TYPE, "Speaker A") in resolver.requests
     assert (AIRPLAY_TYPE, "Speaker B") in resolver.requests
     assert snapshot.services[A_AIRPLAY].resolved is True
@@ -61,7 +80,7 @@ def test_airplay_instances_are_resolved_by_name() -> None:
 def test_raop_instances_are_matched_through_passive_discovery_because_they_carry_a_device_id() -> None:
     discovered = {(RAOP_TYPE, "AABBCCDDEEFF@Speaker A"): 50.0}
     resolver = FakeResolver({"AABBCCDDEEFF@Speaker A"}, discovered)
-    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
+    snapshot = poll(resolver, TRACKED, addresses=NO_ADDRESSES, timeout_ms=10, now=100.0, last_seen={})
     assert (RAOP_TYPE, "AABBCCDDEEFF@Speaker A") in resolver.requests
     assert all(name != "Speaker A" for t, name in resolver.requests if t == RAOP_TYPE)
     assert snapshot.services[A_RAOP].resolved is True
@@ -71,19 +90,46 @@ def test_raop_instances_are_matched_through_passive_discovery_because_they_carry
 
 def test_poll_only_probes_homepods() -> None:
     resolver = FakeResolver(set())
-    poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
+    addresses = {"Tablet": "192.0.2.120", "Speaker-A": "192.0.2.110"}
+    poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
     assert all(name != "Tablet" for _, name in resolver.requests)
+    assert [ip for ip, _, _ in resolver.unicast_requests] == ["192.0.2.110"]
+
+
+def test_unicast_queries_use_the_tracked_name_address_for_the_airplay_service_only() -> None:
+    # Addresses are keyed by the tracked name ("Speaker-A", as the AmpliFi exporter labels them), while
+    # the instance queried is the AirPlay name ("Speaker A"); RAOP is never queried by unicast.
+    resolver = FakeResolver({"Speaker A", "Speaker B"}, unicast_resolvable={"Speaker A"})
+    addresses = {"Speaker-A": "192.0.2.110"}
+    snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
+    assert resolver.unicast_requests == [("192.0.2.110", AIRPLAY_TYPE, "Speaker A")]
+    assert snapshot.services[A_AIRPLAY].unicast_resolved is True
+    assert snapshot.services[A_RAOP].unicast_resolved is None
+    assert snapshot.services[B_AIRPLAY].unicast_resolved is None
+
+
+def test_multicast_failure_with_a_unicast_answer_is_recorded_and_counts_as_seen() -> None:
+    resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
+    addresses = {"Speaker-A": "192.0.2.110", "Speaker-B": "192.0.2.111"}
+    snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
+    assert snapshot.services[A_AIRPLAY].resolved is False
+    assert snapshot.services[A_AIRPLAY].unicast_resolved is True
+    assert snapshot.services[A_AIRPLAY].last_seen == 100.0
+    assert snapshot.services[B_AIRPLAY].unicast_resolved is False
+    assert snapshot.services[B_AIRPLAY].last_seen is None
 
 
 def test_last_seen_comes_from_resolution_then_discovery_then_the_earlier_record() -> None:
     discovered = {(AIRPLAY_TYPE, "Speaker B"): 50.0, (AIRPLAY_TYPE, "Guest Device"): 60.0}
     resolver = FakeResolver({"Speaker A"}, discovered)
-    first = poll(resolver, TRACKED, timeout_ms=10, now=100.0, last_seen={})
+    first = poll(resolver, TRACKED, addresses=NO_ADDRESSES, timeout_ms=10, now=100.0, last_seen={})
     assert first.services[A_AIRPLAY].last_seen == 100.0
     assert first.services[B_AIRPLAY].last_seen == 50.0
     assert ServiceKey("Guest Device", "_airplay._tcp") not in first.services
     earlier = {A_AIRPLAY: 100.0, B_AIRPLAY: 50.0}
-    second = poll(FakeResolver(set()), TRACKED, timeout_ms=10, now=200.0, last_seen=earlier)
+    second = poll(
+        FakeResolver(set()), TRACKED, addresses=NO_ADDRESSES, timeout_ms=10, now=200.0, last_seen=earlier
+    )
     assert second.services[A_AIRPLAY].resolved is False
     assert second.services[A_AIRPLAY].last_seen == 100.0
     assert second.services[B_AIRPLAY].last_seen == 50.0
@@ -95,7 +141,7 @@ def test_listener_names_feed_poll_without_the_type_suffix() -> None:
     listener = _Listener()
     listener.add_service(None, RAOP_TYPE, "AABBCCDDEEFF@Speaker A." + RAOP_TYPE)  # type: ignore[arg-type]
     resolver = FakeResolver({"AABBCCDDEEFF@Speaker A"}, listener.snapshot())
-    snapshot = poll(resolver, TRACKED, timeout_ms=10, now=1.0, last_seen={})
+    snapshot = poll(resolver, TRACKED, addresses=NO_ADDRESSES, timeout_ms=10, now=1.0, last_seen={})
     assert (RAOP_TYPE, "AABBCCDDEEFF@Speaker A") in resolver.requests
     assert snapshot.services[A_RAOP].resolved is True
     listener.remove_service(None, RAOP_TYPE, "AABBCCDDEEFF@Speaker A." + RAOP_TYPE)  # type: ignore[arg-type]
@@ -127,11 +173,30 @@ def test_resolver_error_fails_the_poll_and_keeps_last_seen_for_the_next_one() ->
     assert registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", a) == first_seen
 
 
-def test_collector_exports_resolved_discovered_and_last_seen() -> None:
+def test_scraper_reads_addresses_from_the_shared_target_file(tmp_path: Path) -> None:
+    (tmp_path / "airplay-targets.json").write_bytes(
+        b'[{"targets": ["192.0.2.110:7000"], "labels": {"name": "Speaker-A", "kind": "homepod"}}]'
+    )
+    resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
+    registry, collector, errors = build_registry()
+    AirplayScraper(replace(SETTINGS, shared_dir=tmp_path), resolver, collector, errors)()
+    a = {"name": "Speaker A", "service": "_airplay._tcp"}
+    b = {"name": "Speaker B", "service": "_airplay._tcp"}
+    assert registry.get_sample_value("airplay_service_resolved", a) == 0.0
+    assert registry.get_sample_value("airplay_service_unicast_resolved", a) == 1.0
+    assert registry.get_sample_value("airplay_service_unicast_resolved", b) is None
+
+
+def test_collector_exports_resolved_discovered_unicast_and_last_seen() -> None:
     snapshot = AirplaySnapshot(
         services={
             A_AIRPLAY: ServiceObservation(resolved=True, discovered=False, last_seen=None),
-            B_AIRPLAY: ServiceObservation(resolved=False, discovered=True, last_seen=50.0),
+            B_AIRPLAY: ServiceObservation(
+                resolved=False, discovered=True, last_seen=50.0, unicast_resolved=True
+            ),
+            B_RAOP: ServiceObservation(
+                resolved=False, discovered=False, last_seen=None, unicast_resolved=False
+            ),
         }
     )
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
@@ -147,5 +212,10 @@ def test_collector_exports_resolved_discovered_and_last_seen() -> None:
     assert registry.get_sample_value("airplay_service_resolved", b) == 0.0
     assert registry.get_sample_value("airplay_service_discovered", a) == 0.0
     assert registry.get_sample_value("airplay_service_discovered", b) == 1.0
+    assert registry.get_sample_value("airplay_service_unicast_resolved", a) is None
+    assert registry.get_sample_value("airplay_service_unicast_resolved", b) == 1.0
+    assert (
+        registry.get_sample_value("airplay_service_unicast_resolved", {**b, "service": "_raop._tcp"}) == 0.0
+    )
     assert registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", b) == 50.0
     assert registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", a) is None

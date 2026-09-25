@@ -29,6 +29,9 @@ from justdavis_monitoring_exporters.common.settings import ClientKind, TrackedCl
 log = logging.getLogger(__name__)
 
 AIRPLAY_PORT = 7000
+# File names under the shared directory; the AirPlay exporter reads the second one back.
+PING_TARGETS_FILE = "ping-targets.yml"
+AIRPLAY_TARGETS_FILE = "airplay-targets.json"
 
 type TargetKind = Literal["static", "router", "mesh_point"] | ClientKind
 

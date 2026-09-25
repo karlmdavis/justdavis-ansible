@@ -1,6 +1,6 @@
 """AirPlay service discovery over mDNS, from the LAN side.
 
-Two discovery signals (plus a last-seen timestamp) are collected for each expected HomePod:
+Three discovery signals (plus a last-seen timestamp) are collected for each expected HomePod:
 
 * Active resolution (`airplay_service_resolved`): each poll asks the network for the HomePod's
   `_airplay._tcp` and `_raop._tcp` instances with a short timeout. This is the alerting signal. A
@@ -9,6 +9,11 @@ Two discovery signals (plus a last-seen timestamp) are collected for each expect
 * Passive discovery (`airplay_service_discovered`): a `ServiceBrowser` keeps a cache of announcements.
   It lags real failures by up to the record TTL (75 minutes) but shows what the LAN "sees" without
   being asked, which is the view an iPhone's AirPlay picker has.
+* Unicast reachability (`airplay_service_unicast_resolved`): the `_airplay._tcp` query again, sent
+  straight to the HomePod's address (from the AmpliFi exporter's target file) instead of to the
+  multicast group. A HomePod that answers unicast but not multicast is up and advertising; the
+  multicast path between the wired LAN and its radio has lost it (2026-09-24: seen on 5 GHz clients of
+  every access point, never on 2.4 GHz). One that answers neither has its AirPlay service down.
 
 The `_airplay._tcp` instance name is the HomePod's AirPlay name, so it can be queried directly. The
 `_raop._tcp` instance name carries a device-id prefix (`AABBCCDDEEFF@Kitchen`) that is not known in
@@ -21,6 +26,7 @@ Requires host networking (multicast on the LAN interface).
 """
 
 import logging
+import socket
 import threading
 import time
 from collections.abc import Mapping, Sequence
@@ -28,6 +34,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
+
+# zeroconf does not re-export its wire-level classes or record-type constants.
+from zeroconf._dns import DNSQuestion
+from zeroconf._protocol.incoming import DNSIncoming
+from zeroconf._protocol.outgoing import DNSOutgoing
+from zeroconf.const import _CLASS_IN, _FLAGS_QR_QUERY, _TYPE_SRV, _TYPE_TXT
 
 from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, AirplayService, mdns_type
@@ -38,11 +50,17 @@ log = logging.getLogger(__name__)
 AIRPLAY_TYPE = mdns_type("_airplay._tcp")
 RAOP_TYPE = mdns_type("_raop._tcp")
 _MAX_WORKERS = 10
+_MDNS_PORT = 5353
+_MDNS_MAX_PACKET = 9000
 
 
 class Resolver(Protocol):
     def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
         """Actively query for `instance_name` of `service_type`; False when nothing answered in time."""
+        ...
+
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+        """Query the device at `ip` directly for the instance's records; False when nothing answered."""
         ...
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
@@ -65,14 +83,17 @@ def poll(
     resolver: Resolver,
     tracked: Sequence[TrackedClient],
     *,
+    addresses: Mapping[str, str],
     timeout_ms: int,
     now: float,
     last_seen: Mapping[ServiceKey, float],
 ) -> AirplaySnapshot:
     """Actively resolve every tracked HomePod and merge in passive discovery for the same names.
 
-    `last_seen` is the caller's record from earlier polls; the returned observations carry it forward,
-    updated by this poll's resolutions and announcements.
+    `addresses` maps tracked-client names (not AirPlay names) to the HomePods' current addresses; the
+    `_airplay._tcp` instance of each HomePod with one is also queried by unicast. `last_seen` is the
+    caller's record from earlier polls; the returned observations carry it forward, updated by this
+    poll's resolutions and announcements.
     """
     homepods = [client for client in tracked if client.kind == "homepod"]
     passive = resolver.discovered()
@@ -86,13 +107,26 @@ def poll(
     ]
     resolved: dict[ServiceKey, bool] = {key: False for key, _instance in jobs}
     resolvable = [(key, instance) for key, instance in jobs if instance is not None]
-    if resolvable:
-        with ThreadPoolExecutor(max_workers=min(_MAX_WORKERS, len(resolvable))) as pool:
-            results = pool.map(
+    unicast_jobs: list[tuple[ServiceKey, str]] = [
+        (ServiceKey(client.airplay_name, "_airplay._tcp"), ip)
+        for client in homepods
+        if (ip := addresses.get(client.name)) is not None
+    ]
+    unicast: dict[ServiceKey, bool] = {}
+    if resolvable or unicast_jobs:
+        workers = min(_MAX_WORKERS, len(resolvable) + len(unicast_jobs))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            multicast_results = pool.map(
                 lambda job: resolver.resolve(mdns_type(job[0].service), job[1], timeout_ms), resolvable
             )
-            for (key, _instance), ok in zip(resolvable, results, strict=True):
+            unicast_results = pool.map(
+                lambda job: resolver.resolve_unicast(job[1], AIRPLAY_TYPE, job[0].name, timeout_ms),
+                unicast_jobs,
+            )
+            for (key, _instance), ok in zip(resolvable, multicast_results, strict=True):
                 resolved[key] = ok
+            for (key, _ip), ok in zip(unicast_jobs, unicast_results, strict=True):
+                unicast[key] = ok
     announced: dict[ServiceKey, float] = {}
     for (seen_type, instance), seen_at in passive.items():
         try:
@@ -106,9 +140,11 @@ def poll(
         seen = last_seen.get(key)
         if key in announced:
             seen = max(announced[key], seen or 0.0)
-        if ok:
+        if ok or unicast.get(key):
             seen = now
-        services[key] = ServiceObservation(resolved=ok, discovered=key in announced, last_seen=seen)
+        services[key] = ServiceObservation(
+            resolved=ok, discovered=key in announced, last_seen=seen, unicast_resolved=unicast.get(key)
+        )
     return AirplaySnapshot(services=services)
 
 
@@ -140,6 +176,7 @@ class _Listener(ServiceListener):
 
 class ZeroconfResolver:
     def __init__(self, lan_ip: str) -> None:
+        self._lan_ip = lan_ip
         self._zc = Zeroconf(interfaces=[lan_ip], ip_version=IPVersion.V4Only)
         self._listener = _Listener()
         self._browser = ServiceBrowser(self._zc, [mdns_type(s) for s in AIRPLAY_SERVICES], self._listener)
@@ -147,6 +184,25 @@ class ZeroconfResolver:
     def resolve(self, service_type: str, instance_name: str, timeout_ms: int) -> bool:
         info = self._zc.get_service_info(service_type, f"{instance_name}.{service_type}", timeout=timeout_ms)
         return info is not None
+
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+        """One SRV+TXT query for the instance, sent from the LAN address to `ip`:5353 on a throwaway
+        socket (so it bypasses zeroconf's cache and the multicast group entirely); True when the reply
+        carries at least one answer. A closed port (ICMP unreachable) counts as no answer."""
+        fqdn = f"{instance_name}.{service_type}"
+        outgoing = DNSOutgoing(_FLAGS_QR_QUERY)
+        outgoing.add_question(DNSQuestion(fqdn, _TYPE_SRV, _CLASS_IN))
+        outgoing.add_question(DNSQuestion(fqdn, _TYPE_TXT, _CLASS_IN))
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.bind((self._lan_ip, 0))
+            sock.settimeout(timeout_ms / 1000)
+            try:
+                for packet in outgoing.packets():
+                    sock.sendto(packet, (ip, _MDNS_PORT))
+                data, _ = sock.recvfrom(_MDNS_MAX_PACKET)
+            except (TimeoutError, ConnectionRefusedError):
+                return False
+        return bool(DNSIncoming(data).answers())
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
         return self._listener.snapshot()

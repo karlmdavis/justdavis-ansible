@@ -7,6 +7,7 @@ import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 import ifaddr
 from prometheus_client import CollectorRegistry, Counter
@@ -14,6 +15,8 @@ from prometheus_client import CollectorRegistry, Counter
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.models import ServiceKey
 from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
+from justdavis_monitoring_exporters.airplay.targets import AddressBook
+from justdavis_monitoring_exporters.amplifi.targets import AIRPLAY_TARGETS_FILE
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import count_error, error_counter
 from justdavis_monitoring_exporters.common.server import (
@@ -45,6 +48,8 @@ class AirplaySettings:
     interval_seconds: int
     resolve_timeout_ms: int
     tracked_clients: tuple[TrackedClient, ...]
+    # Where the AmpliFi exporter writes the AirPlay target file this exporter reads addresses from.
+    shared_dir: Path
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AirplaySettings":
@@ -55,6 +60,7 @@ class AirplaySettings:
             interval_seconds=env_int(env, "MONITORING_AIRPLAY_INTERVAL", 30, minimum=1),
             resolve_timeout_ms=env_int(env, "MONITORING_AIRPLAY_RESOLVE_TIMEOUT_MS", 3000, minimum=100),
             tracked_clients=parse_tracked_clients(env.get("MONITORING_TRACKED_CLIENTS", "")),
+            shared_dir=Path(env_str(env, "MONITORING_SHARED_DIR", "/shared")),
         )
 
 
@@ -89,12 +95,15 @@ class AirplayScraper:
         self._collector = collector
         self._errors = errors
         self._last_seen: dict[ServiceKey, float] = {}
+        self._addresses = AddressBook(settings.shared_dir / AIRPLAY_TARGETS_FILE)
 
     def __call__(self) -> None:
+        addresses = self._addresses.read()
         try:
             snapshot = poll(
                 self._resolver,
                 self._settings.tracked_clients,
+                addresses=addresses,
                 timeout_ms=self._settings.resolve_timeout_ms,
                 now=time.time(),
                 last_seen=self._last_seen,

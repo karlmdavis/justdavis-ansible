@@ -180,13 +180,34 @@ groups:
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} is not accepting AirPlay connections"
 
+      # The two mDNS rules are disjoint. Multicast failing while a unicast query to the HomePod's own
+      # address still answers means the multicast path from the wired LAN to its radio has lost it
+      # (2026-09-24: seen on 5 GHz clients of every access point; the HomePod recovers on its own next
+      # announcement; a phone may still list it from its cache). Both failing means the AirPlay
+      # service itself is down. With no unicast gauge (address unknown) the first rule fires as before.
       - alert: HomePodAirPlayNotResolving
-        expr: airplay_service_resolved{service="_airplay._tcp"} == 0
+        expr: >-
+          airplay_service_resolved{service="_airplay._tcp"} == 0
+          unless on (name) (airplay_service_unicast_resolved{service="_airplay._tcp"} == 0)
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "HomePod {{ L }} $labels.name {{ R }} does not answer AirPlay mDNS queries"
+          summary: >-
+            HomePod {{ L }} $labels.name {{ R }} does not answer multicast AirPlay mDNS queries from the
+            wired LAN but answers unicast: the multicast path lost it
+
+      - alert: HomePodAirPlayServiceGone
+        expr: >-
+          airplay_service_unicast_resolved{service="_airplay._tcp"} == 0
+          and on (name) airplay_service_resolved{service="_airplay._tcp"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            HomePod {{ L }} $labels.name {{ R }} answers neither multicast nor unicast AirPlay mDNS
+            queries: its AirPlay service is down
 
   - name: amplifi
     rules:

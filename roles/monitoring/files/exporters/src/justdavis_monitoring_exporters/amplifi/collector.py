@@ -18,7 +18,7 @@ from prometheus_client.registry import Collector
 
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WifiClient
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
-from justdavis_monitoring_exporters.common.counters import Unwrapper32
+from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, short_service
 from justdavis_monitoring_exporters.common.metrics import status_families
@@ -33,14 +33,14 @@ _KBPS = 1000.0
 type Direction = Literal["rx", "tx"]
 # Untracked clients are "other", and mesh backhaul links get their own kind.
 type ClientLabelKind = ClientKind | Literal["backhaul"]
-# The router's byte counters belong to an association, so a client that roams to another access
-# point gets a fresh baseline rather than a spurious 4 GiB "wrap".
-type CounterKey = tuple[Mac, Mac, Direction]
+# One exported byte-counter series per client and direction; the router's raw counters belong to the
+# association (client on one access point), which `ClientByteTotals` folds into that series.
+type ByteCounterKey = tuple[Mac, Direction]
 
 
 @dataclass(frozen=True, slots=True)
 class PublishedSnapshot:
-    """A snapshot with duplicate associations resolved and byte counters unwrapped."""
+    """A snapshot with duplicate associations resolved and byte counters folded into per-client totals."""
 
     snapshot: AmplifiSnapshot
     clients: tuple[WifiClient, ...]
@@ -63,30 +63,29 @@ class AmplifiCollector(Collector):
         self,
         statuses: SnapshotHolder[ScrapeStatus],
         tracked: Sequence[TrackedClient],
-        unwrapper: Unwrapper32[CounterKey],
+        byte_totals: ClientByteTotals[ByteCounterKey, Mac],
     ) -> None:
         self.statuses = statuses
         self._published: SnapshotHolder[PublishedSnapshot] = SnapshotHolder()
         self._targets: SnapshotHolder[tuple[TargetInfo, ...]] = SnapshotHolder()
         self._tracked = {client.mac: client for client in tracked}
-        self._unwrapper = unwrapper
+        self._byte_totals = byte_totals
         self._publish_lock = threading.Lock()
         self._target_files_ok: bool | None = None
 
     def publish(self, snapshot: AmplifiSnapshot) -> None:
         with self._publish_lock:
             clients = dedupe_clients(snapshot.clients)
-            keys: set[CounterKey] = {(c.mac, c.ap_mac, d) for c in clients for d in ("rx", "tx")}
-            self._unwrapper.forget_missing(keys)
-            rx = {c.mac: self._unwrapper.update((c.mac, c.ap_mac, "rx"), c.rx_bytes) for c in clients}
-            tx = {c.mac: self._unwrapper.update((c.mac, c.ap_mac, "tx"), c.tx_bytes) for c in clients}
+            rx = {c.mac: self._byte_totals.observe((c.mac, "rx"), c.ap_mac, c.rx_bytes) for c in clients}
+            tx = {c.mac: self._byte_totals.observe((c.mac, "tx"), c.ap_mac, c.tx_bytes) for c in clients}
+            self._byte_totals.end_poll((c.mac, d) for c in clients for d in ("rx", "tx"))
             self._published.set(PublishedSnapshot(snapshot, clients, rx, tx))
 
     def clear(self) -> None:
-        """Drop the device metrics after a failed poll; counter baselines restart on the next one."""
+        """Drop the device metrics after a failed poll. The byte totals keep their state, so the series
+        continue from where they were once polling succeeds again."""
         with self._publish_lock:
             self._published.clear()
-            self._unwrapper.forget_missing(())
 
     def set_targets(self, targets: tuple[TargetInfo, ...]) -> None:
         self._targets.set(targets)
@@ -244,12 +243,14 @@ class AmplifiCollector(Collector):
         )
         rx_bytes = CounterMetricFamily(
             "amplifi_client_rx_bytes",
-            "Bytes received by the client (32-bit wraps unwrapped).",
+            "Bytes received by the client (download), summed across its associations; monotonic while the "
+            "client stays on the WiFi.",
             labels=_CLIENT_LABELS,
         )
         tx_bytes = CounterMetricFamily(
             "amplifi_client_tx_bytes",
-            "Bytes transmitted by the client (32-bit wraps unwrapped).",
+            "Bytes transmitted by the client (upload), summed across its associations; monotonic while the "
+            "client stays on the WiFi.",
             labels=_CLIENT_LABELS,
         )
         for client in published.clients:

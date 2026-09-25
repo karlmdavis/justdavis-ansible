@@ -10,7 +10,7 @@ from pathlib import Path
 from prometheus_client import CollectorRegistry, Counter
 
 from justdavis_monitoring_exporters.amplifi.client import AmplifiClient
-from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, CounterKey
+from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, ByteCounterKey
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import (
@@ -19,7 +19,7 @@ from justdavis_monitoring_exporters.amplifi.targets import (
     render_ping_targets,
     target_infos,
 )
-from justdavis_monitoring_exporters.common.counters import Unwrapper32
+from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.errors import LoginError
 from justdavis_monitoring_exporters.common.files import write_if_changed
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient
@@ -32,6 +32,7 @@ from justdavis_monitoring_exporters.common.server import (
     serve,
 )
 from justdavis_monitoring_exporters.common.settings import (
+    Mac,
     SettingsError,
     TrackedClient,
     env_host,
@@ -48,6 +49,9 @@ log = logging.getLogger(__name__)
 PING_TARGETS_FILE = "ping-targets.yml"
 AIRPLAY_TARGETS_FILE = "airplay-targets.json"
 _BACKOFF_CAP_SECONDS = 600
+# A client off the WiFi for this many polls (an hour at the default 30 s interval) has its byte totals
+# forgotten, so rotating private MAC addresses do not accumulate state.
+_FORGET_ABSENT_CLIENT_AFTER_POLLS = 120
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +108,8 @@ def build_registry(tracked: tuple[TrackedClient, ...]) -> tuple[CollectorRegistr
     registry = CollectorRegistry()
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(ScrapeStatus.initial())
-    collector = AmplifiCollector(statuses, tracked, Unwrapper32[CounterKey]())
+    byte_totals: ClientByteTotals[ByteCounterKey, Mac] = ClientByteTotals(_FORGET_ABSENT_CLIENT_AFTER_POLLS)
+    collector = AmplifiCollector(statuses, tracked, byte_totals)
     registry.register(collector)
     errors = error_counter("amplifi", ("login", "fetch", "parse", "write"), registry)
     return registry, collector, errors

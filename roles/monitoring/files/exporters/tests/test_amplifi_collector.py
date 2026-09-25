@@ -5,11 +5,11 @@ from pathlib import Path
 
 from prometheus_client import CollectorRegistry, generate_latest
 
-from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, CounterKey
+from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, ByteCounterKey
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WanPort
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
-from justdavis_monitoring_exporters.common.counters import Unwrapper32
+from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 from tests.helpers import tracked
@@ -29,7 +29,8 @@ def registry_with(
 ) -> tuple[CollectorRegistry, AmplifiCollector]:
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(status or ScrapeStatus.initial())
-    collector = AmplifiCollector(statuses, TRACKED, Unwrapper32[CounterKey]())
+    byte_totals: ClientByteTotals[ByteCounterKey, Mac] = ClientByteTotals(forget_after_polls=2)
+    collector = AmplifiCollector(statuses, TRACKED, byte_totals)
     collector.set_targets((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
     if snapshot is not None:
         collector.publish(snapshot)
@@ -101,32 +102,42 @@ def test_backhaul_links_are_labelled_as_backhaul() -> None:
     assert registry.get_sample_value("amplifi_client_signal_quality", labels) == 97.0
 
 
-def test_byte_counters_are_unwrapped_across_snapshots() -> None:
+def test_a_byte_counter_that_drops_is_a_restarted_association_not_a_wrap() -> None:
     registry, collector = registry_with(SNAPSHOT)
-    first = registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A)
-    assert first == 4294967200.0
-    wrapped = _with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50)
-    collector.publish(wrapped)
-    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0 + 96 + 50
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0
+    collector.publish(_with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50))
+    # Same access point, lower raw value: the association's counter restarted, so the 50 bytes since
+    # are added and nothing else (the first version added 2^32 here).
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0 + 50
 
 
-def test_clearing_the_snapshot_restarts_counter_baselines() -> None:
+def test_clearing_the_snapshot_keeps_the_byte_totals() -> None:
     registry, collector = registry_with(SNAPSHOT)
     collector.clear()
     assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) is None
-    collector.publish(_with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 50))
-    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 50.0
+    collector.publish(_with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 4294967250))
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967250.0
 
 
-def test_a_client_that_roams_to_another_access_point_restarts_its_baseline() -> None:
+def test_a_client_that_roams_to_another_access_point_keeps_its_total_climbing() -> None:
     registry, collector = registry_with(SNAPSHOT)
     assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0
     speaker = next(c for c in SNAPSHOT.clients if c.mac == "02:00:00:00:00:10")
     roamed = replace(speaker, ap_mac=Mac("02:00:00:00:00:02"), rx_bytes=50)
     others = tuple(c for c in SNAPSHOT.clients if c.mac != "02:00:00:00:00:10")
     collector.publish(replace(SNAPSHOT, clients=(*others, roamed)))
-    # The new association's counter starts near zero: a reset, not a 4 GiB wrap.
-    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 50.0
+    # The new association's counter started from zero at the roam: its 50 bytes join the running total.
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 4294967200.0 + 50
+
+
+def test_a_client_absent_long_enough_restarts_from_its_raw_value() -> None:
+    registry, collector = registry_with(SNAPSHOT)
+    others = tuple(c for c in SNAPSHOT.clients if c.mac != "02:00:00:00:00:10")
+    collector.publish(replace(SNAPSHOT, clients=others))
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) is None
+    collector.publish(replace(SNAPSHOT, clients=others))
+    collector.publish(_with_rx_bytes(SNAPSHOT, "02:00:00:00:00:10", 700))
+    assert registry.get_sample_value("amplifi_client_rx_bytes_total", SPEAKER_A) == 700.0
 
 
 def test_a_client_listed_under_two_access_points_is_emitted_once() -> None:

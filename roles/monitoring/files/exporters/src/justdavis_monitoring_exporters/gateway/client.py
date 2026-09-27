@@ -94,6 +94,10 @@ class GatewayClient:
             result = self._http.post(
                 _LOGIN_PATH, data={"username": self._username, "password": self._password}
             )
+        except requests.exceptions.SSLError:
+            # Left as it is for the scraper, which tells a pinned-certificate mismatch (the tls stage)
+            # from any other TLS failure, whichever request of the poll opened the connection.
+            raise
         except (requests.RequestException, HttpStatusError) as exc:
             # A login that never got an answer is still a failed login: counted against that stage, and
             # subject to the throttle like any other attempt.

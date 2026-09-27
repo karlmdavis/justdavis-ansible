@@ -139,14 +139,21 @@ def test_login_response_other_than_the_success_redirect_raises_login_error(
 
 
 class PostFailsHttpClient(FakeHttpClient):
-    """The status fetch works; the login POST raises as a dropped connection would."""
+    """The status fetch works; the login POST raises `error`."""
+
+    def __init__(self, responses: dict[tuple[str, str], list[HttpResponse]], error: Exception) -> None:
+        super().__init__(responses)
+        self._error = error
 
     def post(self, path: str, *, data: Mapping[str, str]) -> HttpResponse:
-        raise requests.ConnectionError("connection reset by peer")
+        raise self._error
 
 
 def test_transport_error_during_login_is_a_login_error() -> None:
-    http = PostFailsHttpClient({("GET", "/comcast_network.jst"): [response(200, LOGIN_HTML)]})
+    http = PostFailsHttpClient(
+        {("GET", "/comcast_network.jst"): [response(200, LOGIN_HTML)]},
+        requests.ConnectionError("connection reset by peer"),
+    )
     client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
     with pytest.raises(LoginError, match="login request failed") as excinfo:
         client.fetch_comcast_network()
@@ -154,6 +161,17 @@ def test_transport_error_during_login_is_a_login_error() -> None:
     # The attempt counts against the throttle like any other.
     with pytest.raises(LoginThrottled):
         client.fetch_comcast_network()
+
+
+def test_tls_error_during_login_propagates_for_the_scraper_to_classify() -> None:
+    # The scraper counts a pinned-certificate mismatch as the tls stage; it can only do so if the
+    # SSLError reaches it unconverted, also when the login POST is the request that hit it.
+    error = requests.exceptions.SSLError("Fingerprints did not match")
+    http = PostFailsHttpClient({("GET", "/comcast_network.jst"): [response(200, LOGIN_HTML)]}, error)
+    client = GatewayClient(http, username="admin", password="pw", relogin_min_seconds=300, clock=FakeClock())
+    with pytest.raises(requests.exceptions.SSLError) as excinfo:
+        client.fetch_comcast_network()
+    assert excinfo.value is error
 
 
 def test_password_never_appears_in_repr() -> None:

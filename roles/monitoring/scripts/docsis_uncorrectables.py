@@ -17,8 +17,10 @@ Runs on the controller against Prometheus over an SSH port forward:
 
 import argparse
 import json
+import math
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Sequence
@@ -27,6 +29,8 @@ from dataclasses import dataclass
 BUCKET_SECONDS = 300
 # Alert samples further apart than this belong to separate episodes (the rules evaluate every 30 s).
 EPISODE_GAP_SECONDS = 90
+# Prometheus refuses a range query that would return more than 11,000 points per series.
+MAX_POINTS = 11000
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,8 +59,12 @@ def _parse(payload: dict[str, object]) -> list[Series]:
 
 def _get(base_url: str, path: str, params: dict[str, str]) -> list[Series]:
     url = f"{base_url.rstrip('/')}{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=60) as response:
-        payload = json.load(response)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        # Prometheus answers a query it will not run with an error status and the reason in the body.
+        sys.exit(f"Prometheus rejected the query: HTTP {exc.code}: {exc.read().decode(errors='replace')}")
     assert isinstance(payload, dict)
     return _parse(payload)
 
@@ -78,11 +86,14 @@ def print_episodes(base_url: str, start: float, end: float) -> None:
     print("== alert episodes (firing)")
     expr = 'ALERTS{alertname=~"DocsisUncorrectableCodewords.*", alertstate="firing"}'
     episodes: list[tuple[float, float, str, str]] = []
-    for series in query_range(base_url, expr, start, end, 30):
+    # 30 s matches the rule evaluations; a window too long for that many points gets a coarser step,
+    # which can only miss an episode shorter than the step.
+    step = max(30, math.ceil((end - start) / MAX_POINTS))
+    for series in query_range(base_url, expr, start, end, step):
         timestamps = [timestamp for timestamp, _ in series.values]
         first = previous = timestamps[0]
         for timestamp in timestamps[1:]:
-            if timestamp - previous > EPISODE_GAP_SECONDS:
+            if timestamp - previous > max(EPISODE_GAP_SECONDS, 3 * step):
                 episodes.append(
                     (first, previous, series.labels["alertname"], series.labels.get("channel", "-"))
                 )

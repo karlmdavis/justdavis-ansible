@@ -195,7 +195,7 @@ groups:
         annotations:
           summary: >-
             HomePod {{ L }} $labels.name {{ R }} does not answer multicast AirPlay mDNS queries from the
-            wired LAN but answers unicast: the multicast path lost it
+            wired LAN (unicast answers, or its address is unknown): most likely the multicast path lost it
 
       - alert: HomePodAirPlayServiceGone
         expr: >-

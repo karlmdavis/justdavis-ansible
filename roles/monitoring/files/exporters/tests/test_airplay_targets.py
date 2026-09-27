@@ -38,6 +38,8 @@ def test_empty_target_list_means_no_addresses() -> None:
         b'[{"targets": ["192.0.2.110:7000", "192.0.2.111:7000"], "labels": {"name": "Speaker A"}}]',
         b'[{"targets": ["192.0.2.110"], "labels": {"name": "Speaker A"}}]',
         b'[{"targets": ["192.0.2.110:7000"], "labels": {"kind": "homepod"}}]',
+        b'[{"targets": ["speaker-a.local:7000"], "labels": {"name": "Speaker A"}}]',
+        b'[{"targets": ["[2001:db8::10]:7000"], "labels": {"name": "Speaker A"}}]',
     ],
 )
 def test_malformed_target_files_raise_parse_error(content: bytes) -> None:

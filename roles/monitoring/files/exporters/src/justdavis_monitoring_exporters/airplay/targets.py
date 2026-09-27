@@ -10,6 +10,7 @@ The file is advisory: when it is missing or malformed the poll carries on withou
 gauge is simply absent for every HomePod) and the problem is logged once, not every poll.
 """
 
+import ipaddress
 import json
 import logging
 from collections.abc import Mapping
@@ -39,7 +40,12 @@ def parse_airplay_targets(content: bytes) -> dict[str, str]:
         host, separator, port = as_str(targets[0], f"{ctx}.targets[0]").rpartition(":")
         if not separator or not host or not port.isdigit():
             raise ParseError(f"{ctx}.targets[0]: expected host:port, got {targets[0]!r}")
-        addresses[name] = host.strip("[]")
+        # The unicast query goes out on an IPv4 socket; anything else (the writer would pass an IPv6
+        # address through) would raise there and fail the whole poll.
+        try:
+            addresses[name] = str(ipaddress.IPv4Address(host))
+        except ValueError as exc:
+            raise ParseError(f"{ctx}.targets[0]: expected an IPv4 address, got {host!r}") from exc
     return addresses
 
 

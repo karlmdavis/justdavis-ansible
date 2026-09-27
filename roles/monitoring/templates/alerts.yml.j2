@@ -27,12 +27,18 @@
 {# Uncorrectable codewords are judged as a share of the channel's codewords over 15 minutes, not as a
    count. An OFDM channel carries ~16,000 codewords a second and a QAM channel ~2,000 (2026-09-24), so
    the first rules ("any" for 5 minutes, warning; 1,000 in 15 minutes, critical) fired on episodes of
-   0.02% loss confined to the two OFDM channels, with 0% WAN packet loss. That 0.02% is the worst
-   5-minute bucket seen so far; the warning sits ~50x above it, and the critical at 1% is where a line
-   fault would also show as WAN loss. The counters are still recorded and charted, so the small
-   episodes stay visible without a notification. #}
-{% set docsis_uncorrectable_share = 0.001 %}
-{% set docsis_uncorrectable_share_severe = 0.01 %}
+   0.02% loss confined to the two OFDM channels, with 0% WAN packet loss.
+   Both thresholds are a first estimate: no episode here has yet coincided with trouble anyone
+   noticed, so there is no local incident to calibrate against. The warning at 1% is the rule of thumb
+   in cable field guidance (for example the Volpe Firm's "DOCSIS Codeword Errors"): below it, real-time
+   traffic such as voice and video calls is not expected to suffer. The critical at 5% has no source
+   beyond being well past that line. For scale, the worst 15 minutes in the first five days
+   (2026-09-23 to 09-27) was 0.26% on one OFDM channel, with 0% WAN ping loss and every other channel
+   under 0.01%; ping is a blunt check, though, since 60 probes a minute cannot show a loss that small
+   on one bonded channel. Revisit both when an episode does line up with a real problem. The counters
+   are still recorded and charted, so smaller episodes stay visible without a notification. #}
+{% set docsis_uncorrectable_share = 0.01 %}
+{% set docsis_uncorrectable_share_severe = 0.05 %}
 {# A failed gateway scrape leaves a two-to-three-minute hole in every DOCSIS series while the
    exporter backs off, and a hole resets a rule's `for` clock, so the channel rules keep firing across
    one instead of resolving and re-firing. (On the first night, 2026-09-23, six scrapes failed: four

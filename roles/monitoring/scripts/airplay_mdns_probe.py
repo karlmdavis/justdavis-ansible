@@ -1,16 +1,22 @@
-r"""Ask each tracked HomePod for its AirPlay mDNS records two ways, from the wired LAN: a fresh MULTICAST
-resolve (what the airplay exporter and a phone's AirPlay picker do) and a UNICAST query sent straight to
-the HomePod's own address on port 5353. A HomePod that answers unicast but not multicast is up and
-advertising; the multicast path between the wired LAN and its radio has lost it (seen 2026-09-24 on
-5 GHz clients of every access point, never on 2.4 GHz; they recover on their own next announcement).
-One that answers neither has its AirPlay service down.
+r"""Is a HomePod missing from AirPlay because it is down, or because the network lost track of it?
 
-Runs INSIDE the airplay_exporter container: it needs the host network the exporter probes from and the
-`zeroconf` package in the image's virtualenv. The container's filesystem is read-only, so the script is
-fed to `python -` over stdin rather than copied or run with `uv run`. It reads MONITORING_LAN_IP and
-MONITORING_TRACKED_CLIENTS from the container's environment, and the HomePods' current addresses from
-HOMEPOD_IPS, which is the raw JSON answer to the Prometheus query `monitoring_target_info{kind="homepod"}`
-(the redirect sits outside the ssh quotes, so the copy in the repo is what runs):
+WHEN TO RUN IT
+
+* A HomePod AirPlay alert is firing and you want to know, right now, which HomePods are affected.
+* A phone's or iPad's AirPlay picker is missing a HomePod that is plugged in and on the WiFi.
+* You changed something on the WiFi (rebooted a mesh point, updated firmware, moved a HomePod to the
+  other band) and want to see whether it helped.
+
+WHAT IT DOES
+
+Asks each tracked HomePod for its AirPlay records two ways, from the server on the wired LAN: by
+MULTICAST, the way a phone's AirPlay picker and the airplay exporter look for it, and by UNICAST, a
+question sent straight to the HomePod's own address.
+
+HOW TO RUN IT
+
+From the repository on the controller; nothing is installed on eddings (the redirect sits outside the
+ssh quotes, so the copy in the repository is what runs):
 
     ssh eddings.justdavis.com 'IPS=$(curl -s http://127.0.0.1:9090/api/v1/query \
         --data-urlencode "query=monitoring_target_info{kind=\"homepod\"}") &&
@@ -18,11 +24,39 @@ HOMEPOD_IPS, which is the raw JSON answer to the Prometheus query `monitoring_ta
         sudo docker compose exec -T -e HOMEPOD_IPS="$IPS" airplay_exporter python -' \
         < roles/monitoring/scripts/airplay_mdns_probe.py
 
-Options go after `python -`: `--wake` sends the unicast query first and the multicast one right after
-it (a HomePod that still fails multicast just after answering unicast is awake, so power save is not the
-cause); `--targets name=ip,...` probes other devices instead of the tracked HomePods, first learning
-their AirPlay-related service instances with unicast PTR queries. Exits 1 when any multicast resolve
-failed, so a shell loop can watch for a change.
+Options go after `python -`:
+
+* `--wake` asks by unicast first and by multicast right after. A HomePod that still fails multicast just
+  after answering unicast is awake, so power save is not the cause.
+* `--targets name=ip,...` probes other devices (an Apple TV, say) instead of the tracked HomePods.
+
+SAMPLE OUTPUT (columns narrowed to fit; names and addresses are examples)
+
+    probing from 192.0.2.2 (multicast, then unicast; multicast timeout 4 s)
+    Speaker-A  192.0.2.110  _airplay._tcp.local.  Speaker A  multicast: resolved in 0.4 s   unicast: answered
+    Speaker-B  192.0.2.212  _airplay._tcp.local.  Speaker B  multicast: NOT resolved (4 s)  unicast: answered
+    Speaker-C  192.0.2.214  _airplay._tcp.local.  Speaker C  multicast: NOT resolved (4 s)  unicast: NO ANSWER
+
+HOW TO READ IT
+
+* Both answered (Speaker A): the HomePod is fine.
+* Multicast failed, unicast answered (Speaker B): the HomePod is up and advertising, but the network is
+  not delivering multicast questions from the wired LAN to it. Seen 2026-09-24 on HomePods connected
+  at 5 GHz, on every access point, never at 2.4 GHz; they come back on their own within about half an
+  hour. Phones on the WiFi are affected less often than this wired probe is.
+* Neither answered (Speaker C): the HomePod's AirPlay service is down, or the HomePod is off the network.
+  Restart the HomePod.
+
+The exit status is 1 when any multicast resolve failed, so a shell loop can watch for a change.
+
+DETAILS
+
+Runs INSIDE the airplay_exporter container: it needs the host network the exporter probes from and the
+`zeroconf` package in the image's virtualenv. The container's filesystem is read-only, so the script is
+fed to `python -` over stdin rather than copied or run with `uv run`. It reads MONITORING_LAN_IP and
+MONITORING_TRACKED_CLIENTS from the container's environment, and the HomePods' current addresses from
+HOMEPOD_IPS, which is the raw JSON answer to the Prometheus query `monitoring_target_info{kind="homepod"}`.
+`--targets` first learns each device's AirPlay-related service instances with unicast PTR queries.
 """
 
 import argparse

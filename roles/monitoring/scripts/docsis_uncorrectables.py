@@ -2,17 +2,54 @@
 # requires-python = ">=3.13"
 # dependencies = []
 # ///
-"""How bad were the DOCSIS uncorrectable codewords, really? Three views over the last `--hours`: the
-DocsisUncorrectableCodewords* alert episodes; each channel's uncorrectable total as a share of every
-codeword it carried; and the 5-minute buckets that had any, next to what the WAN ping ladder and the
-channels' SNR saw at the same moment. A cable line problem shows as loss or RTT spikes in the same
-buckets; on 2026-09-24 the worst bucket was 0.02 % of an OFDM channel's codewords with 0 % WAN loss.
+"""The cable modem reported data it could not repair: did that hurt the Internet connection?
 
-Runs on the controller against Prometheus over an SSH port forward:
+WHEN TO RUN IT
+
+* A `DocsisUncorrectableCodewords*` alert fired and you want to know whether it mattered.
+* The Internet felt bad (calls breaking up, pages stalling) and you want to know whether the cable
+  line was the cause, before or while talking to Comcast.
+* You are reconsidering the alert thresholds and want the recent history in one place.
+
+WHAT IT DOES
+
+The cable line carries data in blocks called codewords. The modem repairs most damaged ones
+("correctable"); one it cannot repair ("uncorrectable") is lost data. The script reads the modem's
+counts from Prometheus and sets them beside what the Internet ping probes saw at the same time.
+
+HOW TO RUN IT
+
+On the controller, with `uv` and an SSH port forward to Prometheus; nothing is installed on eddings.
+All times are UTC.
 
     ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
     uv run roles/monitoring/scripts/docsis_uncorrectables.py
     uv run roles/monitoring/scripts/docsis_uncorrectables.py --hours 72 --wan-target 8.8.8.8
+
+SAMPLE OUTPUT (2026-09-27, `--hours 110`, shortened)
+
+    == alert episodes (firing)
+       09-24 23:37 to 09-25 00:01  DocsisUncorrectableCodewordsBurst channel 34
+       09-24 23:40 to 09-25 00:08  DocsisUncorrectableCodewords channel 34
+    == uncorrectable codewords per channel over 110 h, as a share of that channel's codewords
+       channel  33     OFDM    690 MHz         674 uncorrectable  (0.00001 % of codewords)
+       channel  34     OFDM    957 MHz      161889 uncorrectable  (0.00122 % of codewords)
+    == 5-minute buckets with uncorrectables (all channels summed), with WAN ping to 1.1.1.1, SNR
+       09-24 23:36  +    772 uncorrectable   WAN max loss   0.0 %  max RTT   17.8 ms   min SNR 36.3 dB
+       09-24 23:41  +  64563 uncorrectable   WAN max loss   0.0 %  max RTT   16.7 ms   min SNR 34.4 dB
+       09-24 23:46  +  99877 uncorrectable   WAN max loss   0.0 %  max RTT   16.5 ms   min SNR 34.4 dB
+
+HOW TO READ IT
+
+* Alert episodes: when the alerts fired, and for which channel.
+* Per channel: which channels lose data, and how much of what they carried. The same one or two
+  channels every time points at interference on their frequencies; many channels at once points at
+  the line or a connector.
+* 5-minute buckets: the test of whether it mattered. Loss or a jump in round-trip time (RTT) in the same
+  bucket means the Internet connection suffered; in the sample, the worst episode cost no ping loss
+  at all. Signal-to-noise (SNR) falling toward 33 dB in the same buckets says the line was noisy then,
+  which is worth quoting to Comcast with the times.
+* Ping is a coarse check (60 probes a minute), so "no loss" means "nothing large", not "nothing".
 """
 
 import argparse

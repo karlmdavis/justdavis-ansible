@@ -2,23 +2,58 @@
 # requires-python = ">=3.13"
 # dependencies = []
 # ///
-"""What each HomePod has been downloading, from the AmpliFi client byte counters, to tell when audio was
-playing to it. Shapes observed 2026-09-23/24: AirPlay from a phone or iPad holds 60-450 kbit/s and the
-curves of every HomePod in the group move in lockstep; Apple Music playing on the HomePods themselves
-fetches per track, 25 kbit/s to 1.4 Mbit/s and about 500 on average, though the overnight bedtime
-playlist held a steady 50-90 kbit/s; an idle HomePod sits at 0-20 kbit/s. A group member whose curve
-stops tracking the others has left the group.
+"""When was audio playing to each HomePod, and did one drop out?
 
-Runs on the controller against Prometheus over an SSH port forward:
+WHEN TO RUN IT
+
+* Music stopped or stuttered on a HomePod and you want to know when, and whether the others in the
+  group carried on.
+* You want to check whether a HomePod really played all night (a bedtime playlist, white noise).
+* You are judging what download rate separates "playing" from "idle" for a kind of stream.
+
+WHAT IT DOES
+
+Reads how much each HomePod downloaded, which the router counts per WiFi client and Prometheus keeps.
+Audio arriving at a HomePod shows as a steady download; an idle HomePod downloads almost nothing.
+
+HOW TO RUN IT
+
+On the controller, with `uv` and an SSH port forward to Prometheus; nothing is installed on eddings.
+All times are UTC.
 
     ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
     uv run roles/monitoring/scripts/homepod_traffic.py
     uv run roles/monitoring/scripts/homepod_traffic.py --hours 36 --threshold 100
-    uv run roles/monitoring/scripts/homepod_traffic.py --shape Kitchen "2026-09-24 05:00" "2026-09-24 05:20"
+    uv run roles/monitoring/scripts/homepod_traffic.py --shape Speaker-A "2026-09-24 05:00" "2026-09-24 05:20"
 
-The default view prints, per HomePod, the runs of 5-minute buckets whose download rate reached the
-threshold over the last `--hours`. `--shape` prints one HomePod's 30-second samples across a UTC window
-instead, to see whether a stream was flat (AirPlay) or bursty (Apple Music on the HomePod).
+SAMPLE OUTPUT, DEFAULT VIEW (names are examples)
+
+    == download kbit/s per HomePod, 5-minute buckets at or above 40 kbit/s, 2026-09-27 14:01 to ...
+       Speaker-A          09-27 14:01 to 09-27 20:01 ~255k
+       Speaker-B          09-27 16:36 to 09-27 16:36 ~73k; 09-27 17:16 to 09-27 17:16 ~54k
+       Speaker-C          quiet (below 40 kbit/s throughout)
+
+Each entry is a stretch of time the HomePod downloaded at or above the threshold, with its average
+rate. Speaker A played for the whole six hours. Speaker B only crossed the line for single 5-minute
+buckets, which is background chatter or a stream sitting right at the threshold: lower `--threshold`
+to see which. Speaker C was idle.
+
+SAMPLE OUTPUT, `--shape`
+
+    == Speaker-A: download kbit/s, 30-second samples, 2026-09-27 19:40 to 2026-09-27 19:50 UTC
+       min 42  mean 65  max 99
+       94 97 99 45 49 44 48 55 42 43 48 42 44 53 42 92 91 84 77 84 92
+
+One number per 30 seconds. The name is the one the default view prints. A drop to near zero in the
+middle of a stream is a dropout; compare the same window for the other HomePods in the group.
+
+WHAT THE RATES LOOKED LIKE (2026-09-23/24; not yet checked against controlled playback)
+
+* AirPlay from a phone or iPad: 60-450 kbit/s, and every HomePod in the group moves in lockstep. A
+  group member whose curve stops tracking the others has left the group.
+* Apple Music playing on the HomePods themselves: fetched per track, 25 kbit/s to 1.4 Mbit/s, about 500
+  on average; an overnight playlist held a steady 50-90 kbit/s.
+* Idle: 0-20 kbit/s.
 """
 
 import argparse

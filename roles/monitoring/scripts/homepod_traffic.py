@@ -61,6 +61,7 @@ import calendar
 import json
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Sequence
@@ -86,10 +87,16 @@ def query_range(base_url: str, expr: str, start: float, end: float, step: int) -
     params = urllib.parse.urlencode(
         {"query": expr, "start": f"{start:.0f}", "end": f"{end:.0f}", "step": str(step)}
     )
-    with urllib.request.urlopen(
-        f"{base_url.rstrip('/')}/api/v1/query_range?{params}", timeout=60
-    ) as response:
-        payload = json.load(response)
+    try:
+        with urllib.request.urlopen(
+            f"{base_url.rstrip('/')}/api/v1/query_range?{params}", timeout=60
+        ) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        # Prometheus answers a query it will not run with an error status and the reason in the body.
+        sys.exit(f"Prometheus rejected the query: HTTP {exc.code}: {exc.read().decode(errors='replace')}")
+    except OSError as exc:
+        sys.exit(f"cannot reach Prometheus at {base_url} ({exc}); is the SSH port forward running?")
     if payload.get("status") != "success":
         sys.exit(f"Prometheus rejected the query: {payload}")
     return [

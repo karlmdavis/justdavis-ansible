@@ -102,6 +102,8 @@ def _get(base_url: str, path: str, params: dict[str, str]) -> list[Series]:
     except urllib.error.HTTPError as exc:
         # Prometheus answers a query it will not run with an error status and the reason in the body.
         sys.exit(f"Prometheus rejected the query: HTTP {exc.code}: {exc.read().decode(errors='replace')}")
+    except OSError as exc:
+        sys.exit(f"cannot reach Prometheus at {base_url} ({exc}); is the SSH port forward running?")
     assert isinstance(payload, dict)
     return _parse(payload)
 

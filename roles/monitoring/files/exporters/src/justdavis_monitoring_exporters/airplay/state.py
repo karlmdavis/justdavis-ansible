@@ -9,7 +9,9 @@ what was audible (the full record of that session is in the role's docs/airplay-
   from a Mac, Apple Music playing on the HomePod, a HomePod following another HomePod, and white noise
   started by a Home scene; it stayed clear for a start that failed.
 * `gid` names the group or session the HomePod is in. HomePods playing together share it; a HomePod on
-  its own has one to itself. It changes whenever the HomePod joins another session.
+  its own has one to itself. It changes whenever the HomePod joins another session. A group led by a
+  HomePod has two ids joined by "+" (73 characters); a session led by a device sending AirPlay has
+  one (36).
 * `igl` is 1 when the HomePod leads its group (one on its own leads a group of one), 0 when it follows
   another device: another HomePod, or a phone, tablet, or computer sending AirPlay.
 * Pausing or stopping clears bit 20 but leaves the HomePod in its group. One group of seven stayed
@@ -37,6 +39,9 @@ _AUDIO_PLAYING = 1 << 20
 # The form seen on every HomePod: "0x" and up to sixteen hexadecimal digits. Python's own int() would
 # also take a sign, underscores, and surrounding spaces, and a negative number has every high bit set.
 _FLAGS = re.compile(r"0[xX][0-9a-fA-F]{1,16}")
+# Longer than the usual cap on a label from the network, which would cut a 73-character id short;
+# still bounded, since the value comes from a device.
+_GROUP_ID_MAX_LENGTH = 128
 
 
 class UnreadableRecord(ValueError):
@@ -73,7 +78,7 @@ def playback_state(txt: Mapping[str, str] | None) -> PlaybackState:
         raise UnreadableRecord(f"igl is {txt['igl'][:32]!r}, not 0 or 1")
     # Sanitised here, not where it is exported, so that an id with nothing printable in it is caught:
     # an empty label value is no label at all, and every such HomePod would seem to share a group.
-    group_id = sanitise_label(txt["gid"])
+    group_id = sanitise_label(txt["gid"], max_length=_GROUP_ID_MAX_LENGTH)
     if not group_id:
         raise UnreadableRecord("gid is empty")
     flags = int(txt["flags"], 16)

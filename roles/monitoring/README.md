@@ -56,7 +56,8 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
 | HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1. `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
-| HomePod answers on port 7000 but cannot be found | Port open, but the LAN-side mDNS query (`airplay_service_resolved`) fails. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
 | Is audio playing to this HomePod | `homepod:audio_active` (recording rule): its download rate, `homepod:download_bits_per_second:rate1m`, averaged over 3 minutes is above 40 kbit/s. Observed 2026-09-23/24: AirPlay from a phone or iPad holds 60-450 kbit/s with every group member's curve moving in lockstep; Apple Music playing on the HomePods fetches per track (25 kbit/s to 1.4 Mbit/s, ~500 mean), though the overnight bedtime playlist held a steady 50-90 kbit/s; idle is 0-20 kbit/s. | None: recorded and charted. |
 | When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped while the HomePod stayed on the WiFi (dashboard annotations); on the download-rate panel, one group member's curve diverging from the others is the HomePod that left the group. | None: recorded until a real incident says whether it needs one. |
@@ -168,8 +169,10 @@ channel webhook URL from Discord's channel integration settings. Thresholds are 
 `templates/alerts.yml.j2` and follow common guidance: packet loss above 5%, round trip above 100 ms,
 or jitter above 30 ms to the internet for 5 minutes; DOCSIS SNR below 33 dB or downstream power outside
 -15 to +15 dBmV (one alert with a channel count, kept firing across the short series gaps that a
-failed gateway scrape leaves);
-any uncorrectable codewords (warning) or more than 1000 in 15 minutes (critical); the
+failed gateway scrape leaves); uncorrectable codewords above 1% of a channel's codewords over 15 minutes
+(warning) or above 5% (critical), a share rather than a count because an OFDM channel carries ~16,000
+codewords a second, and a first estimate (1% is the field rule of thumb for when calls suffer; the
+worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
@@ -200,6 +203,13 @@ and idles; the gateway exporter does the same when no certificate fingerprint wa
 talks to an unauthenticated HTTPS peer). The AirPlay probe exits instead when its LAN address is not
 local to the host or mDNS cannot start, since both can be transient at boot and the container's
 restart policy retries.
+
+The AmpliFi client byte counters (`amplifi_client_{rx,tx}_bytes_total`) are one monotonic series per
+client, folded from the router's per-association counters, which restart at every roam or band switch
+and sit at 2^32-1 for hours when unavailable. The first version read those restarts as 32-bit wraps and
+credited a phone with 10 GB in a day (2026-09-24); `common/counters.py` documents the observed behaviour
+and the rules now applied. The `amplifi_client_{rx,tx}_link_bits_per_second` gauges are the negotiated
+PHY link rates, not throughput.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.
@@ -236,6 +246,10 @@ the stack restarts cleanly during a WAN outage.
   learned from passive discovery, so its resolved gauge stays 0 until the HomePod has announced once.
 - The ping and AirPlay target files keep their last contents across exporter restarts, so a HomePod
   that moved while the stack was down is probed at its old address until the first successful poll.
+  The AirPlay exporter's unicast queries read the same file, so they follow the same lag.
+- The mDNS probes originate on the router's wired LAN port (eddings), which is the worst case for the
+  multicast path to 5 GHz clients: a phone on the WiFi can list a HomePod the multicast gauge shows as
+  lost. The unicast gauge tells that case from a HomePod whose AirPlay service is actually down.
 
 ## Troubleshooting
 
@@ -244,6 +258,98 @@ sudo systemctl status monitoring
 sudo docker compose -f /opt/monitoring/docker-compose.yml logs --tail=100 amplifi_exporter
 curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"job"|"health"'
 ```
+
+### Diagnostic Scripts
+
+The scripts in `scripts/` answer questions the dashboards cannot. They run from this repository on the
+controller, and nothing is installed on eddings. Each script's header (also printed by `--help`) has the
+full instructions, sample output, and how to read it; this section says which one to reach for. Names
+and addresses in the samples are examples, and all times are UTC.
+
+The two that read Prometheus need an SSH port forward first, and it should be closed afterwards:
+
+```bash
+ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
+TUNNEL=$!
+# Run the scripts, then:
+kill "$TUNNEL"
+```
+
+#### `airplay_mdns_probe.py`: is a HomePod down, or has the network lost track of it?
+
+Run it when a HomePod AirPlay alert is firing, when a phone's AirPlay picker is missing a HomePod, or
+after a WiFi change to see whether it helped. It asks each HomePod for its AirPlay records by multicast
+(how a phone looks for it) and by unicast (straight to its address).
+
+```bash
+ssh eddings.justdavis.com 'IPS=$(curl -s http://127.0.0.1:9090/api/v1/query \
+    --data-urlencode "query=monitoring_target_info{kind=\"homepod\"}") &&
+    cd /opt/monitoring &&
+    sudo docker compose exec -T -e HOMEPOD_IPS="$IPS" airplay_exporter python -' \
+    < roles/monitoring/scripts/airplay_mdns_probe.py
+```
+
+```text
+probing from 192.0.2.2 (multicast, then unicast; multicast timeout 4 s)
+Speaker-A   192.0.2.110   _airplay._tcp.local.   Speaker A   multicast: resolved in 0.4 s    unicast: answered
+Speaker-B   192.0.2.212   _airplay._tcp.local.   Speaker B   multicast: NOT resolved (4 s)   unicast: answered
+Speaker-C   192.0.2.214   _airplay._tcp.local.   Speaker C   multicast: NOT resolved (4 s)   unicast: NO ANSWER
+```
+
+Speaker A is fine. Speaker B is up, but multicast from the wired LAN is not reaching it; it comes back
+on its own, usually within half an hour. Speaker C's AirPlay service is down: restart the HomePod.
+
+#### `homepod_traffic.py`: when was audio playing to each HomePod, and did one drop out?
+
+Run it when music stopped or stuttered and you want to know when, or to check that a HomePod played
+all night.
+
+```bash
+uv run roles/monitoring/scripts/homepod_traffic.py --hours 6
+uv run roles/monitoring/scripts/homepod_traffic.py --shape Speaker-A "2026-09-27 19:40" "2026-09-27 19:50"
+```
+
+```text
+== download kbit/s per HomePod, 5-minute buckets at or above 40 kbit/s, 2026-09-27 14:01 to 2026-09-27 20:01 UTC
+   Speaker-A          09-27 14:01 to 09-27 20:01 ~255k
+   Speaker-B          09-27 16:36 to 09-27 16:36 ~73k; 09-27 17:16 to 09-27 17:16 ~54k
+   Speaker-C          quiet (below 40 kbit/s throughout)
+
+== Speaker-A: download kbit/s, 30-second samples, 2026-09-27 19:40 to 2026-09-27 19:50 UTC
+   min 42  mean 65  max 99
+   94 97 99 45 49 44 48 55 42 43 48 42 44 53 42 92 91 84 77 84 92
+```
+
+Each stretch is a time the HomePod downloaded at or above the threshold, with its average rate. The
+second form prints one number per 30 seconds for a closer look; a drop to near zero mid-stream is a
+dropout.
+
+#### `docsis_uncorrectables.py`: the modem lost data; did the Internet connection suffer?
+
+Run it when a `DocsisUncorrectableCodewords*` alert fired, or when the Internet felt bad and the cable
+line is a suspect, before calling Comcast.
+
+```bash
+uv run roles/monitoring/scripts/docsis_uncorrectables.py --hours 110
+```
+
+```text
+== alert episodes (firing)
+   09-24 23:40 to 09-25 00:08  DocsisUncorrectableCodewords channel 34
+== uncorrectable codewords per channel over 110 h, as a share of that channel's codewords
+   channel  34     OFDM    957 MHz      161889 uncorrectable  (0.00122 % of codewords)
+== 5-minute buckets with uncorrectables (all channels summed), with WAN ping to 1.1.1.1, SNR
+   09-24 23:41  +  64563 uncorrectable   WAN max loss   0.0 %  max RTT   16.7 ms   min SNR 34.4 dB
+   09-24 23:46  +  99877 uncorrectable   WAN max loss   0.0 %  max RTT   16.5 ms   min SNR 34.4 dB
+```
+
+The last section is the test of whether it mattered: ping loss or a jump in round-trip time in the same
+5 minutes means the connection suffered. Here the worst episode cost no ping loss.
+
+#### `tsdb_cleanup_2026_09_23.py` with `prometheus-admin-api.yml`
+
+Deletes series that tell a false story; a worked example to copy for the next cleanup (see Deploying
+and Upgrading).
 
 ## References
 

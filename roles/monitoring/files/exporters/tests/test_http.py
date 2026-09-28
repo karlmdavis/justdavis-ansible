@@ -14,6 +14,7 @@ from justdavis_monitoring_exporters.common.http import (
     CaseInsensitiveHeaders,
     FingerprintAdapter,
     RequestsHttpClient,
+    lan_session,
     pinned_session,
 )
 
@@ -24,9 +25,13 @@ class FakeRawResponse:
     headers: dict[str, str]
     chunks: list[bytes]
     closed: bool = False
+    # Raised after the chunks, as a connection cut mid-body would be.
+    error: Exception | None = None
 
     def iter_content(self, chunk_size: int) -> Iterator[bytes]:
         yield from self.chunks
+        if self.error is not None:
+            raise self.error
 
     def close(self) -> None:
         self.closed = True
@@ -77,6 +82,14 @@ def test_body_over_cap_raises_and_closes_response() -> None:
     assert raw.closed is True
 
 
+def test_error_while_streaming_the_body_propagates_and_closes_response() -> None:
+    raw = FakeRawResponse(200, {}, [b"partial"], error=ConnectionError("connection reset"))
+    client = RequestsHttpClient("http://10.1.10.1", session=FakeSession([raw]))
+    with pytest.raises(ConnectionError):
+        client.get("/comcast_network.jst")
+    assert raw.closed is True
+
+
 def test_response_headers_are_case_insensitive() -> None:
     session = FakeSession([FakeRawResponse(200, {"Set-Cookie": "a=b"}, [b""])])
     client = RequestsHttpClient("http://10.1.10.1", session=session)
@@ -102,6 +115,10 @@ def test_fingerprint_pinning_mounts_an_https_adapter_that_asserts_the_fingerprin
 def test_pinned_session_ignores_proxy_settings_from_the_environment() -> None:
     # requests would route through HTTPS_PROXY on a separate, unpinned pool.
     assert pinned_session("ab:cd:ef").trust_env is False
+
+
+def test_lan_session_ignores_proxy_settings_from_the_environment() -> None:
+    assert lan_session().trust_env is False
 
 
 def test_error_status_raises_http_status_error() -> None:

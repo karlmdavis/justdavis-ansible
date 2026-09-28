@@ -24,7 +24,21 @@
 {% set docsis_snr_min_db = 33 %}
 {% set docsis_power_min_dbmv = -15 %}
 {% set docsis_power_max_dbmv = 15 %}
-{% set docsis_uncorrectable_increase_15m = 1000 %}
+{# Uncorrectable codewords are judged as a share of the channel's codewords over 15 minutes, not as a
+   count. An OFDM channel carries ~16,000 codewords a second and a QAM channel ~2,000 (2026-09-24), so
+   the first rules ("any" for 5 minutes, warning; 1,000 in 15 minutes, critical) fired on episodes of
+   0.02% loss confined to the two OFDM channels, with 0% WAN packet loss.
+   Both thresholds are a first estimate: no episode here has yet coincided with trouble anyone
+   noticed, so there is no local incident to calibrate against. The warning at 1% is the rule of thumb
+   in cable field guidance (for example the Volpe Firm's "DOCSIS Codeword Errors"): below it, real-time
+   traffic such as voice and video calls is not expected to suffer. The critical at 5% has no source
+   beyond being well past that line. For scale, the worst 15 minutes in the first five days
+   (2026-09-23 to 09-27) was 0.26% on one OFDM channel, with 0% WAN ping loss and every other channel
+   under 0.01%; ping is a blunt check, though, since 60 probes a minute cannot show a loss that small
+   on one bonded channel. Revisit both when an episode does line up with a real problem. The counters
+   are still recorded and charted, so smaller episodes stay visible without a notification. #}
+{% set docsis_uncorrectable_share = 0.01 %}
+{% set docsis_uncorrectable_share_severe = 0.05 %}
 {# A failed gateway scrape leaves a two-to-three-minute hole in every DOCSIS series while the
    exporter backs off, and a hole resets a rule's `for` clock, so the channel rules keep firing across
    one instead of resolving and re-firing. (On the first night, 2026-09-23, six scrapes failed: four
@@ -180,13 +194,35 @@ groups:
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} is not accepting AirPlay connections"
 
+      # The two mDNS rules are disjoint. Multicast failing while a unicast query to the HomePod's own
+      # address still answers means the multicast path from the wired LAN to its radio has lost it
+      # (2026-09-24: seen on 5 GHz clients of every access point; the HomePod recovers on its own next
+      # announcement; a phone may still list it from its cache). Both failing means the AirPlay
+      # service itself is down. With no unicast gauge (address unknown, or the query could not be made)
+      # the first rule fires as before.
       - alert: HomePodAirPlayNotResolving
-        expr: airplay_service_resolved{service="_airplay._tcp"} == 0
+        expr: >-
+          airplay_service_resolved{service="_airplay._tcp"} == 0
+          unless on (name) (airplay_service_unicast_resolved{service="_airplay._tcp"} == 0)
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "HomePod {{ L }} $labels.name {{ R }} does not answer AirPlay mDNS queries"
+          summary: >-
+            HomePod {{ L }} $labels.name {{ R }} does not answer multicast AirPlay mDNS queries from the
+            wired LAN (unicast answers, or could not be tried): most likely the multicast path lost it
+
+      - alert: HomePodAirPlayServiceGone
+        expr: >-
+          airplay_service_unicast_resolved{service="_airplay._tcp"} == 0
+          and on (name) airplay_service_resolved{service="_airplay._tcp"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            HomePod {{ L }} $labels.name {{ R }} answers neither multicast nor unicast AirPlay mDNS
+            queries: its AirPlay service is down
 
   - name: amplifi
     rules:
@@ -263,25 +299,42 @@ groups:
         annotations:
           summary: "The Comcast gateway reports the Internet connection as inactive"
 
+      # The share of a channel's codewords that were uncorrectable over the window: the increase in the
+      # uncorrectable counter over the increase in all three counters. They share the `channel` label
+      # (and the parser blanks channel 1's three counts together), so the division pairs up one-to-one.
+      # No zero-denominator guard is needed: the denominator contains the numerator, so the only zero
+      # case is 0/0 = NaN, which the comparison drops. No `for`: the 15-minute window already smooths.
+{% set docsis_uncorrectable_share_expr -%}
+          increase(gateway_docsis_downstream_uncorrectable_codewords_total[15m])
+          / (
+            increase(gateway_docsis_downstream_unerrored_codewords_total[15m])
+            + increase(gateway_docsis_downstream_correctable_codewords_total[15m])
+            + increase(gateway_docsis_downstream_uncorrectable_codewords_total[15m])
+          )
+{%- endset %}
       - alert: DocsisUncorrectableCodewords
-        expr: rate(gateway_docsis_downstream_uncorrectable_codewords_total[5m]) > 0
-        for: 5m
+        expr: >-
+          {{ docsis_uncorrectable_share_expr }}
+          > {{ docsis_uncorrectable_share }}
         keep_firing_for: {{ docsis_keep_firing_for }}
         labels:
           severity: warning
         annotations:
-          summary: "Downstream channel {{ L }} $labels.channel {{ R }} is seeing uncorrectable codewords"
+          summary: >-
+            Downstream channel {{ L }} $labels.channel {{ R }}:
+            {{ L }} $value | humanizePercentage {{ R }} of its codewords were uncorrectable over 15m
 
-      - alert: DocsisUncorrectableCodewordsBurst
+      - alert: DocsisUncorrectableCodewordsSevere
         expr: >-
-          increase(gateway_docsis_downstream_uncorrectable_codewords_total[15m])
-          > {{ docsis_uncorrectable_increase_15m }}
+          {{ docsis_uncorrectable_share_expr }}
+          > {{ docsis_uncorrectable_share_severe }}
+        keep_firing_for: {{ docsis_keep_firing_for }}
         labels:
           severity: critical
         annotations:
           summary: >-
-            Downstream channel {{ L }} $labels.channel {{ R }}: {{ L }} $value | humanize {{ R }}
-            uncorrectable codewords in 15m
+            Downstream channel {{ L }} $labels.channel {{ R }}:
+            {{ L }} $value | humanizePercentage {{ R }} of its codewords were uncorrectable over 15m
 
       # Line conditions (tilt, ingress, a loose connector) move blocks of channels together, so SNR and
       # power alert once with a channel count rather than once per channel; the dashboard has the

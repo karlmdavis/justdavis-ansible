@@ -72,15 +72,25 @@ def run_until_stopped(
         install_signal_handlers(stop)
     if scrape_thread is not None:
         scrape_thread.start()
-    while not stop.wait(poll_seconds):
-        if scrape_thread is not None and not scrape_thread.is_alive():
-            shutdown_server()
-            raise RuntimeError("scrape thread exited unexpectedly")
-    if scrape_thread is not None:
-        scrape_thread.join(timeout=30)
-        if scrape_thread.is_alive():
-            log.warning("scrape thread did not finish within 30s; exiting anyway")
-    if cleanup is not None:
-        cleanup()
-    shutdown_server()
+    try:
+        while not stop.wait(poll_seconds):
+            if scrape_thread is not None and not scrape_thread.is_alive():
+                raise RuntimeError("scrape thread exited unexpectedly")
+        if scrape_thread is not None:
+            scrape_thread.join(timeout=30)
+            if scrape_thread.is_alive():
+                log.warning("scrape thread did not finish within 30s; exiting anyway")
+    finally:
+        # Both steps run on every exit path, including the dead-thread error above, and neither may
+        # replace that error with its own: a raise here is logged and swallowed.
+        if cleanup is not None:
+            _guarded(cleanup, "cleanup")
+        _guarded(shutdown_server, "metrics server shutdown")
     log.info("stopped")
+
+
+def _guarded(step: Callable[[], None], what: str) -> None:
+    try:
+        step()
+    except Exception:
+        log.exception("%s raised while shutting down", what)

@@ -10,8 +10,9 @@ project that builds into one Docker image.
   the ping and AirPlay probe target files whenever a tracked device's address changes.
 - `gateway-exporter` reads the Comcast Business gateway's status page: uptime, whether the Internet
   connection is active, and the downstream DOCSIS channels' SNR, power, and codeword error counters.
-- `airplay-exporter` actively resolves each HomePod's AirPlay mDNS services from the LAN side, and
-  passively records their announcements.
+- `airplay-exporter` actively resolves each HomePod's AirPlay mDNS services from the LAN side, both by
+  multicast and by a unicast query to the HomePod's address (read back from the target file the AmpliFi
+  exporter writes), and passively records their announcements.
 
 Each exporter is a `[project.scripts]` entry point in `pyproject.toml`; the shared runtime (settings,
 HTTP client, scrape loop, metrics server, snapshot handling) lives in `src/.../common/`. Parsers are

@@ -14,6 +14,8 @@ from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, B
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.targets import (
+    AIRPLAY_TARGETS_FILE,
+    PING_TARGETS_FILE,
     PingConfig,
     render_airplay_targets,
     render_ping_targets,
@@ -46,8 +48,6 @@ from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, Snapsho
 
 log = logging.getLogger(__name__)
 
-PING_TARGETS_FILE = "ping-targets.yml"
-AIRPLAY_TARGETS_FILE = "airplay-targets.json"
 _BACKOFF_CAP_SECONDS = 600
 # A client off the WiFi for this many polls (an hour at the default 30 s interval) has its byte totals
 # forgotten, so rotating private MAC addresses do not accumulate state.

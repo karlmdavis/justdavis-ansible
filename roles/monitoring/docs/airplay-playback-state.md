@@ -40,7 +40,7 @@ the start of the first stream (T+0).
 | `flags` bit 20 (`0x100000`) | Set while audio plays, whatever the source. |
 | `flags` bits 11 and 17 (`0x800`, `0x20000`) | Set exactly when `igl` was 0. Never seen apart from each other. |
 | `flags` bit 22 (`0x400000`) | Set for AirPlay from the iPad, to eight HomePods and to one. Clear for AirPlay from the Mac. Meaning not established. |
-| `gid` | The id of the group or session. HomePods in one group share it; a HomePod on its own has one to itself. |
+| `gid` | The id of the group or session. HomePods in one group share it; a HomePod on its own has one to itself. A group led by a HomePod, including a HomePod on its own, has two ids joined by `+` (73 characters); a session led by a device sending AirPlay has one (36). |
 | `igl` | 1 when the HomePod leads its group, 0 when it follows another device. |
 | `gcgl` | 1 when the group's leader is one of its HomePods, 0 when the leader is a device sending AirPlay. Not used by the exporter. |
 | `pgid`, `pgcgl` | Present only while `igl` was 0, with the same values as `gid` and `gcgl`. Not used by the exporter. |
@@ -158,6 +158,18 @@ that query did not by itself predict the dropout.
   every reading.
 - At T-3 a spoken request to set the volume on every HomePod failed on at least three of them. The
   monitoring has no signal for requests between HomePods, so this is recorded and not explained.
+
+## Seen After Deployment
+
+Found from the dashboard on the evening of 2026-09-28, once the exporter was recording the records:
+
+- The two forms of `gid` above. During the session only the first eight characters were kept.
+- A scheduled Home automation started a stream on one HomePod with five others following it. Four
+  of those five were playing an iPad's stream at the time, which carried on with one HomePod. The
+  four were marked as leaving a playing group: the "someone moved it" case, which the record
+  cannot tell from a dropout.
+- A HomePod whose download count had been unavailable all day had one again after it joined that
+  group. Whether it had re-associated to the WiFi was not checked.
 
 ## Checking Again
 

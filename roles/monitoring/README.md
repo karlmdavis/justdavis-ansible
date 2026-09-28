@@ -257,6 +257,98 @@ sudo docker compose -f /opt/monitoring/docker-compose.yml logs --tail=100 amplif
 curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"job"|"health"'
 ```
 
+### Diagnostic Scripts
+
+The scripts in `scripts/` answer questions the dashboards cannot. They run from this repository on the
+controller, and nothing is installed on eddings. Each script's header (also printed by `--help`) has the
+full instructions, sample output, and how to read it; this section says which one to reach for. Names
+and addresses in the samples are examples, and all times are UTC.
+
+The two that read Prometheus need an SSH port forward first, and it should be closed afterwards:
+
+```bash
+ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
+TUNNEL=$!
+# Run the scripts, then:
+kill "$TUNNEL"
+```
+
+#### `airplay_mdns_probe.py`: is a HomePod down, or has the network lost track of it?
+
+Run it when a HomePod AirPlay alert is firing, when a phone's AirPlay picker is missing a HomePod, or
+after a WiFi change to see whether it helped. It asks each HomePod for its AirPlay records by multicast
+(how a phone looks for it) and by unicast (straight to its address).
+
+```bash
+ssh eddings.justdavis.com 'IPS=$(curl -s http://127.0.0.1:9090/api/v1/query \
+    --data-urlencode "query=monitoring_target_info{kind=\"homepod\"}") &&
+    cd /opt/monitoring &&
+    sudo docker compose exec -T -e HOMEPOD_IPS="$IPS" airplay_exporter python -' \
+    < roles/monitoring/scripts/airplay_mdns_probe.py
+```
+
+```text
+probing from 192.0.2.2 (multicast, then unicast; multicast timeout 4 s)
+Speaker-A   192.0.2.110   _airplay._tcp.local.   Speaker A   multicast: resolved in 0.4 s    unicast: answered
+Speaker-B   192.0.2.212   _airplay._tcp.local.   Speaker B   multicast: NOT resolved (4 s)   unicast: answered
+Speaker-C   192.0.2.214   _airplay._tcp.local.   Speaker C   multicast: NOT resolved (4 s)   unicast: NO ANSWER
+```
+
+Speaker A is fine. Speaker B is up, but multicast from the wired LAN is not reaching it; it comes back
+on its own, usually within half an hour. Speaker C's AirPlay service is down: restart the HomePod.
+
+#### `homepod_traffic.py`: when was audio playing to each HomePod, and did one drop out?
+
+Run it when music stopped or stuttered and you want to know when, or to check that a HomePod played
+all night.
+
+```bash
+uv run roles/monitoring/scripts/homepod_traffic.py --hours 6
+uv run roles/monitoring/scripts/homepod_traffic.py --shape Speaker-A "2026-09-27 19:40" "2026-09-27 19:50"
+```
+
+```text
+== download kbit/s per HomePod, 5-minute buckets at or above 40 kbit/s, 2026-09-27 14:01 to 2026-09-27 20:01 UTC
+   Speaker-A          09-27 14:01 to 09-27 20:01 ~255k
+   Speaker-B          09-27 16:36 to 09-27 16:36 ~73k; 09-27 17:16 to 09-27 17:16 ~54k
+   Speaker-C          quiet (below 40 kbit/s throughout)
+
+== Speaker-A: download kbit/s, 30-second samples, 2026-09-27 19:40 to 2026-09-27 19:50 UTC
+   min 42  mean 65  max 99
+   94 97 99 45 49 44 48 55 42 43 48 42 44 53 42 92 91 84 77 84 92
+```
+
+Each stretch is a time the HomePod downloaded at or above the threshold, with its average rate. The
+second form prints one number per 30 seconds for a closer look; a drop to near zero mid-stream is a
+dropout.
+
+#### `docsis_uncorrectables.py`: the modem lost data; did the Internet connection suffer?
+
+Run it when a `DocsisUncorrectableCodewords*` alert fired, or when the Internet felt bad and the cable
+line is a suspect, before calling Comcast.
+
+```bash
+uv run roles/monitoring/scripts/docsis_uncorrectables.py --hours 110
+```
+
+```text
+== alert episodes (firing)
+   09-24 23:40 to 09-25 00:08  DocsisUncorrectableCodewords channel 34
+== uncorrectable codewords per channel over 110 h, as a share of that channel's codewords
+   channel  34     OFDM    957 MHz      161889 uncorrectable  (0.00122 % of codewords)
+== 5-minute buckets with uncorrectables (all channels summed), with WAN ping to 1.1.1.1, SNR
+   09-24 23:41  +  64563 uncorrectable   WAN max loss   0.0 %  max RTT   16.7 ms   min SNR 34.4 dB
+   09-24 23:46  +  99877 uncorrectable   WAN max loss   0.0 %  max RTT   16.5 ms   min SNR 34.4 dB
+```
+
+The last section is the test of whether it mattered: ping loss or a jump in round-trip time in the same
+5 minutes means the connection suffered. Here the worst episode cost no ping loss.
+
+#### `tsdb_cleanup_2026_09_23.py` with `prometheus-admin-api.yml`
+
+Deletes series that tell a false story; a worked example to copy for the next cleanup (see Deploying
+and Upgrading).
+
 ## References
 
 - [Prometheus](https://prometheus.io/docs/), [Grafana provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/),

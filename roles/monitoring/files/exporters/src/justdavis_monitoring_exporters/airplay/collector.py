@@ -51,7 +51,15 @@ class AirplayCollector(Collector):
             labels=_LABELS,
         )
         # The playback gauges are read from the HomePod's own record, so they are absent, not 0, for a
-        # poll in which it did not answer: a missed answer must not read as "stopped playing".
+        # poll in which it did not answer or its record could not be read: neither must read as
+        # "stopped playing". The readable gauge tells the two apart.
+        readable = GaugeMetricFamily(
+            "airplay_playback_state_readable",
+            "1 when the HomePod answered this poll and its AirPlay record had the form the playback "
+            "gauges are read from, 0 when it answered with a record that did not (the exporter's log "
+            "says how); absent when it did not answer.",
+            labels=["name"],
+        )
         audio_playing = GaugeMetricFamily(
             "airplay_audio_playing",
             "1 while the HomePod reports that audio is playing, whatever the source; 0 when it reports "
@@ -84,16 +92,19 @@ class AirplayCollector(Collector):
                 unicast.add_metric(labels, float(seen.unicast_resolved))
             if seen.last_seen is not None:
                 last_seen.add_metric(labels, seen.last_seen)
+            name = sanitise_label(key.name)
+            if seen.state is not None or seen.state_unreadable is not None:
+                readable.add_metric([name], float(seen.state is not None))
             if seen.state is not None:
-                name = sanitise_label(key.name)
                 audio_playing.add_metric([name], float(seen.state.audio_playing))
                 group_leader.add_metric([name], float(seen.state.group_leader))
-                group_info.add_metric([name, sanitise_label(seen.state.group_id)], 1.0)
+                group_info.add_metric([name, seen.state.group_id], 1.0)
                 status_flags.add_metric([name], float(seen.state.status_flags))
         yield resolved
         yield discovered
         yield unicast
         yield last_seen
+        yield readable
         yield audio_playing
         yield group_leader
         yield group_info

@@ -13,7 +13,7 @@ import ifaddr
 from prometheus_client import CollectorRegistry, Counter
 
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
-from justdavis_monitoring_exporters.airplay.models import ServiceKey
+from justdavis_monitoring_exporters.airplay.models import ServiceKey, ServiceObservation
 from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
 from justdavis_monitoring_exporters.airplay.targets import AddressBook
 from justdavis_monitoring_exporters.amplifi.targets import AIRPLAY_TARGETS_FILE
@@ -84,7 +84,8 @@ class AirplayScraper:
     """One poll: resolve every HomePod's services and publish the observations.
 
     The last-seen timestamps are kept here, across polls and across failed polls, so that the
-    `airplay_service_last_seen_timestamp_seconds` series survive a resolver outage.
+    `airplay_service_last_seen_timestamp_seconds` series survive a resolver outage. So is the reason
+    each HomePod's record could not be read, so that it is logged when it changes and not every poll.
     """
 
     def __init__(
@@ -95,6 +96,7 @@ class AirplayScraper:
         self._collector = collector
         self._errors = errors
         self._last_seen: dict[ServiceKey, float] = {}
+        self._unreadable: dict[ServiceKey, str] = {}
         self._addresses = AddressBook(settings.shared_dir / AIRPLAY_TARGETS_FILE)
 
     def __call__(self) -> None:
@@ -115,7 +117,21 @@ class AirplayScraper:
         for key, seen in snapshot.services.items():
             if seen.last_seen is not None:
                 self._last_seen[key] = seen.last_seen
+            self._log_readability(key, seen)
         self._collector.publish(snapshot)
+
+    def _log_readability(self, key: ServiceKey, seen: ServiceObservation) -> None:
+        """A poll with no answer changes nothing: it says nothing about the record."""
+        if seen.state_unreadable is not None:
+            if self._unreadable.get(key) != seen.state_unreadable:
+                log.warning(
+                    "the AirPlay record of %s cannot be read, so its playback state is unknown: %s",
+                    key.name,
+                    seen.state_unreadable,
+                )
+            self._unreadable[key] = seen.state_unreadable
+        elif seen.state is not None and self._unreadable.pop(key, None) is not None:
+            log.info("the AirPlay record of %s can be read again", key.name)
 
 
 def main() -> None:

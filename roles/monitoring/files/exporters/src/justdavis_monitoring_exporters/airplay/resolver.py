@@ -51,7 +51,7 @@ from justdavis_monitoring_exporters.airplay.models import (
     ServiceObservation,
     UnicastAnswer,
 )
-from justdavis_monitoring_exporters.airplay.state import parse_txt, playback_state
+from justdavis_monitoring_exporters.airplay.state import UnreadableRecord, parse_txt, playback_state
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, AirplayService, mdns_type
 from justdavis_monitoring_exporters.common.settings import TrackedClient
 
@@ -157,14 +157,22 @@ def poll(
         if key in announced:
             seen = max(announced[key], seen or 0.0)
         answer = unicast.get(key)
-        if ok or (answer is not None and answer.answered):
+        state, state_unreadable = None, None
+        if answer is not None and answer.answered:
+            seen = now
+            try:
+                state = playback_state(answer.txt)
+            except UnreadableRecord as exc:
+                state_unreadable = str(exc)
+        elif ok:
             seen = now
         services[key] = ServiceObservation(
             resolved=ok,
             discovered=key in announced,
             last_seen=seen,
             unicast_resolved=None if answer is None else answer.answered,
-            state=None if answer is None or answer.txt is None else playback_state(answer.txt),
+            state=state,
+            state_unreadable=state_unreadable,
         )
     return AirplaySnapshot(services=services)
 

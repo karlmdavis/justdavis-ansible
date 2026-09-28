@@ -1,5 +1,6 @@
 """Tests for the AirPlay mDNS probe: polling logic against a fake resolver, the scraper, and the collector."""
 
+import logging
 from dataclasses import replace
 from pathlib import Path
 
@@ -176,17 +177,67 @@ def test_playback_state_is_read_from_the_unicast_answer_even_when_multicast_fail
     assert snapshot.services[A_RAOP].state is None
 
 
-def test_playback_state_is_unknown_without_an_answer_or_a_readable_record() -> None:
+def test_playback_state_is_unknown_without_an_answer_and_unreadable_from_a_record_in_another_form() -> None:
     resolver = FakeResolver(
         set(), unicast_resolvable={"Speaker B"}, txt={"Speaker A": IDLE_TXT, "Speaker B": {"flags": "0x4"}}
     )
     addresses = {"Speaker-A": "192.0.2.110", "Speaker-B": "192.0.2.111"}
     snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
-    # Speaker A did not answer; Speaker B answered with a record that lacks the group fields.
+    # Speaker A did not answer, which says nothing about its record.
     assert snapshot.services[A_AIRPLAY].unicast_resolved is False
     assert snapshot.services[A_AIRPLAY].state is None
+    assert snapshot.services[A_AIRPLAY].state_unreadable is None
+    # Speaker B answered with a record that lacks the group fields.
     assert snapshot.services[B_AIRPLAY].unicast_resolved is True
     assert snapshot.services[B_AIRPLAY].state is None
+    assert snapshot.services[B_AIRPLAY].state_unreadable == "the record has no gid, igl (it has flags)"
+    assert snapshot.services[B_AIRPLAY].last_seen == 100.0
+
+
+def test_answer_without_a_txt_record_is_unreadable() -> None:
+    resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
+    snapshot = poll(
+        resolver, TRACKED, addresses={"Speaker-A": "192.0.2.110"}, timeout_ms=10, now=100.0, last_seen={}
+    )
+    assert snapshot.services[A_AIRPLAY].state_unreadable == "the answer carried no TXT record"
+
+
+def test_unreadable_record_is_logged_when_it_changes_and_not_every_poll(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / "airplay-targets.json").write_bytes(
+        b'[{"targets": ["192.0.2.110:7000"], "labels": {"name": "Speaker-A", "kind": "homepod"}}]'
+    )
+    resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"}, txt={"Speaker A": {"flags": "0x4"}})
+    registry, collector, errors = build_registry()
+    scraper = AirplayScraper(replace(SETTINGS, shared_dir=tmp_path), resolver, collector, errors)
+    a = {"name": "Speaker A"}
+    with caplog.at_level(logging.INFO):
+        scraper()
+        scraper()
+        assert [record.levelname for record in caplog.records] == ["WARNING"]
+        assert "Speaker A cannot be read" in caplog.text
+        assert "no gid, igl (it has flags)" in caplog.text
+        assert registry.get_sample_value("airplay_playback_state_readable", a) == 0.0
+        assert registry.get_sample_value("airplay_audio_playing", a) is None
+        # A poll it does not answer says nothing about the record, so nothing is logged for it.
+        resolver.unicast_resolvable = set()
+        scraper()
+        assert registry.get_sample_value("airplay_playback_state_readable", a) is None
+        resolver.unicast_resolvable = {"Speaker A"}
+        scraper()
+        assert len(caplog.records) == 1
+        # The reason changes, then the record becomes readable.
+        resolver.txt = {"Speaker A": {"flags": "many", "gid": "g", "igl": "1"}}
+        scraper()
+        assert [record.levelname for record in caplog.records] == ["WARNING", "WARNING"]
+        resolver.txt = {"Speaker A": IDLE_TXT}
+        scraper()
+        scraper()
+        assert [record.levelname for record in caplog.records] == ["WARNING", "WARNING", "INFO"]
+        assert "Speaker A can be read again" in caplog.text
+        assert registry.get_sample_value("airplay_playback_state_readable", a) == 1.0
+        assert registry.get_sample_value("airplay_audio_playing", a) == 0.0
 
 
 def test_last_seen_comes_from_resolution_then_discovery_then_the_earlier_record() -> None:
@@ -281,16 +332,20 @@ def test_collector_exports_playback_state_only_for_homepods_whose_record_was_rea
     registry = CollectorRegistry()
     registry.register(collector)
     a = {"name": "Speaker A"}
-    b = {"name": "Speaker B"}
     group = {"name": "Speaker A", "group": "00000000-0000-4000-8000-0000000000F0"}
+    assert registry.get_sample_value("airplay_playback_state_readable", a) == 1.0
     assert registry.get_sample_value("airplay_audio_playing", a) == 1.0
     assert registry.get_sample_value("airplay_group_leader", a) == 0.0
     assert registry.get_sample_value("airplay_group_info", group) == 1.0
     assert registry.get_sample_value("airplay_status_flags", a) == float(0x5B8C04)
     # Absent, not 0: Speaker B did not answer, which says nothing about what it is playing.
-    assert registry.get_sample_value("airplay_audio_playing", b) is None
-    assert registry.get_sample_value("airplay_group_leader", b) is None
-    assert registry.get_sample_value("airplay_status_flags", b) is None
+    playback = {
+        sample.name
+        for family in collector.collect()
+        for sample in family.samples
+        if sample.labels.get("name") == "Speaker B" and "service" not in sample.labels
+    }
+    assert playback == set()
 
 
 def test_collector_exports_resolved_discovered_unicast_and_last_seen() -> None:

@@ -8,7 +8,13 @@ from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.main import AirplayScraper, AirplaySettings, build_registry
-from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
+from justdavis_monitoring_exporters.airplay.models import (
+    AirplaySnapshot,
+    PlaybackState,
+    ServiceKey,
+    ServiceObservation,
+    UnicastAnswer,
+)
 from justdavis_monitoring_exporters.airplay.resolver import AIRPLAY_TYPE, RAOP_TYPE, _Listener, poll
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 from tests.helpers import tracked
@@ -32,13 +38,16 @@ SETTINGS = AirplaySettings(
     shared_dir=Path("/nonexistent"),
 )
 NO_ADDRESSES: dict[str, str] = {}
+# The record forms seen on 2026-09-28, with made-up group ids.
+IDLE_TXT = {"flags": "0x98404", "gid": "00000000-0000-4000-8000-00000000000A", "igl": "1"}
+FOLLOWING_AND_PLAYING_TXT = {"flags": "0x5b8c04", "gid": "00000000-0000-4000-8000-0000000000F0", "igl": "0"}
 
 
 class FakeResolver:
     """`resolvable` holds full mDNS instance names that resolve by multicast, `unicast_resolvable`
     those that answer a unicast query, and `unicast_unusable` those whose unicast query cannot be made;
     `discovered` maps (type, instance) pairs, as the passive browser would record them, to last-seen
-    times."""
+    times; `txt` maps instance names to the TXT fields their unicast answer carries."""
 
     def __init__(
         self,
@@ -46,7 +55,9 @@ class FakeResolver:
         discovered: dict[tuple[str, str], float] | None = None,
         unicast_resolvable: set[str] | None = None,
         unicast_unusable: set[str] | None = None,
+        txt: dict[str, dict[str, str]] | None = None,
     ) -> None:
+        self.txt = txt or {}
         self.resolvable = resolvable
         self.unicast_resolvable = unicast_resolvable or set()
         self.unicast_unusable = unicast_unusable or set()
@@ -61,13 +72,17 @@ class FakeResolver:
             raise self.error
         return instance_name in self.resolvable
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
+    def resolve_unicast(
+        self, ip: str, service_type: str, instance_name: str, timeout_ms: int
+    ) -> UnicastAnswer | None:
         self.unicast_requests.append((ip, service_type, instance_name))
         if self.error is not None:
             raise self.error
         if instance_name in self.unicast_unusable:
             return None
-        return instance_name in self.unicast_resolvable
+        if instance_name not in self.unicast_resolvable:
+            return UnicastAnswer(answered=False)
+        return UnicastAnswer(answered=True, txt=self.txt.get(instance_name))
 
     def discovered(self) -> dict[tuple[str, str], float]:
         return dict(self._discovered)
@@ -137,6 +152,43 @@ def test_unicast_query_that_cannot_be_made_costs_only_that_homepods_unicast_resu
     assert snapshot.services[B_AIRPLAY].resolved is True
 
 
+def test_playback_state_is_read_from_the_unicast_answer_even_when_multicast_fails() -> None:
+    resolver = FakeResolver(
+        {"Speaker B"},
+        unicast_resolvable={"Speaker A", "Speaker B"},
+        txt={"Speaker A": FOLLOWING_AND_PLAYING_TXT, "Speaker B": IDLE_TXT},
+    )
+    addresses = {"Speaker-A": "192.0.2.110", "Speaker-B": "192.0.2.111"}
+    snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
+    assert snapshot.services[A_AIRPLAY].resolved is False
+    assert snapshot.services[A_AIRPLAY].state == PlaybackState(
+        audio_playing=True,
+        group_leader=False,
+        group_id="00000000-0000-4000-8000-0000000000F0",
+        status_flags=0x5B8C04,
+    )
+    assert snapshot.services[B_AIRPLAY].state == PlaybackState(
+        audio_playing=False,
+        group_leader=True,
+        group_id="00000000-0000-4000-8000-00000000000A",
+        status_flags=0x98404,
+    )
+    assert snapshot.services[A_RAOP].state is None
+
+
+def test_playback_state_is_unknown_without_an_answer_or_a_readable_record() -> None:
+    resolver = FakeResolver(
+        set(), unicast_resolvable={"Speaker B"}, txt={"Speaker A": IDLE_TXT, "Speaker B": {"flags": "0x4"}}
+    )
+    addresses = {"Speaker-A": "192.0.2.110", "Speaker-B": "192.0.2.111"}
+    snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
+    # Speaker A did not answer; Speaker B answered with a record that lacks the group fields.
+    assert snapshot.services[A_AIRPLAY].unicast_resolved is False
+    assert snapshot.services[A_AIRPLAY].state is None
+    assert snapshot.services[B_AIRPLAY].unicast_resolved is True
+    assert snapshot.services[B_AIRPLAY].state is None
+
+
 def test_last_seen_comes_from_resolution_then_discovery_then_the_earlier_record() -> None:
     discovered = {(AIRPLAY_TYPE, "Speaker B"): 50.0, (AIRPLAY_TYPE, "Guest Device"): 60.0}
     resolver = FakeResolver({"Speaker A"}, discovered)
@@ -203,6 +255,42 @@ def test_scraper_reads_addresses_from_the_shared_target_file(tmp_path: Path) -> 
     assert registry.get_sample_value("airplay_service_resolved", a) == 0.0
     assert registry.get_sample_value("airplay_service_unicast_resolved", a) == 1.0
     assert registry.get_sample_value("airplay_service_unicast_resolved", b) is None
+
+
+def test_collector_exports_playback_state_only_for_homepods_whose_record_was_read() -> None:
+    playing = PlaybackState(
+        audio_playing=True,
+        group_leader=False,
+        group_id="00000000-0000-4000-8000-0000000000F0",
+        status_flags=0x5B8C04,
+    )
+    snapshot = AirplaySnapshot(
+        services={
+            A_AIRPLAY: ServiceObservation(
+                resolved=False, discovered=False, last_seen=1.0, unicast_resolved=True, state=playing
+            ),
+            B_AIRPLAY: ServiceObservation(
+                resolved=True, discovered=False, last_seen=1.0, unicast_resolved=False
+            ),
+        }
+    )
+    statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
+    statuses.set(ScrapeStatus.initial().succeeded(timestamp=1.0, duration_seconds=0.1))
+    collector = AirplayCollector(statuses)
+    collector.publish(snapshot)
+    registry = CollectorRegistry()
+    registry.register(collector)
+    a = {"name": "Speaker A"}
+    b = {"name": "Speaker B"}
+    group = {"name": "Speaker A", "group": "00000000-0000-4000-8000-0000000000F0"}
+    assert registry.get_sample_value("airplay_audio_playing", a) == 1.0
+    assert registry.get_sample_value("airplay_group_leader", a) == 0.0
+    assert registry.get_sample_value("airplay_group_info", group) == 1.0
+    assert registry.get_sample_value("airplay_status_flags", a) == float(0x5B8C04)
+    # Absent, not 0: Speaker B did not answer, which says nothing about what it is playing.
+    assert registry.get_sample_value("airplay_audio_playing", b) is None
+    assert registry.get_sample_value("airplay_group_leader", b) is None
+    assert registry.get_sample_value("airplay_status_flags", b) is None
 
 
 def test_collector_exports_resolved_discovered_unicast_and_last_seen() -> None:

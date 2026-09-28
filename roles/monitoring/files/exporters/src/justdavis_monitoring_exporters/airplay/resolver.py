@@ -1,6 +1,7 @@
 """AirPlay service discovery over mDNS, from the LAN side.
 
-Three discovery signals (plus a last-seen timestamp) are collected for each expected HomePod:
+Three discovery signals (plus a last-seen timestamp) and the HomePod's playback state are collected for
+each expected HomePod:
 
 * Active resolution (`airplay_service_resolved`): each poll asks the network for the HomePod's
   `_airplay._tcp` and `_raop._tcp` instances with a short timeout. This is the alerting signal. A
@@ -14,6 +15,9 @@ Three discovery signals (plus a last-seen timestamp) are collected for each expe
   multicast group. A HomePod that answers unicast but not multicast is up and advertising; the
   multicast path between the wired LAN and its radio has lost it (2026-09-24: seen on 5 GHz clients of
   every access point, never on 2.4 GHz). One that answers neither has its AirPlay service down.
+* Playback state (`airplay_audio_playing` and the group gauges): read from the TXT record in that same
+  unicast answer, so it costs no extra query and works while the multicast path is broken. What the
+  record's fields mean is set out in `airplay/state.py`.
 
 The `_airplay._tcp` instance name is the HomePod's AirPlay name, so it can be queried directly. The
 `_raop._tcp` instance name carries a device-id prefix (`AABBCCDDEEFF@Kitchen`) that is not known in
@@ -36,12 +40,18 @@ from typing import Protocol
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
 # zeroconf does not re-export its wire-level classes or record-type constants.
-from zeroconf._dns import DNSQuestion
+from zeroconf._dns import DNSQuestion, DNSText
 from zeroconf._protocol.incoming import DNSIncoming
 from zeroconf._protocol.outgoing import DNSOutgoing
 from zeroconf.const import _CLASS_IN, _FLAGS_QR_QUERY, _TYPE_SRV, _TYPE_TXT
 
-from justdavis_monitoring_exporters.airplay.models import AirplaySnapshot, ServiceKey, ServiceObservation
+from justdavis_monitoring_exporters.airplay.models import (
+    AirplaySnapshot,
+    ServiceKey,
+    ServiceObservation,
+    UnicastAnswer,
+)
+from justdavis_monitoring_exporters.airplay.state import parse_txt, playback_state
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, AirplayService, mdns_type
 from justdavis_monitoring_exporters.common.settings import TrackedClient
 
@@ -59,9 +69,11 @@ class Resolver(Protocol):
         """Actively query for `instance_name` of `service_type`; False when nothing answered in time."""
         ...
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
-        """Query the device at `ip` directly for the instance's records; False when nothing answered,
-        None when the query could not be made at all (which says nothing about the device)."""
+    def resolve_unicast(
+        self, ip: str, service_type: str, instance_name: str, timeout_ms: int
+    ) -> UnicastAnswer | None:
+        """Query the device at `ip` directly for the instance's records; None when the query could not
+        be made at all (which says nothing about the device)."""
         ...
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
@@ -113,7 +125,7 @@ def poll(
         for client in homepods
         if (ip := addresses.get(client.name)) is not None
     ]
-    unicast: dict[ServiceKey, bool] = {}
+    unicast: dict[ServiceKey, UnicastAnswer] = {}
     if resolvable or unicast_jobs:
         workers = min(_MAX_WORKERS, len(resolvable) + len(unicast_jobs))
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -126,10 +138,10 @@ def poll(
             )
             for (key, _instance), ok in zip(resolvable, multicast_results, strict=True):
                 resolved[key] = ok
-            for (key, _ip), answered in zip(unicast_jobs, unicast_results, strict=True):
+            for (key, _ip), answer in zip(unicast_jobs, unicast_results, strict=True):
                 # A query that could not be made is left out, like one with no address to send to.
-                if answered is not None:
-                    unicast[key] = answered
+                if answer is not None:
+                    unicast[key] = answer
     announced: dict[ServiceKey, float] = {}
     for (seen_type, instance), seen_at in passive.items():
         try:
@@ -143,10 +155,15 @@ def poll(
         seen = last_seen.get(key)
         if key in announced:
             seen = max(announced[key], seen or 0.0)
-        if ok or unicast.get(key):
+        answer = unicast.get(key)
+        if ok or (answer is not None and answer.answered):
             seen = now
         services[key] = ServiceObservation(
-            resolved=ok, discovered=key in announced, last_seen=seen, unicast_resolved=unicast.get(key)
+            resolved=ok,
+            discovered=key in announced,
+            last_seen=seen,
+            unicast_resolved=None if answer is None else answer.answered,
+            state=None if answer is None or answer.txt is None else playback_state(answer.txt),
         )
     return AirplaySnapshot(services=services)
 
@@ -188,10 +205,12 @@ class ZeroconfResolver:
         info = self._zc.get_service_info(service_type, f"{instance_name}.{service_type}", timeout=timeout_ms)
         return info is not None
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
+    def resolve_unicast(
+        self, ip: str, service_type: str, instance_name: str, timeout_ms: int
+    ) -> UnicastAnswer | None:
         """One SRV+TXT query for the instance, sent from the LAN address to `ip`:5353 on a throwaway
-        socket (so it bypasses zeroconf's cache and the multicast group entirely); True when the reply
-        carries at least one answer. A closed port (ICMP unreachable) counts as no answer. Any other
+        socket (so it bypasses zeroconf's cache and the multicast group entirely); answered when the
+        reply carries at least one record. A closed port (ICMP unreachable) counts as no answer. Any other
         socket error while sending or receiving is a fault on this side, not the device's silence: it
         is logged and reported as None, so one query that cannot be made costs that HomePod's unicast
         result rather than the whole poll. Binding to the LAN address is not covered: if that fails,
@@ -208,11 +227,13 @@ class ZeroconfResolver:
                     sock.sendto(packet, (ip, _MDNS_PORT))
                 data, _ = sock.recvfrom(_MDNS_MAX_PACKET)
             except (TimeoutError, ConnectionRefusedError):
-                return False
+                return UnicastAnswer(answered=False)
             except OSError as exc:
                 log.warning("unicast query to %s for %s could not be made: %s", ip, fqdn, exc)
                 return None
-        return bool(DNSIncoming(data).answers())
+        records = DNSIncoming(data).answers()
+        txt = next((parse_txt(record.text) for record in records if isinstance(record, DNSText)), None)
+        return UnicastAnswer(answered=bool(records), txt=txt)
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
         return self._listener.snapshot()

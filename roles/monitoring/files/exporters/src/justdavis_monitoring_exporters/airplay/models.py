@@ -26,16 +26,37 @@ class ServiceKey:
 
 
 @dataclass(frozen=True, slots=True)
+class UnicastAnswer:
+    """What came back from a unicast query: whether anything answered, and the fields of the TXT record
+    when the answer carried one."""
+
+    answered: bool
+    txt: Mapping[str, str] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PlaybackState:
+    """What a HomePod's `_airplay._tcp` TXT record says it is doing (see `airplay/state.py`)."""
+
+    audio_playing: bool
+    group_leader: bool
+    group_id: str
+    status_flags: int
+
+
+@dataclass(frozen=True, slots=True)
 class ServiceObservation:
     """What one poll found out about a service: whether an active multicast query resolved it, whether the
-    passive browser currently lists it, when it was last seen any way (None if never), and whether a
+    passive browser currently lists it, when it was last seen any way (None if never), whether a
     unicast query sent straight to the device answered (None when its address is unknown, the query
-    could not be made, or the service is not queried by unicast)."""
+    could not be made, or the service is not queried by unicast), and what the unicast answer's TXT
+    record said the HomePod is doing (None when there was no answer or the record could not be read)."""
 
     resolved: bool
     discovered: bool
     last_seen: float | None
     unicast_resolved: bool | None = None
+    state: PlaybackState | None = None
 
 
 @dataclass(frozen=True, slots=True)

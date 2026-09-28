@@ -55,8 +55,10 @@ class WifiClient:
     mode: str | None
     signal_quality: int
     happiness_score: int
+    # Negotiated PHY link rates (RxBitrate/TxBitrate), not throughput.
     rx_bitrate_kbps: int
     tx_bitrate_kbps: int
+    # Per-association 32-bit counters; rx is what the client received. See common/counters.py.
     rx_bytes: int
     tx_bytes: int
     inactive_seconds: int

@@ -202,7 +202,7 @@ def tracked_homepods(environment: Mapping[str, str]) -> list[tuple[Target, Insta
 def parse_targets(spec: str) -> list[Target]:
     targets: list[Target] = []
     for item in spec.split(","):
-        label, separator, ip = item.partition("=")
+        label, separator, ip = (part.strip() for part in item.partition("="))
         if not separator or not label or not ip:
             sys.exit(f"--targets expects name=ip,...; got {item!r}")
         targets.append(Target(label, ip))

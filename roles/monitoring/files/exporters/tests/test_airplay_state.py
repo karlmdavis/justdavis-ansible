@@ -54,6 +54,15 @@ def test_audio_playing_follows_bit_20_whatever_the_other_bits_say(
     )
 
 
+def test_group_id_of_a_homepod_led_group_is_kept_whole_and_a_longer_one_is_capped() -> None:
+    led_by_a_homepod = f"{GROUP}+00000000-0000-4000-8000-0000000000F1"
+    assert len(led_by_a_homepod) == 73
+    state = playback_state({"flags": "0x98404", "gid": led_by_a_homepod, "igl": "1"})
+    assert state.group_id == led_by_a_homepod
+    capped = playback_state({"flags": "0x98404", "gid": "g" * 500, "igl": "1"})
+    assert capped.group_id == "g" * 128
+
+
 @pytest.mark.parametrize(
     ("txt", "reason"),
     [

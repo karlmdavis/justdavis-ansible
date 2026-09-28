@@ -2,19 +2,24 @@
 # requires-python = ">=3.13"
 # dependencies = []
 # ///
-"""When was audio playing to each HomePod, and did one drop out?
+"""How much was each HomePod downloading, and did the rate drop mid-stream?
 
 WHEN TO RUN IT
 
-* Music stopped or stuttered on a HomePod and you want to know when, and whether the others in the
-  group carried on.
-* You want to check whether a HomePod really played all night (a bedtime playlist, white noise).
-* You are judging what download rate separates "playing" from "idle" for a kind of stream.
+* Music stuttered on a HomePod and you want to see the stream's rate around that time, beside the
+  rates of the others in its group.
+* You want to know what rate a kind of stream runs at.
+
+For whether audio was playing at all, and which HomePods were grouped, read the HomePod dashboard's
+"What each HomePod is doing" panel: it comes from the HomePods' own AirPlay records.
 
 WHAT IT DOES
 
 Reads how much each HomePod downloaded, which the router counts per WiFi client and Prometheus keeps.
-Audio arriving at a HomePod shows as a steady download; an idle HomePod downloads almost nothing.
+Audio arriving at a HomePod shows as a steady download. The rate alone does not prove audio, and
+its absence does not prove silence (2026-09-28): the router reported no byte counts at all for
+seven of the nine HomePods, and two silent HomePods read 50 and 66 kbit/s while their group
+re-formed.
 
 HOW TO RUN IT
 

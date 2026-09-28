@@ -197,6 +197,19 @@
   become: true
   notify: Restart Monitoring
 
+- name: Create Prometheus Recording Rules
+  ansible.builtin.template:
+    src: recording.yml.j2
+    dest: "{{ monitoring_base_dir }}/prometheus/recording.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+    validate: >-
+      /usr/bin/docker run --rm --user 0 --entrypoint promtool -v %s:/tmp/recording.yml:ro
+      {{ monitoring_prometheus_image }} check rules /tmp/recording.yml
+  become: true
+  notify: Restart Monitoring
+
 - name: Create Alertmanager Configuration
   ansible.builtin.template:
     src: alertmanager.yml.j2

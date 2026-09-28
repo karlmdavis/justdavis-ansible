@@ -1,0 +1,153 @@
+# promtool unit test for the homepod_audio recording rules; the role's smoke tests run it against the
+# rules as deployed (roles/monitoring/tasks/test.yml). Modelled on what nine HomePods did on
+# 2026-09-28. Steps are 30 s.
+#   0m   A, B, C, D idle, each leading a group of one.
+#   2m   A, B, C follow a tablet's stream (group S) and play. D stays idle.
+#   4m   B misses one poll (its series go stale), and is back at 4m30 unchanged.
+#   6m   C drops out of S: silent, leading its own group again. A and B play on.
+#   8m   The stream stops: A and B silent, still in S.
+#   10m  S ends: A leads a new group N, B follows it; both silent.
+rule_files:
+  - recording.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'airplay_audio_playing{name="A"}'
+        values: '0x3 1x11 0x8'
+      - series: 'airplay_group_leader{name="A"}'
+        values: '1x3 0x15 1x4'
+      - series: 'airplay_group_info{name="A", group="own-a"}'
+        values: '1x3 stale'
+      - series: 'airplay_group_info{name="A", group="S"}'
+        values: '_x4 1x15 stale'
+      - series: 'airplay_group_info{name="A", group="N"}'
+        values: '_x20 1x4'
+
+      - series: 'airplay_audio_playing{name="B"}'
+        values: '0x3 1x3 stale 1x6 0x8'
+      - series: 'airplay_group_leader{name="B"}'
+        values: '1x3 0x3 stale 0x15'
+      - series: 'airplay_group_info{name="B", group="own-b"}'
+        values: '1x3 stale'
+      - series: 'airplay_group_info{name="B", group="S"}'
+        values: '_x4 1x3 stale 1x10 stale'
+      - series: 'airplay_group_info{name="B", group="N"}'
+        values: '_x20 1x4'
+
+      - series: 'airplay_audio_playing{name="C"}'
+        values: '0x3 1x7 0x12'
+      - series: 'airplay_group_leader{name="C"}'
+        values: '1x3 0x7 1x12'
+      - series: 'airplay_group_info{name="C", group="own-c"}'
+        values: '1x3 stale _x7 1x12'
+      - series: 'airplay_group_info{name="C", group="S"}'
+        values: '_x4 1x7 stale'
+
+      - series: 'airplay_audio_playing{name="D"}'
+        values: '0x24'
+      - series: 'airplay_group_leader{name="D"}'
+        values: '1x24'
+      - series: 'airplay_group_info{name="D", group="own-d"}'
+        values: '1x24'
+    promql_expr_test:
+      - expr: homepod:audio_active
+        eval_time: 3m
+        exp_samples:
+          - labels: 'homepod:audio_active{name="A"}'
+            value: 1
+          - labels: 'homepod:audio_active{name="B"}'
+            value: 1
+          - labels: 'homepod:audio_active{name="C"}'
+            value: 1
+          - labels: 'homepod:audio_active{name="D"}'
+            value: 0
+      # The missed poll: B's last reading stands in, so it still reads as playing.
+      - expr: homepod:audio_active{name="B"}
+        eval_time: 4m
+        exp_samples:
+          - labels: 'homepod:audio_active{name="B"}'
+            value: 1
+      - expr: homepod:audio_active
+        eval_time: 7m
+        exp_samples:
+          - labels: 'homepod:audio_active{name="A"}'
+            value: 1
+          - labels: 'homepod:audio_active{name="B"}'
+            value: 1
+          - labels: 'homepod:audio_active{name="C"}'
+            value: 0
+          - labels: 'homepod:audio_active{name="D"}'
+            value: 0
+      # One audio_ended sample each for A, B (8m) and C (6m), none for D, none for B's missed poll; the
+      # dashboard annotation matches on the value, so each must be 1.
+      - expr: count_over_time(homepod:audio_ended[12m])
+        eval_time: 12m
+        exp_samples:
+          - labels: '{name="A"}'
+            value: 1
+          - labels: '{name="B"}'
+            value: 1
+          - labels: '{name="C"}'
+            value: 1
+      - expr: sum_over_time(homepod:audio_ended[12m])
+        eval_time: 12m
+        exp_samples:
+          - labels: '{name="A"}'
+            value: 1
+          - labels: '{name="B"}'
+            value: 1
+          - labels: '{name="C"}'
+            value: 1
+      - expr: homepod:audio_ended
+        eval_time: 6m
+        exp_samples:
+          - labels: 'homepod:audio_ended{name="C"}'
+            value: 1
+      # Only C left a group that was still playing. Joining S, B's missed poll, the stop, and S ending
+      # with all its members leaving together must not be marked.
+      - expr: homepod:left_playing_group
+        eval_time: 6m
+        exp_samples:
+          - labels: 'homepod:left_playing_group{name="C", group="S"}'
+            value: 1
+      - expr: count_over_time(homepod:left_playing_group[12m])
+        eval_time: 12m
+        exp_samples:
+          - labels: '{name="C", group="S"}'
+            value: 1
+      - expr: homepod:session_state
+        eval_time: 3m
+        exp_samples:
+          - labels: 'homepod:session_state{name="A"}'
+            value: 3
+          - labels: 'homepod:session_state{name="B"}'
+            value: 3
+          - labels: 'homepod:session_state{name="C"}'
+            value: 3
+          - labels: 'homepod:session_state{name="D"}'
+            value: 0
+      - expr: homepod:session_state
+        eval_time: 9m
+        exp_samples:
+          - labels: 'homepod:session_state{name="A"}'
+            value: 2
+          - labels: 'homepod:session_state{name="B"}'
+            value: 2
+          - labels: 'homepod:session_state{name="C"}'
+            value: 0
+          - labels: 'homepod:session_state{name="D"}'
+            value: 0
+      - expr: homepod:session_state
+        eval_time: 11m
+        exp_samples:
+          - labels: 'homepod:session_state{name="A"}'
+            value: 0
+          - labels: 'homepod:session_state{name="B"}'
+            value: 2
+          - labels: 'homepod:session_state{name="C"}'
+            value: 0
+          - labels: 'homepod:session_state{name="D"}'
+            value: 0

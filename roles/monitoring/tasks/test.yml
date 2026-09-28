@@ -105,3 +105,64 @@
         | list | length == 9
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
   when: is_test
+
+# `promtool check rules` (run when the rules are templated) checks only that the recording rules
+# parse. This replays a session of HomePods joining, playing, dropping out, and stopping against the
+# rules as deployed, and checks what they record. It needs no data from the network, so it holds on
+# any system.
+- name: Test - Recording Rules Unit Test
+  become: true
+  block:
+    - name: Test - Create Directory for Recording Rules Unit Test
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .monitoring-rules-test
+      register: monitoring_rules_test_dir
+      changed_when: false
+      check_mode: false
+
+    - name: Test - Copy Recording Rules Unit Test
+      ansible.builtin.copy:
+        src: prometheus/recording_test.yml
+        dest: "{{ monitoring_rules_test_dir.path }}/recording_test.yml"
+        mode: 'u=rw,g=r,o=r'
+      changed_when: false
+      check_mode: false
+
+    - name: Test - Copy Deployed Recording Rules Beside Unit Test
+      ansible.builtin.copy:
+        src: "{{ monitoring_base_dir }}/prometheus/recording.yml"
+        dest: "{{ monitoring_rules_test_dir.path }}/recording.yml"
+        remote_src: true
+        mode: 'u=rw,g=r,o=r'
+      changed_when: false
+      check_mode: false
+
+    - name: Test - Run Recording Rules Unit Test
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - run
+          - --rm
+          - --user
+          - "0"
+          - --entrypoint
+          - promtool
+          - --volume
+          - "{{ monitoring_rules_test_dir.path }}:/rules-test:ro"
+          - --workdir
+          - /rules-test
+          - "{{ monitoring_prometheus_image }}"
+          - test
+          - rules
+          - recording_test.yml
+      changed_when: false
+      check_mode: false
+  always:
+    - name: Test - Remove Directory for Recording Rules Unit Test
+      ansible.builtin.file:
+        path: "{{ monitoring_rules_test_dir.path }}"
+        state: absent
+      changed_when: false
+      check_mode: false
+      when: monitoring_rules_test_dir.path is defined

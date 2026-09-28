@@ -59,8 +59,10 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
-| Is audio playing to this HomePod | `homepod:audio_active` (recording rule): its download rate, `homepod:download_bits_per_second:rate1m`, averaged over 3 minutes is above 40 kbit/s. Observed 2026-09-23/24: AirPlay from a phone or iPad holds 60-450 kbit/s with every group member's curve moving in lockstep; Apple Music playing on the HomePods fetches per track (25 kbit/s to 1.4 Mbit/s, ~500 mean), though the overnight bedtime playlist held a steady 50-90 kbit/s; idle is 0-20 kbit/s. | None: recorded and charted. |
-| When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped while the HomePod stayed on the WiFi (dashboard annotations); on the download-rate panel, one group member's curve diverging from the others is the HomePod that left the group. | None: recorded until a real incident says whether it needs one. |
+| Is audio playing on this HomePod | `airplay_audio_playing`, read from the HomePod's own AirPlay record every poll; `homepod:audio_active` (recording rule) is the same with a missed poll bridged. Checked 2026-09-28 against what was audible, for AirPlay from an iPad and from a Mac, Apple Music playing on the HomePod, a HomePod following another, and white noise from a Home scene: every start, stop, and pause showed within 30 seconds. | None: recorded and charted. |
+| Which HomePods are playing together | `airplay_group_info{group}`: HomePods in one group share the label. `airplay_group_leader` is 0 for a HomePod that follows another device. `homepod:session_state` (recording rule) combines the two for the dashboard. A paused or stopped stream leaves the group in place. | None: recorded and charted. |
+| When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped, and `homepod:left_playing_group` the one where a HomePod was no longer in a group that kept playing (dashboard annotations). Seen 2026-09-28: one HomePod of eight went silent while the rest played on; it stayed on the WiFi with port 7000 open and answering queries, so nothing else showed it. A HomePod moved to another group on purpose is marked the same way. | None: recorded until a real incident says whether it needs one. |
+| How much a HomePod is downloading | `homepod:download_bits_per_second:rate1m` (recording rule), where the router reports byte counts. On 2026-09-28 it reported none for seven of the nine HomePods, which is why audio is not read from this. | None: charted. |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds`; the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
 | How the mesh is wired up | `amplifi_mesh_point_info{uplink,level,backhaul_band}`: each mesh point's backhaul band and whether it hangs off the router (level 2) or is daisy-chained through another mesh point (level 3). Both changed after the first reboots. | None: recorded. |
@@ -250,6 +252,13 @@ the stack restarts cleanly during a WAN outage.
 - The mDNS probes originate on the router's wired LAN port (eddings), which is the worst case for the
   multicast path to 5 GHz clients: a phone on the WiFi can list a HomePod the multicast gauge shows as
   lost. The unicast gauge tells that case from a HomePod whose AirPlay service is actually down.
+- Apple does not document the AirPlay record the playback gauges are read from. Their meanings were
+  worked out by observation on 2026-09-28 (see the exporter's `airplay/state.py`), so a HomePod
+  software update could change them without notice. `airplay_status_flags` keeps the raw value for
+  comparison if that happens.
+- The router reports a client's byte counts as unavailable for long stretches (2026-09-28: the
+  download count of seven of the nine HomePods, for hours), so the download-rate series and
+  `homepod_traffic.py` cover only the HomePods that have counts at the time.
 
 ## Troubleshooting
 
@@ -322,7 +331,8 @@ uv run roles/monitoring/scripts/homepod_traffic.py --shape Speaker-A "2026-09-27
 
 Each stretch is a time the HomePod downloaded at or above the threshold, with its average rate. The
 second form prints one number per 30 seconds for a closer look; a drop to near zero mid-stream is a
-dropout.
+dropout. A HomePod shown as quiet may only lack byte counts (see Known Limitations); the HomePod
+dashboard's "What each HomePod is doing" panel does not depend on them.
 
 #### `docsis_uncorrectables.py`: the modem lost data; did the Internet connection suffer?
 

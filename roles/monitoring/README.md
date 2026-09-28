@@ -59,7 +59,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
-| Is audio playing on this HomePod | `airplay_audio_playing`, read from the HomePod's own AirPlay record every poll; `homepod:audio_active` (recording rule) is the same with a missed poll bridged. Checked 2026-09-28 against what was audible, for AirPlay from an iPad and from a Mac, Apple Music playing on the HomePod, a HomePod following another, and white noise from a Home scene: every start, stop, and pause showed at the next reading of the record (readings were 30 seconds apart). `airplay_playback_state_readable` is 0 for a HomePod that answers with a record the state cannot be read from; the exporter's log says what was wrong with it. | None: recorded and charted. |
+| Is audio playing on this HomePod | `airplay_audio_playing`, read from the HomePod's own AirPlay record every poll; `homepod:audio_active` (recording rule) is the same with a missed poll bridged. Checked 2026-09-28 against what was audible, for AirPlay from an iPad and from a Mac, Apple Music playing on the HomePod, a HomePod following another, and white noise from a Home scene: every start, stop, and pause showed at the next reading of the record (readings were 30 seconds apart). `airplay_playback_state_readable` is 0 for a HomePod that answers with a record the state cannot be read from; the exporter's log says what was wrong with it. | `HomePodPlaybackStateUnreadable`, for the monitoring going blind only; nothing alerts on what plays. |
 | Which HomePods are grouped | `airplay_group_info{group}`: HomePods in one group share the label. `airplay_group_leader` is 0 for a HomePod that follows another device. `homepod:session_state` (recording rule) combines `airplay_group_leader` with `homepod:audio_active` into one state per HomePod for the dashboard. A paused or stopped stream leaves the group in place, so a shared group does not by itself mean audio is playing. | None: recorded and charted. |
 | When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped, and `homepod:left_playing_group` the one where a HomePod was no longer in a group that kept playing (dashboard annotations). Seen 2026-09-28: one HomePod of eight went silent while the rest played on; it stayed on the WiFi with port 7000 open and answering queries, so nothing else showed it. A HomePod moved to another group on purpose is marked the same way, and so would be one whose whole group moved to a new session a poll after it did (not seen as of 2026-09-28). | None: recorded until a real incident says whether it needs one. |
 | How much a HomePod is downloading | `homepod:download_bits_per_second:rate1m` (recording rule), where the router reports byte counts. On 2026-09-28 it reported none for seven of the nine HomePods, which is why audio is not read from this. | None: charted. |
@@ -176,7 +176,8 @@ failed gateway scrape leaves); uncorrectable codewords above 1% of a channel's c
 codewords a second, and a first estimate (1% is the field rule of thumb for when calls suffer; the
 worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
-ping, not accepting AirPlay connections, or not resolving over mDNS; a mesh point offline or missing
+ping, not accepting AirPlay connections, or not resolving over mDNS; a HomePod whose AirPlay record
+can no longer be read for its playback state; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
 going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
@@ -256,9 +257,9 @@ the stack restarts cleanly during a WAN outage.
   worked out by observation on 2026-09-28 (the record of that session is in
   [docs/airplay-playback-state.md](docs/airplay-playback-state.md)), so a HomePod
   software update could change them without notice. If the record loses the form the state is
-  read from, `airplay_playback_state_readable` goes to 0 and the exporter logs what it found; if
-  only a bit's meaning changes, nothing says so, and `airplay_status_flags` keeps the raw value
-  for comparison.
+  read from, `airplay_playback_state_readable` goes to 0, `HomePodPlaybackStateUnreadable` fires
+  after 15 minutes, and the exporter logs what it found; if only a bit's meaning changes, nothing
+  says so, and `airplay_status_flags` keeps the raw value for comparison.
 - The router reports a client's byte counts as unavailable for long stretches (2026-09-28: the
   download count of seven of the nine HomePods, for hours), so the download-rate series and
   `homepod_traffic.py` cover only the HomePods that have counts at the time.

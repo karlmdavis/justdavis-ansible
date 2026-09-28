@@ -224,6 +224,23 @@ groups:
             HomePod {{ L }} $labels.name {{ R }} answers neither multicast nor unicast AirPlay mDNS
             queries: its AirPlay service is down
 
+      # A fault in the monitoring, not in the HomePod: the playback gauges are absent, not 0, for a
+      # record that cannot be read, so without this nothing would say that they had gone. Apple does
+      # not document the record, so a HomePod software update is the likely cause. The gauge is absent
+      # for a poll the HomePod misses (about one an hour each, 2026-09-28), which would restart the
+      # wait, so the last reading within two minutes stands in. A HomePod that stops answering has no
+      # reading at all and is the mDNS rules' business.
+      - alert: HomePodPlaybackStateUnreadable
+        expr: last_over_time(airplay_playback_state_readable[2m]) == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            HomePod {{ L }} $labels.name {{ R }} answers with an AirPlay record its playback state
+            cannot be read from, so whether it is playing and which group it is in are unknown; the
+            airplay exporter's log says what is wrong with the record
+
   - name: amplifi
     rules:
       - alert: AmpliFiRebooted

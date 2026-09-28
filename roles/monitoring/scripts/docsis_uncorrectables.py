@@ -23,8 +23,10 @@ On the controller, with `uv` and an SSH port forward to Prometheus; nothing is i
 All times are UTC.
 
     ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
+    TUNNEL=$!
     uv run roles/monitoring/scripts/docsis_uncorrectables.py
     uv run roles/monitoring/scripts/docsis_uncorrectables.py --hours 72 --wan-target 8.8.8.8
+    kill "$TUNNEL"
 
 SAMPLE OUTPUT (2026-09-27, `--hours 110`, shortened)
 

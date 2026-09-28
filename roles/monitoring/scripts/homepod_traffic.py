@@ -22,9 +22,11 @@ On the controller, with `uv` and an SSH port forward to Prometheus; nothing is i
 All times are UTC.
 
     ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
+    TUNNEL=$!
     uv run roles/monitoring/scripts/homepod_traffic.py
     uv run roles/monitoring/scripts/homepod_traffic.py --hours 36 --threshold 100
     uv run roles/monitoring/scripts/homepod_traffic.py --shape Speaker-A "2026-09-24 05:00" "2026-09-24 05:20"
+    kill "$TUNNEL"
 
 SAMPLE OUTPUT, DEFAULT VIEW (names are examples)
 

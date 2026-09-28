@@ -250,10 +250,13 @@ controller, and nothing is installed on eddings. Each script's header (also prin
 full instructions, sample output, and how to read it; this section says which one to reach for. Names
 and addresses in the samples are examples, and all times are UTC.
 
-The two that read Prometheus need an SSH port forward first, closed with `kill %1` afterwards:
+The two that read Prometheus need an SSH port forward first, and it should be closed afterwards:
 
 ```bash
 ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com &
+TUNNEL=$!
+# Run the scripts, then:
+kill "$TUNNEL"
 ```
 
 #### `airplay_mdns_probe.py`: is a HomePod down, or has the network lost track of it?

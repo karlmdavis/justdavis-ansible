@@ -2,7 +2,7 @@
 
 Apple does not document the record. The meanings below were worked out on 2026-09-28 by changing what
 nine HomePods played while reading their records every 30 seconds, and checking each reading against
-what was audible:
+what was audible (the full record of that session is in the role's docs/airplay-playback-state.md):
 
 * Bit 20 of `flags` (0x100000) is set while audio plays, whatever the source. It followed every start,
   stop, and pause at the next reading for AirPlay from an iPad to a group and to one HomePod, AirPlay

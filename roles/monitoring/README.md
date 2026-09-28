@@ -253,7 +253,8 @@ the stack restarts cleanly during a WAN outage.
   multicast path to 5 GHz clients: a phone on the WiFi can list a HomePod the multicast gauge shows as
   lost. The unicast gauge tells that case from a HomePod whose AirPlay service is actually down.
 - Apple does not document the AirPlay record the playback gauges are read from. Their meanings were
-  worked out by observation on 2026-09-28 (see the exporter's `airplay/state.py`), so a HomePod
+  worked out by observation on 2026-09-28 (the record of that session is in
+  [docs/airplay-playback-state.md](docs/airplay-playback-state.md)), so a HomePod
   software update could change them without notice. If the record loses the form the state is
   read from, `airplay_playback_state_readable` goes to 0 and the exporter logs what it found; if
   only a bit's meaning changes, nothing says so, and `airplay_status_flags` keeps the raw value

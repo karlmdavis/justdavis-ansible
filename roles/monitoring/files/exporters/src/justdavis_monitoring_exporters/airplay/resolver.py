@@ -59,8 +59,9 @@ class Resolver(Protocol):
         """Actively query for `instance_name` of `service_type`; False when nothing answered in time."""
         ...
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
-        """Query the device at `ip` directly for the instance's records; False when nothing answered."""
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
+        """Query the device at `ip` directly for the instance's records; False when nothing answered,
+        None when the query could not be made at all (which says nothing about the device)."""
         ...
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
@@ -125,8 +126,10 @@ def poll(
             )
             for (key, _instance), ok in zip(resolvable, multicast_results, strict=True):
                 resolved[key] = ok
-            for (key, _ip), ok in zip(unicast_jobs, unicast_results, strict=True):
-                unicast[key] = ok
+            for (key, _ip), answered in zip(unicast_jobs, unicast_results, strict=True):
+                # A query that could not be made is left out, like one with no address to send to.
+                if answered is not None:
+                    unicast[key] = answered
     announced: dict[ServiceKey, float] = {}
     for (seen_type, instance), seen_at in passive.items():
         try:
@@ -185,10 +188,14 @@ class ZeroconfResolver:
         info = self._zc.get_service_info(service_type, f"{instance_name}.{service_type}", timeout=timeout_ms)
         return info is not None
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
         """One SRV+TXT query for the instance, sent from the LAN address to `ip`:5353 on a throwaway
         socket (so it bypasses zeroconf's cache and the multicast group entirely); True when the reply
-        carries at least one answer. A closed port (ICMP unreachable) counts as no answer."""
+        carries at least one answer. A closed port (ICMP unreachable) counts as no answer. Any other
+        socket error while sending or receiving is a fault on this side, not the device's silence: it
+        is logged and reported as None, so one query that cannot be made costs that HomePod's unicast
+        result rather than the whole poll. Binding to the LAN address is not covered: if that fails,
+        the exporter has no network to probe from and the poll should fail."""
         fqdn = f"{instance_name}.{service_type}"
         outgoing = DNSOutgoing(_FLAGS_QR_QUERY)
         outgoing.add_question(DNSQuestion(fqdn, _TYPE_SRV, _CLASS_IN))
@@ -202,6 +209,9 @@ class ZeroconfResolver:
                 data, _ = sock.recvfrom(_MDNS_MAX_PACKET)
             except (TimeoutError, ConnectionRefusedError):
                 return False
+            except OSError as exc:
+                log.warning("unicast query to %s for %s could not be made: %s", ip, fqdn, exc)
+                return None
         return bool(DNSIncoming(data).answers())
 
     def discovered(self) -> Mapping[tuple[str, str], float]:

@@ -35,18 +35,21 @@ NO_ADDRESSES: dict[str, str] = {}
 
 
 class FakeResolver:
-    """`resolvable` holds full mDNS instance names that resolve by multicast and `unicast_resolvable`
-    those that answer a unicast query; `discovered` maps (type, instance) pairs, as the passive browser
-    would record them, to last-seen times."""
+    """`resolvable` holds full mDNS instance names that resolve by multicast, `unicast_resolvable`
+    those that answer a unicast query, and `unicast_unusable` those whose unicast query cannot be made;
+    `discovered` maps (type, instance) pairs, as the passive browser would record them, to last-seen
+    times."""
 
     def __init__(
         self,
         resolvable: set[str],
         discovered: dict[tuple[str, str], float] | None = None,
         unicast_resolvable: set[str] | None = None,
+        unicast_unusable: set[str] | None = None,
     ) -> None:
         self.resolvable = resolvable
         self.unicast_resolvable = unicast_resolvable or set()
+        self.unicast_unusable = unicast_unusable or set()
         self._discovered = discovered or {}
         self.requests: list[tuple[str, str]] = []
         self.unicast_requests: list[tuple[str, str, str]] = []
@@ -58,10 +61,12 @@ class FakeResolver:
             raise self.error
         return instance_name in self.resolvable
 
-    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool:
+    def resolve_unicast(self, ip: str, service_type: str, instance_name: str, timeout_ms: int) -> bool | None:
         self.unicast_requests.append((ip, service_type, instance_name))
         if self.error is not None:
             raise self.error
+        if instance_name in self.unicast_unusable:
+            return None
         return instance_name in self.unicast_resolvable
 
     def discovered(self) -> dict[tuple[str, str], float]:
@@ -117,6 +122,19 @@ def test_multicast_failure_with_a_unicast_answer_is_recorded_and_counts_as_seen(
     assert snapshot.services[A_AIRPLAY].last_seen == 100.0
     assert snapshot.services[B_AIRPLAY].unicast_resolved is False
     assert snapshot.services[B_AIRPLAY].last_seen is None
+
+
+def test_unicast_query_that_cannot_be_made_costs_only_that_homepods_unicast_result() -> None:
+    resolver = FakeResolver(
+        {"Speaker A", "Speaker B"}, unicast_resolvable={"Speaker B"}, unicast_unusable={"Speaker A"}
+    )
+    addresses = {"Speaker-A": "192.0.2.110", "Speaker-B": "192.0.2.111"}
+    snapshot = poll(resolver, TRACKED, addresses=addresses, timeout_ms=10, now=100.0, last_seen={})
+    # Not False: the query said nothing about Speaker A, so it must not read as "did not answer".
+    assert snapshot.services[A_AIRPLAY].unicast_resolved is None
+    assert snapshot.services[A_AIRPLAY].resolved is True
+    assert snapshot.services[B_AIRPLAY].unicast_resolved is True
+    assert snapshot.services[B_AIRPLAY].resolved is True
 
 
 def test_last_seen_comes_from_resolution_then_discovery_then_the_earlier_record() -> None:

@@ -184,7 +184,8 @@ groups:
       # address still answers means the multicast path from the wired LAN to its radio has lost it
       # (2026-09-24: seen on 5 GHz clients of every access point; the HomePod recovers on its own next
       # announcement; a phone may still list it from its cache). Both failing means the AirPlay
-      # service itself is down. With no unicast gauge (address unknown) the first rule fires as before.
+      # service itself is down. With no unicast gauge (address unknown, or the query could not be made)
+      # the first rule fires as before.
       - alert: HomePodAirPlayNotResolving
         expr: >-
           airplay_service_resolved{service="_airplay._tcp"} == 0
@@ -195,7 +196,7 @@ groups:
         annotations:
           summary: >-
             HomePod {{ L }} $labels.name {{ R }} does not answer multicast AirPlay mDNS queries from the
-            wired LAN (unicast answers, or its address is unknown): most likely the multicast path lost it
+            wired LAN (unicast answers, or could not be tried): most likely the multicast path lost it
 
       - alert: HomePodAirPlayServiceGone
         expr: >-

@@ -29,8 +29,8 @@ class ServiceKey:
 class ServiceObservation:
     """What one poll found out about a service: whether an active multicast query resolved it, whether the
     passive browser currently lists it, when it was last seen any way (None if never), and whether a
-    unicast query sent straight to the device answered (None when its address is unknown or the service
-    is not queried by unicast)."""
+    unicast query sent straight to the device answered (None when its address is unknown, the query
+    could not be made, or the service is not queried by unicast)."""
 
     resolved: bool
     discovered: bool

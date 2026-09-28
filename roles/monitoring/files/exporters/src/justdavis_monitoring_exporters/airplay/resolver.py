@@ -72,8 +72,9 @@ class Resolver(Protocol):
     def resolve_unicast(
         self, ip: str, service_type: str, instance_name: str, timeout_ms: int
     ) -> UnicastAnswer | None:
-        """Query the device at `ip` directly for the instance's records; None when the query could not
-        be made at all (which says nothing about the device)."""
+        """Query the device at `ip` directly for the instance's records. The answer's `answered` is
+        False when nothing answered in time; the result is None when the query could not be made at
+        all (which says nothing about the device)."""
         ...
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
@@ -168,6 +169,16 @@ def poll(
     return AirplaySnapshot(services=services)
 
 
+def answer_from_packet(data: bytes, fqdn: str) -> UnicastAnswer:
+    """What a reply packet says about the instance `fqdn`. Only records for that name count: a reply
+    also carries records for the device's other names and services, and the playback state must not
+    be read from one of those. A packet that cannot be decoded has no records, so it counts as no
+    answer."""
+    records = [record for record in DNSIncoming(data).answers() if record.name.lower() == fqdn.lower()]
+    txt = next((parse_txt(record.text) for record in records if isinstance(record, DNSText)), None)
+    return UnicastAnswer(answered=bool(records), txt=txt)
+
+
 class _Listener(ServiceListener):
     """Records the last time each (type, instance) announcement was seen; never blocks."""
 
@@ -210,11 +221,13 @@ class ZeroconfResolver:
     ) -> UnicastAnswer | None:
         """One SRV+TXT query for the instance, sent from the LAN address to `ip`:5353 on a throwaway
         socket (so it bypasses zeroconf's cache and the multicast group entirely); answered when the
-        reply carries at least one record. A closed port (ICMP unreachable) counts as no answer. Any other
-        socket error while sending or receiving is a fault on this side, not the device's silence: it
-        is logged and reported as None, so one query that cannot be made costs that HomePod's unicast
-        result rather than the whole poll. Binding to the LAN address is not covered: if that fails,
-        the exporter has no network to probe from and the poll should fail."""
+        reply carries at least one record for the instance. The socket is connected to the device, so
+        a packet from any other host is never read as its answer. A closed port (ICMP unreachable)
+        counts as no answer. Any other socket error while sending or receiving is a fault on this
+        side, not the device's silence: it is logged and reported as None, so one query that cannot be
+        made costs that HomePod's unicast result rather than the whole poll. Binding to the LAN address
+        is not covered: if that fails, the exporter has no network to probe from and the poll should
+        fail."""
         fqdn = f"{instance_name}.{service_type}"
         outgoing = DNSOutgoing(_FLAGS_QR_QUERY)
         outgoing.add_question(DNSQuestion(fqdn, _TYPE_SRV, _CLASS_IN))
@@ -223,17 +236,16 @@ class ZeroconfResolver:
             sock.bind((self._lan_ip, 0))
             sock.settimeout(timeout_ms / 1000)
             try:
+                sock.connect((ip, _MDNS_PORT))
                 for packet in outgoing.packets():
-                    sock.sendto(packet, (ip, _MDNS_PORT))
-                data, _ = sock.recvfrom(_MDNS_MAX_PACKET)
+                    sock.send(packet)
+                data = sock.recv(_MDNS_MAX_PACKET)
             except (TimeoutError, ConnectionRefusedError):
                 return UnicastAnswer(answered=False)
             except OSError as exc:
                 log.warning("unicast query to %s for %s could not be made: %s", ip, fqdn, exc)
                 return None
-        records = DNSIncoming(data).answers()
-        txt = next((parse_txt(record.text) for record in records if isinstance(record, DNSText)), None)
-        return UnicastAnswer(answered=bool(records), txt=txt)
+        return answer_from_packet(data, fqdn)
 
     def discovered(self) -> Mapping[tuple[str, str], float]:
         return self._listener.snapshot()

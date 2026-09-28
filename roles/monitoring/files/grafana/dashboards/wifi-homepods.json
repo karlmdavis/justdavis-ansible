@@ -17,8 +17,7 @@
         "enable": true,
         "hide": false,
         "iconColor": "orange",
-        "expr": "homepod:audio_ended == 1",
-        "step": "30s",
+        "expr": "max_over_time(homepod:audio_ended[$__interval]) == 1",
         "titleFormat": "{{name}}: audio stopped",
         "useValueForTime": false
       },
@@ -28,8 +27,7 @@
         "enable": true,
         "hide": false,
         "iconColor": "red",
-        "expr": "homepod:left_playing_group == 1",
-        "step": "30s",
+        "expr": "max_over_time(homepod:left_playing_group[$__interval]) == 1",
         "titleFormat": "{{name}}: left a group that kept playing",
         "useValueForTime": false
       }
@@ -146,7 +144,7 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "Idle, on its own", "color": "transparent", "index": 0},
+                "0": {"text": "Silent, not following another device", "color": "transparent", "index": 0},
                 "1": {"text": "Playing its own stream", "color": "green", "index": 1},
                 "2": {"text": "Following another device, silent", "color": "yellow", "index": 2},
                 "3": {"text": "Following another device, playing", "color": "blue", "index": 3}
@@ -160,7 +158,7 @@
     {
       "id": 12,
       "type": "table",
-      "title": "Groups now: HomePods with the same group are playing together",
+      "title": "Groups now: HomePods with the same group are grouped; the last column is 1 where audio is playing",
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 46},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
@@ -187,7 +185,7 @@
     {
       "id": 11,
       "type": "timeseries",
-      "title": "HomePod download rate, where the router reports byte counts (AirPlay group members move in lockstep)",
+      "title": "HomePod download rate, where the router reports byte counts",
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 54},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [

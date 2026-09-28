@@ -129,22 +129,20 @@
     {
       "id": 10,
       "type": "state-timeline",
-      "title": "What each HomePod is doing, as its AirPlay record reports it (from homepod:session_state)",
+      "title": "What each HomePod is doing: grey silent, green playing its own stream, yellow following another device but silent, blue following and playing; a gap is no reading",
       "gridPos": {"h": 9, "w": 24, "x": 0, "y": 37},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "homepod:session_state", "legendFormat": "{{name}}"}
       ],
-      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "transparent", "value": null}]},
           "mappings": [
             {
               "type": "value",
               "options": {
-                "0": {"text": "Silent, not following another device", "color": "transparent", "index": 0},
+                "0": {"text": "Silent, not following another device", "color": "#5a5f66", "index": 0},
                 "1": {"text": "Playing its own stream", "color": "green", "index": 1},
                 "2": {"text": "Following another device, silent", "color": "yellow", "index": 2},
                 "3": {"text": "Following another device, playing", "color": "blue", "index": 3}

@@ -2,7 +2,7 @@ r"""Is a HomePod missing from AirPlay because it is down, or because the network
 
 WHEN TO RUN IT
 
-* A HomePod AirPlay alert is firing and you want to know, right now, which HomePods are affected.
+* `HomePodAirPlayServiceGone` is firing and you want to know, right now, which HomePods are affected.
 * A phone's or iPad's AirPlay picker is missing a HomePod that is plugged in and on the WiFi.
 * You changed something on the WiFi (rebooted a mesh point, updated firmware, moved a HomePod to the
   other band) and want to see whether it helped.

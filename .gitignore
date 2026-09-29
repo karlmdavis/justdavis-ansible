@@ -20,6 +20,9 @@ test/test-session.env
 # Ignore vim swp files.
 *.swp
 
+# Ignore macOS Finder metadata.
+.DS_Store
+
 # Ignore Claude AI local settings
 .claude/settings.local.json
 

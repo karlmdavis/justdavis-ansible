@@ -1,0 +1,60 @@
+# promtool unit test for the two HomePod mDNS rules, which must never both fire for one HomePod. The
+# role's smoke tests run it against the alert rules rendered with the device groups
+# (roles/monitoring/tasks/test.yml).
+#   A: multicast 0, unicast 1 -> NotResolving only.
+#   B: multicast 0, unicast 0 -> ServiceGone only.
+#   C: multicast 0, no unicast series (address unknown) -> NotResolving only.
+#   D: multicast 1, unicast 0 -> nothing (unicast failing alone never alerts).
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'airplay_service_resolved{name="A", service="_airplay._tcp"}'
+        values: '0x40'
+      - series: 'airplay_service_unicast_resolved{name="A", service="_airplay._tcp"}'
+        values: '1x40'
+      - series: 'airplay_service_resolved{name="B", service="_airplay._tcp"}'
+        values: '0x40'
+      - series: 'airplay_service_unicast_resolved{name="B", service="_airplay._tcp"}'
+        values: '0x40'
+      - series: 'airplay_service_resolved{name="C", service="_airplay._tcp"}'
+        values: '0x40'
+      - series: 'airplay_service_resolved{name="D", service="_airplay._tcp"}'
+        values: '1x40'
+      - series: 'airplay_service_unicast_resolved{name="D", service="_airplay._tcp"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HomePodAirPlayNotResolving
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: A
+              service: _airplay._tcp
+            exp_annotations:
+              summary: >-
+                HomePod A does not answer multicast AirPlay mDNS queries from the wired LAN (unicast
+                answers, or could not be tried): most likely the multicast path lost it
+          - exp_labels:
+              severity: warning
+              name: C
+              service: _airplay._tcp
+            exp_annotations:
+              summary: >-
+                HomePod C does not answer multicast AirPlay mDNS queries from the wired LAN (unicast
+                answers, or could not be tried): most likely the multicast path lost it
+      - eval_time: 15m
+        alertname: HomePodAirPlayServiceGone
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: B
+              service: _airplay._tcp
+            exp_annotations:
+              summary: >-
+                HomePod B answers neither multicast nor unicast AirPlay mDNS queries: its AirPlay service
+                is down

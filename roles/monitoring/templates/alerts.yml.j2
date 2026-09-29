@@ -163,7 +163,7 @@ groups:
           severity: warning
         annotations:
           summary: "node_exporter is not reporting offsite backup metrics"
-{% if not is_test %}
+{% if monitoring_alerts_include_device_rules %}
 
   - name: homepods
     rules:

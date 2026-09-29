@@ -1,0 +1,61 @@
+# promtool unit test for the DOCSIS uncorrectable-codeword rules, which judge a channel by the share
+# of its codewords that were uncorrectable. The role's smoke tests run it against the alert rules
+# rendered with the device groups (roles/monitoring/tasks/test.yml).
+#   Channel 34: 0.2% uncorrectable (about the worst real 15 minutes, 2026-09-24) must not fire.
+#   Channel 33: 2% must fire the warning only.
+#   Channel 32: 6% must fire both.
+#   Channel 31: no uncorrectables at all (0/N) must not fire.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'gateway_docsis_downstream_unerrored_codewords_total{channel="34"}'
+        values: '0+960000x30'
+      - series: 'gateway_docsis_downstream_correctable_codewords_total{channel="34"}'
+        values: '0+0x30'
+      - series: 'gateway_docsis_downstream_uncorrectable_codewords_total{channel="34"}'
+        values: '0+1920x30'
+      - series: 'gateway_docsis_downstream_unerrored_codewords_total{channel="33"}'
+        values: '0+960000x30'
+      - series: 'gateway_docsis_downstream_correctable_codewords_total{channel="33"}'
+        values: '0+0x30'
+      - series: 'gateway_docsis_downstream_uncorrectable_codewords_total{channel="33"}'
+        values: '0+19200x30'
+      - series: 'gateway_docsis_downstream_unerrored_codewords_total{channel="32"}'
+        values: '0+940000x30'
+      - series: 'gateway_docsis_downstream_correctable_codewords_total{channel="32"}'
+        values: '0+0x30'
+      - series: 'gateway_docsis_downstream_uncorrectable_codewords_total{channel="32"}'
+        values: '0+60000x30'
+      - series: 'gateway_docsis_downstream_unerrored_codewords_total{channel="31"}'
+        values: '0+120000x30'
+      - series: 'gateway_docsis_downstream_correctable_codewords_total{channel="31"}'
+        values: '0+0x30'
+      - series: 'gateway_docsis_downstream_uncorrectable_codewords_total{channel="31"}'
+        values: '0+0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DocsisUncorrectableCodewords
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              channel: "32"
+            exp_annotations:
+              summary: "Downstream channel 32: 6% of its codewords were uncorrectable over 15m"
+          - exp_labels:
+              severity: warning
+              channel: "33"
+            exp_annotations:
+              summary: "Downstream channel 33: 1.961% of its codewords were uncorrectable over 15m"
+      - eval_time: 20m
+        alertname: DocsisUncorrectableCodewordsSevere
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              channel: "32"
+            exp_annotations:
+              summary: "Downstream channel 32: 6% of its codewords were uncorrectable over 15m"

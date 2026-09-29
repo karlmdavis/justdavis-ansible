@@ -18,6 +18,12 @@ monitoring_docker_network: monitoring_default
 monitoring_docker_subnet: 172.28.0.0/24
 monitoring_docker_gateway: 172.28.0.1
 
+# Whether the alert rules include the groups for the devices on the home network. Not in the test
+# environment, where those devices do not exist and every one would read as down. The role's smoke
+# tests set it when they render the rules for their unit tests, so that the device rules are
+# tested there too; `is_test` itself is passed on the command line and cannot be set for one task.
+monitoring_alerts_include_device_rules: "{{ not is_test }}"
+
 # Image versions. Bump deliberately, in a PR gated by the AWS test run.
 monitoring_prometheus_image: prom/prometheus:v3.14.0
 monitoring_grafana_image: grafana/grafana-oss:13.0.2

@@ -225,6 +225,11 @@ the stack restarts cleanly during a WAN outage.
   `ssh -L 3000:127.0.0.1:3000 eddings.karlanderica.justdavis.com` then `http://localhost:3000/` (use
   Chrome or Firefox; Safari rejects Grafana's secure-only cookie over plain `http://localhost`).
 - Upgrade an image: bump its tag in `defaults/main.yml` and deploy; the AWS test run is the gate.
+- Change an alert or recording rule: change its unit test in `files/prometheus/` with it, or add one.
+  The role's smoke tests run them with `promtool test rules` on every run, the AWS test run included.
+  The test environment deploys the alert rules without the groups for the home network's devices, so
+  the smoke tests render the rules again with those groups before testing them: a device rule that
+  does not parse, or does not fire when it should, fails the AWS test run and not the deploy.
 - Rotate the Grafana admin password: the password file only applies on first start, so run
   `sudo docker compose exec grafana grafana cli admin reset-admin-password <new>` from
   `/opt/monitoring`.

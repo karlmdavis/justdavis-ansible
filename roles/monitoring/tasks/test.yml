@@ -106,14 +106,23 @@
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
   when: is_test
 
-# `promtool check rules` (run when the rules are templated) checks only that the recording rules
-# parse. This replays a session of HomePods joining, playing, dropping out, and stopping against the
-# rules as deployed, and checks what they record. It needs no data from the network, so it holds on
-# any system.
-- name: Test - Recording Rules Unit Test
+# `promtool check rules` (run when the rules are templated) checks only that the rules parse. These
+# feed the rules made-up series and check what they record and which alerts fire. They need no data
+# from the network, so they hold on any system.
+#
+# The recording rules are tested as deployed. The alert rules are rendered again, with the device
+# groups included, because the test environment deploys them without: this is the only place the
+# device rules are rendered, parsed, or exercised before they reach production.
+- name: Test - Rule Unit Tests
   become: true
+  vars:
+    monitoring_rule_unit_tests:
+      - recording_test.yml
+      - alerts_airplay_test.yml
+      - alerts_docsis_test.yml
+      - alerts_playback_state_test.yml
   block:
-    - name: Test - Create Directory for Recording Rules Unit Test
+    - name: Test - Create Directory for Rule Unit Tests
       ansible.builtin.tempfile:
         state: directory
         suffix: .monitoring-rules-test
@@ -121,11 +130,22 @@
       changed_when: false
       check_mode: false
 
-    - name: Test - Copy Recording Rules Unit Test
+    - name: Test - Copy Rule Unit Tests
       ansible.builtin.copy:
-        src: prometheus/recording_test.yml
-        dest: "{{ monitoring_rules_test_dir.path }}/recording_test.yml"
+        src: "prometheus/{{ item }}"
+        dest: "{{ monitoring_rules_test_dir.path }}/{{ item }}"
         mode: 'u=rw,g=r,o=r'
+      loop: "{{ monitoring_rule_unit_tests }}"
+      changed_when: false
+      check_mode: false
+
+    - name: Test - Render Alert Rules With Device Groups Beside Unit Tests
+      ansible.builtin.template:
+        src: alerts.yml.j2
+        dest: "{{ monitoring_rules_test_dir.path }}/alerts.yml"
+        mode: 'u=rw,g=r,o=r'
+      vars:
+        monitoring_alerts_include_device_rules: true
       changed_when: false
       check_mode: false
 
@@ -138,28 +158,19 @@
       changed_when: false
       check_mode: false
 
-    - name: Test - Run Recording Rules Unit Test
+    - name: Test - Run Rule Unit Tests
       ansible.builtin.command:
-        argv:
-          - /usr/bin/docker
-          - run
-          - --rm
-          - --user
-          - "0"
-          - --entrypoint
-          - promtool
-          - --volume
-          - "{{ monitoring_rules_test_dir.path }}:/rules-test:ro"
-          - --workdir
-          - /rules-test
-          - "{{ monitoring_prometheus_image }}"
-          - test
-          - rules
-          - recording_test.yml
+        argv: >-
+          {{
+            ['/usr/bin/docker', 'run', '--rm', '--user', '0', '--entrypoint', 'promtool',
+             '--volume', monitoring_rules_test_dir.path ~ ':/rules-test:ro',
+             '--workdir', '/rules-test', monitoring_prometheus_image, 'test', 'rules']
+            + monitoring_rule_unit_tests
+          }}
       changed_when: false
       check_mode: false
   always:
-    - name: Test - Remove Directory for Recording Rules Unit Test
+    - name: Test - Remove Directory for Rule Unit Tests
       ansible.builtin.file:
         path: "{{ monitoring_rules_test_dir.path }}"
         state: absent

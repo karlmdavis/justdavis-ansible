@@ -194,24 +194,15 @@ groups:
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} is not accepting AirPlay connections"
 
-      # The two mDNS rules are disjoint. Multicast failing while a unicast query to the HomePod's own
-      # address still answers means the multicast path from the wired LAN to its radio has lost it
-      # (2026-09-24: seen on 5 GHz clients of every access point; the HomePod recovers on its own next
-      # announcement; a phone may still list it from its cache). Both failing means the AirPlay
-      # service itself is down. With no unicast gauge (address unknown, or the query could not be made)
-      # the first rule fires as before.
-      - alert: HomePodAirPlayNotResolving
-        expr: >-
-          airplay_service_resolved{service="_airplay._tcp"} == 0
-          unless on (name) (airplay_service_unicast_resolved{service="_airplay._tcp"} == 0)
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: >-
-            HomePod {{ L }} $labels.name {{ R }} does not answer multicast AirPlay mDNS queries from the
-            wired LAN (unicast answers, or could not be tried): most likely the multicast path lost it
-
+      # Only both mDNS queries failing alerts: that is the AirPlay service itself being down.
+      # Multicast failing on its own does not. It was an alert (HomePodAirPlayNotResolving) until
+      # 2026-09-28, and fired for three or four HomePods at a time, most of the time, while every one
+      # of them could be played to: that day three HomePods played a stream normally while failing it,
+      # and all nine were listed in a phone's and a tablet's AirPlay choosers. The query comes from the
+      # wired LAN, the worst case for the multicast path to a 5 GHz client, which the devices that
+      # actually send AirPlay are not on. The gauge is still recorded and charted. The cost is a
+      # HomePod that fails multicast while its address is unknown, so that unicast cannot be tried:
+      # nothing here reports it, and if it is off the network `HomePodNotOnWifi` does.
       - alert: HomePodAirPlayServiceGone
         expr: >-
           airplay_service_unicast_resolved{service="_airplay._tcp"} == 0

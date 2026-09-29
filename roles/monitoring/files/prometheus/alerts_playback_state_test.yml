@@ -1,0 +1,49 @@
+# promtool unit test for HomePodPlaybackStateUnreadable. The role's smoke tests run it against the
+# alert rules rendered with the device groups (roles/monitoring/tasks/test.yml). Steps are 30 s.
+#   A: unreadable throughout -> fires.
+#   B: one unreadable answer, then readable -> nothing.
+#   C: unreadable for 5 minutes, then stops answering (no samples) -> nothing: that is the mDNS rules'
+#      business.
+#   D: unreadable throughout, but misses one poll on the way -> still fires.
+#   E: readable throughout -> nothing.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'airplay_playback_state_readable{name="A"}'
+        values: '0x40'
+      - series: 'airplay_playback_state_readable{name="B"}'
+        values: '0 1x39'
+      - series: 'airplay_playback_state_readable{name="C"}'
+        values: '0x10 stale'
+      - series: 'airplay_playback_state_readable{name="D"}'
+        values: '0x10 stale 0x28'
+      - series: 'airplay_playback_state_readable{name="E"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: HomePodPlaybackStateUnreadable
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: HomePodPlaybackStateUnreadable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: A
+            exp_annotations:
+              summary: >-
+                HomePod A answers with an AirPlay record its playback state cannot be read from, so
+                whether it is playing and which group it is in are unknown; the airplay exporter's log
+                says what is wrong with the record
+          - exp_labels:
+              severity: warning
+              name: D
+            exp_annotations:
+              summary: >-
+                HomePod D answers with an AirPlay record its playback state cannot be read from, so
+                whether it is playing and which group it is in are unknown; the airplay exporter's log
+                says what is wrong with the record

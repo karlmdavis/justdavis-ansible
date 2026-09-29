@@ -56,7 +56,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
 | HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1. `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
-| HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | `HomePodAirPlayNotResolving` |
+| HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | None: recorded and charted. It was an alert until 2026-09-28, and fired most of the time for HomePods that could be played to. |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
 | Is audio playing on this HomePod | `airplay_audio_playing`, read from the HomePod's own AirPlay record every poll; `homepod:audio_active` (recording rule) is the same with a missed poll bridged. Checked 2026-09-28 against what was audible, for AirPlay from an iPad and from a Mac, Apple Music playing on the HomePod, a HomePod following another, and white noise from a Home scene: every start, stop, and pause showed at the next reading of the record (readings were 30 seconds apart). `airplay_playback_state_readable` is 0 for a HomePod that answers with a record the state cannot be read from; the exporter's log says what was wrong with it. | `HomePodPlaybackStateUnreadable`, for the monitoring going blind only; nothing alerts on what plays. |
@@ -176,7 +176,7 @@ failed gateway scrape leaves); uncorrectable codewords above 1% of a channel's c
 codewords a second, and a first estimate (1% is the field rule of thumb for when calls suffer; the
 worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
-ping, not accepting AirPlay connections, or not resolving over mDNS; a HomePod whose AirPlay record
+ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
 can no longer be read for its playback state; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
 going missing; the offsite backup
@@ -290,7 +290,7 @@ kill "$TUNNEL"
 
 #### `airplay_mdns_probe.py`: is a HomePod down, or has the network lost track of it?
 
-Run it when a HomePod AirPlay alert is firing, when a phone's AirPlay picker is missing a HomePod, or
+Run it when `HomePodAirPlayServiceGone` is firing, when a phone's AirPlay picker is missing a HomePod, or
 after a WiFi change to see whether it helped. It asks each HomePod for its AirPlay records by multicast
 (how a phone looks for it) and by unicast (straight to its address).
 

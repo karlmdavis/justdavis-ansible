@@ -141,8 +141,9 @@ Two readings that a rate threshold would have got wrong:
 Four HomePods failed the multicast mDNS query from the wired LAN at some point during the first stream.
 Three of them played on normally; the fourth was Speaker B.
 All nine were listed in the iPad's and a phone's AirPlay choosers at T-7.
-`HomePodAirPlayNotResolving` therefore does not mean that a HomePod cannot be played to, and failing
-that query did not by itself predict the dropout.
+Failing that query therefore does not mean that a HomePod cannot be played to, and it did not by
+itself predict the dropout. The alert on it, `HomePodAirPlayNotResolving`, was removed for that
+reason.
 
 ## Not Established
 

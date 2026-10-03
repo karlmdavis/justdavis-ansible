@@ -261,6 +261,7 @@ class AmplifiCollector(Collector):
         )
         for client in published.clients:
             labels = self._client_labels(client)
+            tracked = self._tracked.get(client.mac)
             info.add_metric(
                 labels,
                 {
@@ -269,6 +270,9 @@ class AmplifiCollector(Collector):
                     "band": sanitise_label(client.band),
                     "network": sanitise_label(client.network),
                     "mode": sanitise_label(client.mode or ""),
+                    # The name the AirPlay series use, so a dashboard can label a HomePod's association
+                    # the way its picker and the airplay_* series do. Blank for untracked clients.
+                    "airplay_name": sanitise_label(tracked.airplay_name) if tracked is not None else "",
                 },
             )
             signal.add_metric(labels, float(client.signal_quality))

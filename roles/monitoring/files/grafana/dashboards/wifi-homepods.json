@@ -44,8 +44,13 @@
         {
           "refId": "A",
           "expr": "amplifi_client_info{kind=\"homepod\"}",
-          "legendFormat": "{{name}} on {{ap_name}} ({{band}}, {{network}})"
+          "legendFormat": "{{airplay_name}} · {{ap_name}} · {{band}} · {{network}}"
         }
+      ],
+      "transformations": [
+        {"id": "renameByRegex", "options": {"regex": "(.*) · User network$", "renamePattern": "$1 · main SSID"}},
+        {"id": "renameByRegex", "options": {"regex": "(.*) · Device specific network$", "renamePattern": "$1 · extra SSID"}},
+        {"id": "renameByRegex", "options": {"regex": "(.*) · Guest network$", "renamePattern": "$1 · guest SSID"}}
       ],
       "options": {
         "mergeValues": true,

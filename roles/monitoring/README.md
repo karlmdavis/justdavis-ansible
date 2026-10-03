@@ -36,8 +36,11 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
 
 ### Why this data
 
-- A HomePod stuck on a distant mesh point, or on 2.4 GHz, is the leading hypothesis for stuttering
+- A HomePod stuck on a distant mesh point, or on 2.4 GHz, was the opening hypothesis for stuttering
   multi-room AirPlay. The AmpliFi feed is the only source for that, so it is polled every 30 seconds.
+  What the data then showed (2026-09-24 to 2026-10-03) was the opposite for discovery: HomePods on
+  5 GHz, on any access point, stop answering multicast mDNS and vanish from AirPlay pickers, while
+  2.4 GHz HomePods never did. They now sit on a 2.4 GHz-only SSID, spread across the three radios.
 - AirPlay "cannot find / cannot connect" failures are often mDNS discovery problems rather than radio
   problems. The active mDNS resolve, the TCP port probe, and the ping data separate those cases.
 - Video-call trouble is localised by pinging each hop separately: the AmpliFi router, the Comcast
@@ -58,7 +61,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
 | HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | None: recorded and charted. It was an alert until 2026-09-28, and fired most of the time for HomePods that could be played to. |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
-| HomePod is on a distant mesh point or 2.4 GHz | `amplifi_client_info{ap_name,band}` history on the WiFi dashboard. | None yet: recorded first, rule later. |
+| HomePod is on a distant mesh point, the wrong band, or the wrong SSID | `amplifi_client_info{ap_name,band,network}` history on the WiFi dashboard. Since 2026-10-03 the HomePods live on a 2.4 GHz-only SSID (the router reports it as `network="Device specific network"`; the main SSID is `"User network"`), because HomePods on 5 GHz kept dropping out of the multicast path described above. A HomePod back on 5 GHz or on the main SSID means someone moved it. | None yet: recorded first, rule later. |
 | Is audio playing on this HomePod | `airplay_audio_playing`, read from the HomePod's own AirPlay record every poll; `homepod:audio_active` (recording rule) is the same with a missed poll bridged. Checked 2026-09-28 against what was audible, for AirPlay from an iPad and from a Mac, Apple Music playing on the HomePod, a HomePod following another, and white noise from a Home scene: every start, stop, and pause showed at the next reading of the record (readings were 30 seconds apart). `airplay_playback_state_readable` is 0 for a HomePod that answers with a record the state cannot be read from; the exporter's log says what was wrong with it. | `HomePodPlaybackStateUnreadable`, for the monitoring going blind only; nothing alerts on what plays. |
 | Which HomePods are grouped | `airplay_group_info{group}`: HomePods in one group share the label. `airplay_group_leader` is 0 for a HomePod that follows another device. `homepod:session_state` (recording rule) combines `airplay_group_leader` with `homepod:audio_active` into one state per HomePod for the dashboard. A paused or stopped stream leaves the group in place, so a shared group does not by itself mean audio is playing. | None: recorded and charted. |
 | When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped, and `homepod:left_playing_group` the one where a HomePod was no longer in a group that kept playing (dashboard annotations). Seen 2026-09-28: one HomePod of eight went silent while the rest played on; it stayed on the WiFi with port 7000 open and answering queries, so nothing else showed it. A HomePod moved to another group on purpose is marked the same way, and so would be one whose whole group moved to a new session a poll after it did (not seen as of 2026-09-28). | None: recorded until a real incident says whether it needs one. |
@@ -225,6 +228,19 @@ the stack restarts cleanly during a WAN outage.
   `ssh -L 3000:127.0.0.1:3000 eddings.karlanderica.justdavis.com` then `http://localhost:3000/` (use
   Chrome or Firefox; Safari rejects Grafana's secure-only cookie over plain `http://localhost`).
 - Upgrade an image: bump its tag in `defaults/main.yml` and deploy; the AWS test run is the gate.
+- Change a dashboard: look at it in a local Grafana of the same version before deploying, because nothing
+  in the tests renders a panel, and Grafana 13 draws an empty panel (no error, no console message) for
+  a timeseries whose `options.legend` is incomplete, and draws black states for a state-timeline
+  coloured by thresholds or a fixed colour instead of value mappings. Six panels shipped that way and
+  went unnoticed for ten days. Write the option objects the way Grafana itself writes them (edit the
+  panel in the UI and copy its JSON) rather than the minimum that looks right. The local Grafana:
+  `docker run --rm -p 127.0.0.1:3300:3000 -e GF_AUTH_ANONYMOUS_ENABLED=true
+  -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin -v <provisioning dir>:/etc/grafana/provisioning:ro
+  -v $PWD/files/grafana/dashboards:/var/lib/grafana-dashboards:ro grafana/grafana-oss:<tag>`, with a
+  provisioning dir holding a file datasource provider (uid `prometheus`, URL
+  `http://host.docker.internal:19090`) and a file dashboard provider for `/var/lib/grafana-dashboards`,
+  and `ssh -N -L 19090:127.0.0.1:9090 eddings.justdavis.com` for real data. The file provider picks
+  up edits within seconds; reload the page with a changed URL, since the browser caches the dashboard.
 - Change an alert or recording rule: change its unit test in `files/prometheus/` with it, or add one.
   The role's smoke tests run them with `promtool test rules` on every run, the AWS test run included.
   The test environment deploys the alert rules without the groups for the home network's devices, so

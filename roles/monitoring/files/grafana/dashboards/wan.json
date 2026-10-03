@@ -5,7 +5,7 @@
   "tags": ["home-network"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": {"from": "now-6h", "to": "now"},
@@ -80,11 +80,11 @@
         "defaults": {
           "unit": "dB",
           "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 33}]},
-          "custom": {"thresholdsStyle": {"mode": "line"}}
+          "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "thresholdsStyle": {"mode": "dashed"}}
         },
         "overrides": []
       },
-      "options": {"legend": {"displayMode": "hidden"}}
+      "options": {"legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []}, "tooltip": {"mode": "multi", "sort": "none"}}
     },
     {
       "id": 6,
@@ -97,11 +97,11 @@
         "defaults": {
           "unit": "dBmV",
           "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 12}]},
-          "custom": {"thresholdsStyle": {"mode": "line"}}
+          "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "thresholdsStyle": {"mode": "dashed"}}
         },
         "overrides": []
       },
-      "options": {"legend": {"displayMode": "hidden"}}
+      "options": {"legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []}, "tooltip": {"mode": "multi", "sort": "none"}}
     },
     {
       "id": 7,
@@ -113,7 +113,7 @@
         {"refId": "A", "expr": "rate(gateway_docsis_downstream_uncorrectable_codewords_total[5m])", "legendFormat": "ch {{channel}}"}
       ],
       "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
-      "options": {"legend": {"displayMode": "hidden"}}
+      "options": {"legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []}, "tooltip": {"mode": "multi", "sort": "none"}}
     },
     {
       "id": 8,
@@ -140,11 +140,23 @@
         {"refId": "B", "expr": "gateway_up", "legendFormat": "Gateway exporter"},
         {"refId": "C", "expr": "airplay_up", "legendFormat": "AirPlay probe"}
       ],
-      "options": {"mergeValues": true, "showValue": "never", "legend": {"displayMode": "hidden"}},
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Down", "color": "red", "index": 0},
+                "1": {"text": "Up", "color": "green", "index": 1}
+              }
+            }
+          ]
         },
         "overrides": []
       }

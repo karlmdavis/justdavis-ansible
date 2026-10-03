@@ -5,7 +5,7 @@
   "tags": ["home-network"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": {"from": "now-6h", "to": "now"},
@@ -37,24 +37,35 @@
     {
       "id": 1,
       "type": "state-timeline",
-      "title": "HomePod mesh point and band (each row is one association; a row going dark means it moved)",
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "title": "HomePod mesh point, band and SSID (each row is one association; a row ending means it moved or changed SSID)",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
           "refId": "A",
           "expr": "amplifi_client_info{kind=\"homepod\"}",
-          "legendFormat": "{{name}} on {{ap_name}} ({{band}})"
+          "legendFormat": "{{name}} on {{ap_name}} ({{band}}, {{network}})"
         }
       ],
-      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
-      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "green"}}, "overrides": []}
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "rowHeight": 0.8,
+        "legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"type": "value", "options": {"1": {"text": "Associated", "color": "green", "index": 0}}}]
+        },
+        "overrides": []
+      }
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "HomePod signal quality (router-reported, 0-100)",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "amplifi_client_signal_quality{kind=\"homepod\"}", "legendFormat": "{{name}}"}
@@ -65,7 +76,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "HomePod ping: mean round trip",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
@@ -80,7 +91,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "HomePod ping: packet loss",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
@@ -95,7 +106,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "HomePod ping: jitter (standard deviation)",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
@@ -110,18 +121,31 @@
       "id": 6,
       "type": "state-timeline",
       "title": "AirPlay reachability: mDNS resolves by multicast, by unicast to the HomePod, and TCP port 7000 accepts",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 25},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 28},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "airplay_service_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS multicast"},
         {"refId": "C", "expr": "airplay_service_unicast_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS unicast"},
         {"refId": "B", "expr": "probe_success{job=\"airplay_tcp\"}", "legendFormat": "{{name}}: port 7000"}
       ],
-      "options": {"mergeValues": true, "showValue": "never", "rowHeight": 0.8, "legend": {"displayMode": "hidden"}},
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "rowHeight": 0.8,
+        "legend": {"showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": []},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Failed", "color": "red", "index": 0},
+                "1": {"text": "OK", "color": "green", "index": 1}
+              }
+            }
+          ]
         },
         "overrides": []
       }
@@ -130,7 +154,7 @@
       "id": 10,
       "type": "state-timeline",
       "title": "What each HomePod is doing: grey silent, green playing its own stream, yellow following another device but silent, blue following and playing; a gap is no reading",
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 37},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 40},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "homepod:session_state", "legendFormat": "{{name}}"}
@@ -157,7 +181,7 @@
       "id": 12,
       "type": "table",
       "title": "Groups now: HomePods with the same group are grouped; the last column is 1 where audio is playing",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 46},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 49},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
@@ -184,7 +208,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "HomePod download rate, where the router reports byte counts",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 54},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 57},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "homepod:download_bits_per_second:rate1m", "legendFormat": "{{name}}"}
@@ -195,7 +219,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "Mesh point backhaul minimum RSSI",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 62},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 65},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "amplifi_mesh_point_rssi_min_dbm", "legendFormat": "{{name}}"}],
       "fieldConfig": {"defaults": {"unit": "dBm"}, "overrides": []}
@@ -204,29 +228,47 @@
       "id": 8,
       "type": "table",
       "title": "Mesh points",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 62},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 65},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "amplifi_mesh_point_info", "format": "table", "instant": true},
-        {"refId": "B", "expr": "amplifi_mesh_point_uptime_seconds", "format": "table", "instant": true}
+        {
+          "refId": "A",
+          "expr": "max by (mac, name, backhaul_band, platform, uplink, level) (amplifi_mesh_point_info)",
+          "format": "table",
+          "instant": true
+        },
+        {"refId": "B", "expr": "max by (mac, name) (amplifi_mesh_point_online)", "format": "table", "instant": true},
+        {"refId": "C", "expr": "max by (mac, name) (amplifi_mesh_point_uptime_seconds)", "format": "table", "instant": true}
       ],
       "transformations": [
         {"id": "merge", "options": {}},
         {
           "id": "organize",
           "options": {
-            "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "Value #A": true},
-            "renameByName": {"Value #B": "uptime (s)"}
+            "excludeByName": {"Time": true, "Value #A": true, "platform": true},
+            "indexByName": {
+              "name": 0,
+              "uplink": 1,
+              "level": 2,
+              "backhaul_band": 3,
+              "Value #B": 4,
+              "Value #C": 5,
+              "mac": 6
+            },
+            "renameByName": {"Value #B": "online", "Value #C": "uptime"}
           }
         }
       ],
-      "fieldConfig": {"defaults": {}, "overrides": []}
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [{"matcher": {"id": "byName", "options": "uptime"}, "properties": [{"id": "unit", "value": "s"}]}]
+      }
     },
     {
       "id": 9,
       "type": "timeseries",
       "title": "Every WiFi client: signal quality (untracked devices shown by MAC)",
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 70},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 73},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "amplifi_client_signal_quality{kind!=\"backhaul\"}", "legendFormat": "{{name}} {{mac}} ({{kind}})"}

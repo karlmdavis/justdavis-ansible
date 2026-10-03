@@ -5,7 +5,7 @@
   "tags": ["home-network"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "30s",
   "time": {"from": "now-6h", "to": "now"},
@@ -75,7 +75,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "amplifi_client_signal_quality{kind=\"homepod\"} * on (mac) group_left (airplay_name) max by (mac, airplay_name) (amplifi_client_info{kind=\"homepod\"})",
+          "expr": "amplifi_client_signal_quality{kind=\"homepod\"} * on (mac) group_left (airplay_name) max by (mac, airplay_name) (amplifi_client_info{kind=\"homepod\",airplay_name!=\"\"})",
           "legendFormat": "{{airplay_name}}"
         }
       ],
@@ -90,7 +90,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_rtt_mean_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "expr": "ping_rtt_mean_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\",airplay_name!=\"\"}",
           "legendFormat": "{{airplay_name}}"
         }
       ],
@@ -105,7 +105,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_loss_ratio * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "expr": "ping_loss_ratio * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\",airplay_name!=\"\"}",
           "legendFormat": "{{airplay_name}}"
         }
       ],
@@ -120,7 +120,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\",airplay_name!=\"\"}",
           "legendFormat": "{{airplay_name}}"
         }
       ],
@@ -222,7 +222,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "homepod:download_bits_per_second:rate1m * on (name) group_left (airplay_name) max by (name, airplay_name) (amplifi_client_info{kind=\"homepod\"})",
+          "expr": "homepod:download_bits_per_second:rate1m * on (name) group_left (airplay_name) max by (name, airplay_name) (amplifi_client_info{kind=\"homepod\",airplay_name!=\"\"})",
           "legendFormat": "{{airplay_name}}"
         }
       ],

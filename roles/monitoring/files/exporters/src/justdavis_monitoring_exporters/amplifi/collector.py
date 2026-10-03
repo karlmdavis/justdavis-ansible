@@ -110,7 +110,14 @@ class AmplifiCollector(Collector):
             "monitoring_target", "Friendly name and kind for every ping target.", labels=["ip"]
         )
         for target in self._targets.get() or ():
-            info.add_metric([target.ip], {"name": sanitise_label(target.name), "kind": target.kind})
+            info.add_metric(
+                [target.ip],
+                {
+                    "name": sanitise_label(target.name),
+                    "kind": target.kind,
+                    "airplay_name": sanitise_label(target.airplay_name),
+                },
+            )
         yield info
         if self._target_files_ok is not None:
             yield GaugeMetricFamily(

@@ -6,7 +6,8 @@
   ping_exporter applies target changes live but only reads the `ping:` block at start-up (the role
   restarts the stack when its environment file changes, which covers that).
 * `airplay-targets.json`: Prometheus `file_sd` for blackbox_exporter's AirPlay TCP probe, one entry per
-  HomePod currently associated with the WiFi.
+  HomePod currently associated with the WiFi, labelled with the tracked name (what the AirPlay exporter
+  keys on) and the AirPlay name (what the dashboard shows).
 
 Both are rendered deterministically so that unchanged content produces byte-identical output and no
 spurious rewrites/reloads happen. The same IP can legitimately appear under two kinds (for example the
@@ -48,6 +49,9 @@ class TargetInfo:
     ip: str
     name: str
     kind: TargetKind
+    # The tracked client's AirPlay name, so dashboards can label its ping and port probes the way the
+    # airplay_* series are labelled; blank for static targets, the router, and mesh points.
+    airplay_name: str = ""
 
 
 def _valid_ip(ip: str | None, what: str) -> str | None:
@@ -79,7 +83,14 @@ def target_infos(
         for tracked_client in sorted(tracked, key=lambda t: t.mac):
             ip = _valid_ip(ip_by_mac.get(tracked_client.mac), f"client {tracked_client.mac} address")
             if ip is not None:
-                candidates.append(TargetInfo(ip=ip, name=tracked_client.name, kind=tracked_client.kind))
+                candidates.append(
+                    TargetInfo(
+                        ip=ip,
+                        name=tracked_client.name,
+                        kind=tracked_client.kind,
+                        airplay_name=tracked_client.airplay_name,
+                    )
+                )
     infos: list[TargetInfo] = []
     seen: set[str] = set()
     for info in candidates:
@@ -111,7 +122,11 @@ def render_airplay_targets(snapshot: AmplifiSnapshot | None, tracked: Sequence[T
                 entries.append(
                     {
                         "targets": [f"{ip}:{AIRPLAY_PORT}"],
-                        "labels": {"name": tracked_client.name, "kind": tracked_client.kind},
+                        "labels": {
+                            "name": tracked_client.name,
+                            "kind": tracked_client.kind,
+                            "airplay_name": tracked_client.airplay_name,
+                        },
                     }
                 )
     return (json.dumps(entries, indent=2, sort_keys=True) + "\n").encode()

@@ -73,7 +73,11 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "amplifi_client_signal_quality{kind=\"homepod\"}", "legendFormat": "{{name}}"}
+        {
+          "refId": "A",
+          "expr": "amplifi_client_signal_quality{kind=\"homepod\"} * on (mac) group_left (airplay_name) max by (mac, airplay_name) (amplifi_client_info{kind=\"homepod\"})",
+          "legendFormat": "{{airplay_name}}"
+        }
       ],
       "fieldConfig": {"defaults": {"min": 0, "max": 100, "unit": "none"}, "overrides": []}
     },
@@ -86,8 +90,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_rtt_mean_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
-          "legendFormat": "{{name}}"
+          "expr": "ping_rtt_mean_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{airplay_name}}"
         }
       ],
       "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
@@ -101,8 +105,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
-          "legendFormat": "{{name}}"
+          "expr": "ping_loss_ratio * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{airplay_name}}"
         }
       ],
       "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []}
@@ -116,8 +120,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (name, kind) monitoring_target_info{kind=\"homepod\"}",
-          "legendFormat": "{{name}}"
+          "expr": "ping_rtt_std_deviation_seconds * on (ip) group_left (airplay_name, kind) monitoring_target_info{kind=\"homepod\"}",
+          "legendFormat": "{{airplay_name}}"
         }
       ],
       "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}
@@ -131,7 +135,7 @@
       "targets": [
         {"refId": "A", "expr": "airplay_service_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS multicast"},
         {"refId": "C", "expr": "airplay_service_unicast_resolved{service=\"_airplay._tcp\"}", "legendFormat": "{{name}}: mDNS unicast"},
-        {"refId": "B", "expr": "probe_success{job=\"airplay_tcp\"}", "legendFormat": "{{name}}: port 7000"}
+        {"refId": "B", "expr": "probe_success{job=\"airplay_tcp\"}", "legendFormat": "{{airplay_name}}: port 7000"}
       ],
       "options": {
         "mergeValues": true,
@@ -216,7 +220,11 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 57},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "homepod:download_bits_per_second:rate1m", "legendFormat": "{{name}}"}
+        {
+          "refId": "A",
+          "expr": "homepod:download_bits_per_second:rate1m * on (name) group_left (airplay_name) max by (name, airplay_name) (amplifi_client_info{kind=\"homepod\"})",
+          "legendFormat": "{{airplay_name}}"
+        }
       ],
       "fieldConfig": {"defaults": {"unit": "bps", "min": 0}, "overrides": []}
     },

@@ -262,7 +262,8 @@ def test_target_info_is_exported_from_the_targets_holder() -> None:
     registry, _ = registry_with(SNAPSHOT)
     assert (
         registry.get_sample_value(
-            "monitoring_target_info", {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static"}
+            "monitoring_target_info",
+            {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static", "airplay_name": ""},
         )
         == 1.0
     )

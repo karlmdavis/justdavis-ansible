@@ -18,7 +18,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = parse_info_async((FIXTURES / "amplifi_info_async.json").read_bytes())
 
 TRACKED = (
-    tracked("02:00:00:00:00:10", "Speaker A", "homepod"),
+    tracked("02:00:00:00:00:10", "Speaker A", "homepod", airplay_name="Speaker A's Room"),
     tracked("02:00:00:00:00:11", "Speaker B", "homepod"),
     tracked("02:00:00:00:00:20", "Tablet", "ipad"),
     tracked("02:00:00:00:00:99", "Absent", "laptop"),
@@ -35,9 +35,9 @@ def test_target_infos_cover_static_targets_mesh_points_and_present_tracked_clien
         TargetInfo(ip="192.0.2.1", name="test-router", kind="router"),
         TargetInfo(ip="192.0.2.239", name="Kitchen", kind="mesh_point"),
         TargetInfo(ip="192.0.2.234", name="Living Room", kind="mesh_point"),
-        TargetInfo(ip="192.0.2.110", name="Speaker A", kind="homepod"),
-        TargetInfo(ip="192.0.2.212", name="Speaker B", kind="homepod"),
-        TargetInfo(ip="192.0.2.120", name="Tablet", kind="ipad"),
+        TargetInfo(ip="192.0.2.110", name="Speaker A", kind="homepod", airplay_name="Speaker A's Room"),
+        TargetInfo(ip="192.0.2.212", name="Speaker B", kind="homepod", airplay_name="Speaker B"),
+        TargetInfo(ip="192.0.2.120", name="Tablet", kind="ipad", airplay_name="Tablet"),
     }
 
 
@@ -62,8 +62,14 @@ def test_ping_targets_with_no_snapshot_still_lists_static_targets() -> None:
 def test_airplay_targets_lists_only_present_homepods_on_port_7000() -> None:
     data = json.loads(render_airplay_targets(SNAPSHOT, TRACKED))
     assert data == [
-        {"targets": ["192.0.2.110:7000"], "labels": {"name": "Speaker A", "kind": "homepod"}},
-        {"targets": ["192.0.2.212:7000"], "labels": {"name": "Speaker B", "kind": "homepod"}},
+        {
+            "targets": ["192.0.2.110:7000"],
+            "labels": {"name": "Speaker A", "kind": "homepod", "airplay_name": "Speaker A's Room"},
+        },
+        {
+            "targets": ["192.0.2.212:7000"],
+            "labels": {"name": "Speaker B", "kind": "homepod", "airplay_name": "Speaker B"},
+        },
     ]
 
 

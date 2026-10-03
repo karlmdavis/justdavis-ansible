@@ -17,7 +17,7 @@ from tests.helpers import tracked
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = parse_info_async((FIXTURES / "amplifi_info_async.json").read_bytes())
 TRACKED = (
-    tracked("02:00:00:00:00:10", "Speaker A", "homepod"),
+    tracked("02:00:00:00:00:10", "Speaker A", "homepod", airplay_name="Speaker A's Room"),
     tracked("02:00:00:00:00:11", "Speaker B", "homepod"),
 )
 SPEAKER_A = {"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}
@@ -77,6 +77,7 @@ def test_client_info_describes_association() -> None:
         "band": "2.4 GHz",
         "network": "User network",
         "mode": "802.11n",
+        "airplay_name": "Speaker A's Room",
     }
     assert registry.get_sample_value("amplifi_client_info", labels) == 1.0
 
@@ -92,6 +93,7 @@ def test_client_on_mesh_point_has_that_ap_name() -> None:
         "band": "5 GHz",
         "network": "User network",
         "mode": "802.11n",
+        "airplay_name": "Speaker B",
     }
     assert registry.get_sample_value("amplifi_client_info", labels) == 1.0
 
@@ -260,7 +262,8 @@ def test_target_info_is_exported_from_the_targets_holder() -> None:
     registry, _ = registry_with(SNAPSHOT)
     assert (
         registry.get_sample_value(
-            "monitoring_target_info", {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static"}
+            "monitoring_target_info",
+            {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static", "airplay_name": ""},
         )
         == 1.0
     )

@@ -21,7 +21,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 LOGIN_HTML = (FIXTURES / "amplifi_login.html").read_text()
 INFO_HTML = (FIXTURES / "amplifi_info.html").read_text()
 INFO_JSON = (FIXTURES / "amplifi_info_async.json").read_bytes()
-TRACKED = (tracked("02:00:00:00:00:10", "Speaker A", "homepod"),)
+TRACKED = (tracked("02:00:00:00:00:10", "Speaker A", "homepod", airplay_name="Speaker A's Room"),)
 
 
 def settings(tmp_path: Path) -> AmplifiSettings:
@@ -64,7 +64,8 @@ def test_successful_poll_publishes_snapshot_and_writes_target_files(tmp_path: Pa
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
     assert (
         registry.get_sample_value(
-            "monitoring_target_info", {"ip": "192.0.2.110", "name": "Speaker A", "kind": "homepod"}
+            "monitoring_target_info",
+            {"ip": "192.0.2.110", "name": "Speaker A", "kind": "homepod", "airplay_name": "Speaker A's Room"},
         )
         == 1.0
     )

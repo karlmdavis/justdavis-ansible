@@ -43,9 +43,17 @@ The role includes optional hardware acceleration configurations:
 
 ### PostgreSQL Extension Version Requirements
 
-Immich requires specific versions of PostgreSQL extensions:
-- **pgvector**: >= 0.7.0, < 1.0.0 (installed from PostgreSQL APT repository)
-- **VectorChord**: >= 0.3.0, < 0.5.0 (manually installed from GitHub)
+Immich checks the PostgreSQL and extension versions at startup and refuses to start outside these ranges
+(as of Immich v3.2.4):
+
+- **PostgreSQL**: >= 14, < 20.
+- **pgvector**: >= 0.7, < 0.9 (installed from PostgreSQL APT repository).
+- **VectorChord**: >= 0.3, < 2.0 (manually installed from GitHub; this role installs 0.4.3, which is also the
+  version Immich's own database image ships).
+
+The ranges move between Immich releases. The authoritative values for a release are in
+`server/src/constants.ts` at that release's tag, and in the
+[standalone PostgreSQL guide](https://docs.immich.app/administration/postgres-standalone).
 
 The role configures the PostgreSQL official APT repository to ensure newer pgvector versions are available, as Ubuntu's default repositories may have older versions that lack required features like the `halfvec[]` type.
 
@@ -81,24 +89,52 @@ The role performs the following steps:
 
 ## Upgrading Immich
 
+Things that hold for every upgrade:
+
+- **Downgrading is not supported**, even between patch releases. Going back means restoring the database,
+  so take a dump first.
+- **The server and the mobile app must be within one major version of each other.** The app supports the
+  current and the previous major server version only. Upgrade the server before opening an app that has
+  been updating itself unattended.
+- **The vector extension range can move.** A new Immich release may need a newer VectorChord, and an older
+  Immich will not start on a VectorChord newer than it knows (v1.140 needed < 0.5).
+
 To upgrade to a new version:
 
-1. Check the [Immich releases](https://github.com/immich-app/immich/releases) for breaking changes
-2. Update the version in `roles/immich/defaults/main.yml`:
+1. Read the [Immich release notes](https://github.com/immich-app/immich/releases) for every release between
+   the current and the new version, looking for breaking changes, removed environment variables, and changes
+   to the `docker-compose.yml` attached to the release.
+2. Check the extension ranges for the new version (see [above](#postgresql-extension-version-requirements)).
+   If VectorChord needs updating:
+   - Check [VectorChord releases](https://github.com/tensorchord/VectorChord/releases) for a PostgreSQL 16
+     package.
+   - Update the download URL in `roles/immich/tasks/install_and_configure.yml`.
+   - The playbook restarts PostgreSQL to load the new library, and Immich updates the extension when it
+     next starts. The standalone PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run
+     by hand if it does not.
+3. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
-   immich_version: v1.137.0  # or newer
+   immich_version: v3.2.4
    ```
-3. If VectorChord needs updating:
-   - Check [VectorChord releases](https://github.com/tensorchord/VectorChord/releases) for PostgreSQL 16 compatible versions
-   - Update the download URL in `roles/immich/tasks/install_and_configure.yml`
-   - Ensure the version remains within Immich's required range (>= 0.3.0, < 0.5.0)
-4. Run the playbook:
+4. Stop Immich and take a rollback point:
    ```bash
-   ./ansible-playbook-wrapper site.yml --tags immich
+   sudo systemctl stop immich
+   sudo -u postgres pg_dump -Fc immich -f /var/lib/postgresql/backups/immich-pre-upgrade.dump
+   sudo zfs snapshot ssd_pool/pgdata@pre-immich-upgrade
+   sudo zfs snapshot ssd_pool/fileshares@pre-immich-upgrade
    ```
-5. The service will automatically pull new images and restart
-6. Database migrations run automatically on startup
-7. Test the web interface at `http://eddings.justdavis.com:2283`
+5. Run the playbook:
+   ```bash
+   ./ansible-playbook-wrapper site.yml --limit=eddings.justdavis.com --tags=immich
+   ```
+   The service pulls the new images and starts, and the database migrations run on startup. The role's
+   tests then wait for the API and check that the running version is the pinned one.
+6. Check the web interface at `https://immich.intranet.justdavis.com`: the timeline loads, a photo and a
+   video open, and a search returns results.
+7. Once the new version has proven itself, delete the dump and the two snapshots.
+
+To roll back: stop Immich, drop and recreate the `immich` database, restore the dump into it with
+`pg_restore`, set `immich_version` back, and run the playbook again.
 
 ## Enabling Hardware Acceleration
 

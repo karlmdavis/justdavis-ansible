@@ -67,9 +67,12 @@
     - name: Import role - jellyfin
       ansible.builtin.import_role:
         name: jellyfin
+    # Tagged so production upgrades of just this stack can be scoped with `--tags=immich`.
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich
+      tags:
+        - immich
     # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`. The
     # Grafana vhost and DNS record belong to the apache and dns_server roles, so the first deploy
     # needs a full run (or those roles too) for the Grafana hostname to resolve.

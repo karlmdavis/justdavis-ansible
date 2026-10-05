@@ -81,7 +81,7 @@
 # Note: PostgreSQL APT repository is configured by postgresql_server role
 
 # Install pgvector from PostgreSQL APT repository (prerequisite for VectorChord)
-# Immich requires: pgvector >= 0.7.0, < 1.0.0
+# Immich's accepted version range is in the role README.
 # The PostgreSQL APT repository has newer versions than Ubuntu's default
 - name: Install PostgreSQL pgvector Extension
   ansible.builtin.apt:
@@ -92,7 +92,7 @@
 
 # Manual installation of VectorChord from GitHub (not available in Ubuntu repository)
 # Reference: https://immich.app/docs/administration/postgres-standalone/
-# Immich requires: VectorChord >= 0.3.0, < 0.5.0
+# Immich's accepted version range is in the role README.
 - name: Download VectorChord Package
   ansible.builtin.get_url:
     url: 'https://github.com/tensorchord/VectorChord/releases/download/0.4.3/postgresql-16-vchord_0.4.3-1_amd64.deb'
@@ -219,6 +219,13 @@
     mode: 'u=rw,g=r,o=r'
   become: true
   notify: Reload Systemd
+
+# Restart Immich now rather than at the end of the play, so that after a version or configuration
+# change the role's tests check the new containers instead of the ones about to be replaced. This comes
+# before the start task below so that a stopped or newly installed service is started only once: a
+# second start moments later would interrupt the database migrations of the first.
+- name: Flush handlers to restart Immich
+  ansible.builtin.meta: flush_handlers
 
 - name: Enable and Start Immich Service
   ansible.builtin.systemd:

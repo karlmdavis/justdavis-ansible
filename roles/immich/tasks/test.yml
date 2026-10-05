@@ -7,6 +7,8 @@
   failed_when: immich_service_status.status.ActiveState != "active"
   become: true
 
+# Waits up to 10 minutes: the first start after a version change pulls new images and runs database
+# migrations before the API answers.
 - name: Test - Check Immich API Health
   ansible.builtin.uri:
     url: "http://{{ private_ip_address }}:2283/api/server/ping"
@@ -15,13 +17,31 @@
     return_content: true
   register: immich_ping
   retries: 120
-  delay: 1
+  delay: 5
 
 - name: Test - Verify Immich API Response
   ansible.builtin.assert:
     that:
       - immich_ping.json.res == "pong"
     fail_msg: "Immich API did not respond with expected 'pong'"
+
+- name: Test - Get Immich Server Version
+  ansible.builtin.uri:
+    url: "http://{{ private_ip_address }}:2283/api/server/version"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: immich_api_version
+
+# Catches an upgrade that did not take effect (containers not recreated, or an image that failed to pull).
+- name: Test - Verify Immich Runs the Pinned Version
+  ansible.builtin.assert:
+    that:
+      - immich_running == immich_version
+    fail_msg: "Immich is running {{ immich_running }}, but {{ immich_version }} is pinned"
+  vars:
+    immich_api: "{{ immich_api_version.json }}"
+    immich_running: "v{{ immich_api.major }}.{{ immich_api.minor }}.{{ immich_api.patch }}"
 
 - name: Test - Check Immich Web UI is Accessible
   ansible.builtin.uri:

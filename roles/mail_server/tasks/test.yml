@@ -138,9 +138,9 @@
   retries: "{{ curl_imap.retries }}"
   delay: "{{ curl_imap.delay }}"
 
-# Dry-run the deployed Sieve rules against sample messages: `sieve-test` compiles the script and reports
-# where each message would be filed, without delivering anything. It drops privileges to `vmail`, so the
-# messages must be world-readable files (it can't read them from stdin).
+# Dry-run the deployed `20-karl.sieve` against sample messages: `sieve-test` evaluates the script and
+# reports where each message would be filed, without delivering anything. It drops privileges to `vmail`
+# (Dovecot's `mail_uid`), so the messages must be world-readable files (it can't read them from stdin).
 - name: Verify Sieve Rules
   vars:
     sieve_test_cases:

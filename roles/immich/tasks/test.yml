@@ -7,6 +7,9 @@
   failed_when: immich_service_status.status.ActiveState != "active"
   become: true
 
+# The GET requests in this file are read-only, so they run in check mode too; otherwise the asserts that
+# use their results have nothing to look at and error out.
+
 # Waits up to 10 minutes: the first start after a version change pulls new images and runs database
 # migrations before the API answers.
 - name: Test - Check Immich API Health
@@ -16,6 +19,7 @@
     status_code: 200
     return_content: true
   register: immich_ping
+  check_mode: false
   retries: 120
   delay: 5
 
@@ -32,10 +36,12 @@
     status_code: 200
     return_content: true
   register: immich_api_version
+  check_mode: false
 
 # Catches an upgrade that did not take effect: for example a previous run that rewrote docker-compose.yml
 # but was interrupted before the restart, so this run sees no change, never restarts the service, and the
-# old containers are still serving.
+# old containers are still serving. Skipped in check mode, where a pending upgrade would make it fail
+# with nothing to fix.
 - name: Test - Verify Immich Runs the Pinned Version
   ansible.builtin.assert:
     that:
@@ -44,12 +50,14 @@
   vars:
     immich_api: "{{ immich_api_version.json }}"
     immich_running: "v{{ immich_api.major }}.{{ immich_api.minor }}.{{ immich_api.patch }}"
+  when: not ansible_check_mode
 
 - name: Test - Check Immich Web UI is Accessible
   ansible.builtin.uri:
     url: "http://{{ private_ip_address }}:2283/"
     method: GET
     status_code: 200
+  check_mode: false
   retries: 3
   delay: 5
 

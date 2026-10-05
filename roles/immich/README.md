@@ -96,10 +96,11 @@ Things that hold for every upgrade:
 
 - **Downgrading is not supported**, even between patch releases. Going back means restoring the database,
   so take a dump first.
-- **Server and mobile app majors are coupled, asymmetrically.** The app works with the server's major
-  version and the one before it; the server only works with apps on its own major. Upstream therefore
-  recommends updating the apps first. An app that has auto-updated past the server's major will not
-  connect until the server catches up, and after a server upgrade every phone must be on the new major.
+- **Server and mobile app majors are coupled.** The app accepts a server on its own major or the one
+  before it, and nothing else. So after a server upgrade every phone must be on the new major, and an app
+  more than one major ahead flags the server as incompatible (as v3 apps did against the v1 server this
+  role used to pin). Upstream recommends updating the apps first and keeping the server within one major
+  of them.
 - **The vector extension range can move.** A new Immich release may need a newer VectorChord, and an older
   Immich will not start on a VectorChord newer than it knows (v1.140 accepted < 0.5; v3.2.4 accepts < 2.0).
 
@@ -154,7 +155,7 @@ To roll back:
    sudo -u postgres pg_restore -d immich /var/lib/postgresql/backups/immich-pre-upgrade.dump
    ```
 4. Run the playbook as in step 5 above.
-5. Phones that already moved to the newer app major will not connect to the rolled-back server.
+5. Phones keep working only if the rolled-back server is at most one major behind their app.
 
 ## Enabling Hardware Acceleration
 

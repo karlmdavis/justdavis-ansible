@@ -3,9 +3,10 @@ require "fileinto";
 require "imap4flags";
 
 # File Patreon emails into the Patreon folder.
-# Matches any sender in the patreon.com domain (including subdomains like
-# creator.patreon.com, info.patreon.com, etc.).
-if address :domain :contains "from" "patreon.com" {
+# Matches the whole patreon.com domain and its subdomains (creator.patreon.com, info.patreon.com, etc.)
+# rather than specific addresses: Patreon changes its sender addresses often, and the earlier per-address
+# rule silently stopped matching.
+if address :domain :matches "from" ["patreon.com", "*.patreon.com"] {
     fileinto "INBOX.Lists.Patreon";
     stop;
 }

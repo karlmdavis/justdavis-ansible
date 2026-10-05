@@ -178,6 +178,8 @@
 
 # Docker Compose Configuration
 
+# These two are the only tasks that notify Restart Immich; their results are registered so that the tests
+# know whether this run recreated the containers.
 - name: Create Docker Compose File
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -186,6 +188,7 @@
     group: root
     mode: 'u=rw,g=r,o=r'
   become: true
+  register: immich_compose_file
   notify: Restart Immich
 
 - name: Create Environment File
@@ -196,6 +199,7 @@
     group: root
     mode: 'u=rw,g=r,o='
   become: true
+  register: immich_env_file
   notify: Restart Immich
 
 - name: Create Hardware Acceleration Config Files

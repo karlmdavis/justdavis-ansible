@@ -102,12 +102,18 @@
         | list | length == 3
     fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
 
-# A single historical crash must not fail every future production run, so restart counts are only
-# asserted on a fresh test system.
-- name: Test - Verify No Container Has Restarted (test only)
+# The restart count is the reliable signal for a crash loop: a single status sample mostly catches a
+# crash-looping container between restarts, when it is "running". Every restart of the service recreates
+# the containers with a count of zero, so the count is asserted whenever this run recreated them (and
+# always on a fresh test system). A no-change production run leaves it alone, so that a single historical
+# crash does not fail every later run. In check mode the handlers do not restart anything, so the
+# containers are the old ones and the count is not asserted.
+- name: Test - Verify No Container Has Restarted
   ansible.builtin.assert:
     that:
       - immich_container_states.results | map(attribute='stdout') | select('search', ' 0$')
         | list | length == 3
     fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
-  when: is_test
+  when:
+    - not ansible_check_mode
+    - is_test or (immich_compose_file | default({})) is changed or (immich_env_file | default({})) is changed

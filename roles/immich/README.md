@@ -130,6 +130,8 @@ To upgrade to a new version:
    sudo zfs snapshot ssd_pool/pgdata@pre-immich-upgrade
    sudo zfs snapshot ssd_pool/fileshares@pre-immich-upgrade
    ```
+   Take the dump before the `pgdata` snapshot: the backups directory is on that dataset, so a rollback
+   would otherwise discard the dump too.
    The dump is the rollback. The `pgdata` snapshot is a last resort if the dump will not restore: rolling
    it back reverts every database on the server, not only Immich, and needs PostgreSQL stopped. The
    `fileshares` snapshot is for recovering individual files if a migration rewrites the library; rolling

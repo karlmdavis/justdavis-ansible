@@ -81,8 +81,8 @@
 # Note: PostgreSQL APT repository is configured by postgresql_server role
 
 # Install pgvector from PostgreSQL APT repository (prerequisite for VectorChord)
-# Immich's accepted version range is in the role README.
-# The PostgreSQL APT repository has newer versions than Ubuntu's default
+# Immich does not check pgvector's version when VectorChord is in use; the known-good range is in the role
+# README. The PostgreSQL APT repository has newer versions than Ubuntu's default.
 - name: Install PostgreSQL pgvector Extension
   ansible.builtin.apt:
     name: postgresql-16-pgvector
@@ -99,7 +99,8 @@
     dest: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'
     mode: 'u=rw,g=r,o=r'
 
-# A new package only takes effect once PostgreSQL reloads the preloaded library.
+# A new vchord.so is only picked up when PostgreSQL restarts (it is in shared_preload_libraries), hence the
+# notify.
 - name: Install VectorChord Package
   ansible.builtin.apt:
     deb: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'

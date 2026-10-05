@@ -7,11 +7,11 @@
   failed_when: immich_service_status.status.ActiveState != "active"
   become: true
 
-# The GET requests in this file are read-only, so they run in check mode too; otherwise the asserts that
-# use their results have nothing to look at and error out.
+# The GET requests and docker commands in this file are read-only, so they run in check mode too;
+# otherwise the asserts that use their results have nothing to look at and error out.
 
-# Waits up to 10 minutes: the first start after a version change pulls new images and runs database
-# migrations before the API answers.
+# Waits up to retries x delay (10 minutes at 120 x 5 s): the first start after a version change pulls new
+# images and runs database migrations before the API answers.
 - name: Test - Check Immich API Health
   ansible.builtin.uri:
     url: "http://{{ private_ip_address }}:2283/api/server/ping"
@@ -39,9 +39,9 @@
   check_mode: false
 
 # Catches an upgrade that did not take effect: for example a previous run that rewrote docker-compose.yml
-# but was interrupted before the restart, so this run sees no change, never restarts the service, and the
-# old containers are still serving. Skipped in check mode, where a pending upgrade would make it fail
-# with nothing to fix.
+# but was aborted before the handlers ran (force_handlers covers a failed task, not a killed run), so this
+# run sees no change, never restarts the service, and the old containers are still serving. Skipped in
+# check mode, where a version bump that has not been applied yet would fail it for no actionable reason.
 #
 # Only a pinned `vX.Y.Z` tag is supported: the running version is reconstructed in that exact shape from
 # the API's major/minor/patch fields. If `immich_version` is ever expected to take another form (a
@@ -66,8 +66,8 @@
   delay: 5
 
 # The API checks above only see the server container. The machine-learning container can fail on its own
-# (its image once required a newer CPU than the server's), which only shows up later as search and face
-# detection quietly stopping. Same checks as the monitoring role's tests.
+# (the v2.7.0 ML image needed an x86-64-v2 CPU while the server image did not), which only shows up later
+# as search and face detection quietly stopping. Keep these in step with the monitoring role's tests.
 - name: Test - List Immich Containers
   ansible.builtin.command:
     cmd: /usr/bin/docker compose ps --all --quiet

@@ -43,17 +43,20 @@ The role includes optional hardware acceleration configurations:
 
 ### PostgreSQL Extension Version Requirements
 
-Immich checks the PostgreSQL and extension versions at startup and refuses to start outside these ranges
-(as of Immich v3.2.4):
+Immich checks two things at startup and refuses to start if either is out of range (as of Immich v3.2.4,
+from `server/src/constants.ts` at that tag):
 
-- **PostgreSQL**: >= 14, < 20.
-- **pgvector**: >= 0.7, < 0.9 (installed from PostgreSQL APT repository).
-- **VectorChord**: >= 0.3, < 2.0 (manually installed from GitHub; this role installs 0.4.3, which is also the
-  version Immich's own database image ships).
+- **PostgreSQL**: >= 14.
+- **VectorChord**: >= 0.3, < 2.0.
 
-The ranges move between Immich releases. The authoritative values for a release are in
-`server/src/constants.ts` at that release's tag, and in the
-[standalone PostgreSQL guide](https://docs.immich.app/administration/postgres-standalone).
+Separately, the [standalone PostgreSQL guide](https://docs.immich.app/administration/postgres-standalone)
+lists what is known to work: PostgreSQL < 20, and pgvector >= 0.7, < 0.9 (a VectorChord compatibility range;
+Immich does not check pgvector's version when VectorChord is in use).
+
+This role installs VectorChord 0.4.3 from GitHub, the version in Immich's own database image at v3.2.4
+(`ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0`), and whatever pgvector the PostgreSQL APT
+repository currently has (0.8.x at the time of writing; the role does not pin it). The ranges move between
+Immich releases, so check `constants.ts` at the target tag before upgrading.
 
 The role configures the PostgreSQL official APT repository to ensure newer pgvector versions are available, as Ubuntu's default repositories may have older versions that lack required features like the `halfvec[]` type.
 
@@ -93,11 +96,12 @@ Things that hold for every upgrade:
 
 - **Downgrading is not supported**, even between patch releases. Going back means restoring the database,
   so take a dump first.
-- **The server and the mobile app must be within one major version of each other.** The app supports the
-  current and the previous major server version only. Upgrade the server before opening an app that has
-  been updating itself unattended.
+- **Server and mobile app majors are coupled, asymmetrically.** The app works with the server's major
+  version and the one before it; the server only works with apps on its own major. Upstream therefore
+  recommends updating the apps first. An app that has auto-updated past the server's major will not
+  connect until the server catches up, and after a server upgrade every phone must be on the new major.
 - **The vector extension range can move.** A new Immich release may need a newer VectorChord, and an older
-  Immich will not start on a VectorChord newer than it knows (v1.140 needed < 0.5).
+  Immich will not start on a VectorChord newer than it knows (v1.140 accepted < 0.5; v3.2.4 accepts < 2.0).
 
 To upgrade to a new version:
 
@@ -123,6 +127,10 @@ To upgrade to a new version:
    sudo zfs snapshot ssd_pool/pgdata@pre-immich-upgrade
    sudo zfs snapshot ssd_pool/fileshares@pre-immich-upgrade
    ```
+   The dump is the rollback. The `pgdata` snapshot is a last resort if the dump will not restore: rolling
+   it back reverts every database on the server, not only Immich, and needs PostgreSQL stopped. The
+   `fileshares` snapshot is for recovering individual files if a migration rewrites the library; rolling
+   the whole dataset back would revert the other shares too.
 5. Run the playbook:
    ```bash
    ./ansible-playbook-wrapper site.yml --limit=eddings.justdavis.com --tags=immich
@@ -133,8 +141,20 @@ To upgrade to a new version:
    video open, and a search returns results.
 7. Once the new version has proven itself, delete the dump and the two snapshots.
 
-To roll back: stop Immich, drop and recreate the `immich` database, restore the dump into it with
-`pg_restore`, set `immich_version` back, and run the playbook again.
+To roll back:
+
+1. `sudo systemctl stop immich`.
+2. Set `immich_version` back. If the VectorChord URL was changed too, revert it as well; the old Immich
+   refuses to start on a newer extension, and the restore below recreates the extension at whatever version
+   the installed package provides.
+3. Recreate the database with the Immich user as owner, then restore the dump:
+   ```bash
+   sudo -u postgres dropdb immich
+   sudo -u postgres createdb -O immich immich
+   sudo -u postgres pg_restore -d immich /var/lib/postgresql/backups/immich-pre-upgrade.dump
+   ```
+4. Run the playbook as in step 5 above.
+5. Phones that already moved to the newer app major will not connect to the rolled-back server.
 
 ## Enabling Hardware Acceleration
 

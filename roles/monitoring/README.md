@@ -38,9 +38,7 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
 
 - A HomePod stuck on a distant mesh point, or on 2.4 GHz, was the opening hypothesis for stuttering
   multi-room AirPlay. The AmpliFi feed is the only source for that, so it is polled every 30 seconds.
-  What the data then showed (2026-09-24 to 2026-10-03) was the opposite for discovery: HomePods on
-  5 GHz, on any access point, stop answering multicast mDNS and vanish from AirPlay pickers, while
-  2.4 GHz HomePods never did. They now sit on a 2.4 GHz-only SSID, spread across the three radios.
+  What the data then showed was more specific, and partly the opposite; see the next section.
 - AirPlay "cannot find / cannot connect" failures are often mDNS discovery problems rather than radio
   problems. The active mDNS resolve, the TCP port probe, and the ping data separate those cases.
 - Video-call trouble is localised by pinging each hop separately: the AmpliFi router, the Comcast
@@ -48,6 +46,43 @@ The custom exporters are a small typed Python package in `files/exporters/` (see
   first shows loss or latency is where the problem is.
 - DOCSIS SNR, power, and uncorrectable codewords distinguish a line problem (which a reboot only masks)
   from a router problem.
+
+### What the data has shown about AirPlay and the mesh
+
+Findings from the first weeks of data (2026-09-23 to 2026-10-03), kept here because each one changed
+what the role measures or how the network is set up. The network is an AmpliFi HD router and two
+AmpliFi mesh points on wireless backhaul, nine HomePods, and the usual phones, tablets and laptops.
+Device names are left out; the dashboards have them.
+
+- **HomePods on 5 GHz drop out of multicast mDNS; HomePods on 2.4 GHz never did.** A HomePod on any
+  access point's 5 GHz radio, the router's included, periodically stops answering multicast mDNS queries
+  while still answering unicast ones, with good signal, open ports and audio playing. It recovers on its
+  own at its next announcement, after minutes to hours. Over 24 hours (2026-10-01/02) the four 5 GHz
+  HomePods answered 35-60 % of the wired probe's multicast queries; the five 2.4 GHz HomePods answered
+  100 %. A tablet on the same 5 GHz radio as a failing HomePod lost it from its AirPlay picker; a phone
+  two mesh hops away still listed it. So the fault is not the hop between access points, and roaming has
+  nothing to do with it: HomePods roam only when signal drops, and the only way to move one is a restart.
+  Why the 5 GHz path loses multicast is not established; the router offers no setting that bears on it.
+- **The fix in place: a 2.4 GHz-only SSID for the HomePods** (2026-10-03). An additional SSID on the
+  router and both mesh points, bridged into the same subnet; the router reports its clients as
+  `network="Device specific network"`. Multicast discovery has been 9/9 since. The cost is latency:
+  about 30 ms round trip to a HomePod on the router's 2.4 GHz radio and 80-150 ms to one behind a mesh
+  point, against 5 ms on 5 GHz. AirPlay's buffer absorbs that.
+- **One 2.4 GHz radio cannot carry all nine HomePods, and the reason is airtime, not client count.**
+  With the new SSID on the router only, all nine landed on the router's 2.4 GHz radio (19 clients) and
+  round trips to every HomePod on it tripled, with 1-4 % loss, whether or not anything was playing;
+  seven had been fine, the last four (the weakest clients among them) tipped it. Spread 3/4/2 across the
+  three radios, the router's radio was back to 30 ms while streaming to all nine, and the HomePods
+  behind a mesh point paid about 100 ms for the hop. An 802.11n 20 MHz radio shares time, not
+  bandwidth, and HomePods' constant small frames and multicast are expensive out of proportion to their
+  byte counts. The AmpliFi exposes no airtime figure, so this is inferred from round trips, link rates
+  and timing. Practical rule: a few HomePods per 2.4 GHz radio, and the HomePod that matters most on
+  the router's radio rather than behind a mesh point.
+- **The HomePod's AirPlay TXT record reports playback and grouping reliably**; see
+  `docs/airplay-playback-state.md`. The router's per-client byte counters do not (they stick at 2^32-1
+  for most HomePods for hours), so the audio rules read the record, not traffic.
+- **Phones and tablets list HomePods from their mDNS cache** for up to the record TTL, so a picker can
+  show a HomePod the multicast probe cannot reach, and two devices in the same room can disagree.
 
 ### What each signal tells you
 

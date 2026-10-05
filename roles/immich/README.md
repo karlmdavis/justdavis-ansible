@@ -110,8 +110,8 @@ To upgrade to a new version:
      package.
    - Update the download URL in `roles/immich/tasks/install_and_configure.yml`.
    - The playbook restarts PostgreSQL to load the new library, and Immich updates the extension when it
-     next starts. The standalone PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run
-     by hand if it does not.
+     next starts (it can, because the role grants the Immich database user `SUPERUSER`). The standalone
+     PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run by hand if it does not.
 3. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
    immich_version: v3.2.4

@@ -99,11 +99,13 @@
     dest: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'
     mode: 'u=rw,g=r,o=r'
 
+# A new package only takes effect once PostgreSQL reloads the preloaded library.
 - name: Install VectorChord Package
   ansible.builtin.apt:
     deb: '/usr/local/src/postgresql-16-vchord_0.4.3-1_amd64.deb'
     update_cache: true
   become: true
+  notify: Restart PostgreSQL
 
 - name: Install psycopg2 for System Python
   ansible.builtin.apt:

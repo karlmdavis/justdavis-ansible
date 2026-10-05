@@ -1,36 +1,12 @@
 # name karl@justdavis.com
 require "fileinto";
 require "imap4flags";
-require "editheader";
-require "variables";
-require "envelope";
-require "copy";
 
-# Forward and file Patreon emails.
-# References:
-# * <https://doc.dovecot.org/configuration_manual/sieve/configuring_auto_forward_sender_address/>
-# * <https://pigeonhole.dovecot.org/>
-#TODO: think this is more complicated, so replaced below: if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "no-reply@patreon.com") {
-if anyof (
-    address :contains "from" "no-reply@patreon.com",
-    address :contains "from" "bingo@patreon.com"
-) {
-    fileinto :copy "INBOX.Lists.Patreon";
-
-    # Obtain the user's full email address and set it as the sender, to avoid SPF errors.
-    if envelope :matches "to" "*" { set "user_email" "${1}"; }
-
-    # This part of the script MUST be the final rule, otherwise other rules are
-    # affected since the message is modified.
-
-    # Drop the original "From:" header
-    deleteheader "from";
-
-    # Add a new "From:" header
-    addheader "From" "${user_email}";
-
-    # This is the address for my Readwise Reader feed.
-    redirect "kasvwtkj@feed.readwise.io";
+# File Patreon emails into the Patreon folder.
+# Matches any sender in the patreon.com domain (including subdomains like
+# creator.patreon.com, info.patreon.com, etc.).
+if address :domain :contains "from" "patreon.com" {
+    fileinto "INBOX.Lists.Patreon";
     stop;
 }
 

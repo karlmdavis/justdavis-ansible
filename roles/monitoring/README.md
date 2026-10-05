@@ -277,20 +277,15 @@ Device names are left out; the dashboards have them.
   about 30 ms round trip to a HomePod on the router's 2.4 GHz radio and 80-150 ms to one behind a mesh
   point, against 5 ms on 5 GHz. AirPlay's buffer absorbs that.
 - **One 2.4 GHz radio cannot carry all nine HomePods, and the reason is airtime, not client count.**
-  With the new SSID enabled on the router only, all nine landed on the router's 2.4 GHz radio (19 clients
-  in all) and audio to the HomePod being streamed to stuttered and dropped. Round trips to every HomePod
-  on that radio went from 27-31 ms to 70-115 ms, with peaks of 250-850 ms and 1-4 % loss, and stayed
-  there with nothing playing. Seven HomePods on the radio had been fine (35-39 ms); the step came with
-  the last four, which included the two weakest clients (signal 63-70, 18 Mbit/s uplinks). Once the SSID
-  was on the mesh points too and the HomePods restarted, they spread 3/4/2 across the three radios; the
-  router's radio went back to 12 clients and 30 ms while streaming to all nine at once, and the four
-  HomePods behind one mesh point, alone on its 2.4 GHz radio, sat at 130-150 ms because of the hop.
-  The mechanism that fits: an 802.11n, 20 MHz, single-stream radio shares time, not bandwidth; HomePods
-  send a constant trickle of small frames whose cost is all overhead; their multicast goes out at the
-  basic rate, or as one unicast copy per client if the router converts it; and slow clients hold the
-  channel longest. The AmpliFi exposes no airtime or channel-utilisation figure, so this is inferred from
-  round trips, link rates and timing. Practical rule: keep a 2.4 GHz radio to a few HomePods, and keep
-  the HomePod that matters most on the router's radio rather than behind a mesh point.
+  With the new SSID on the router only, all nine landed on the router's 2.4 GHz radio (19 clients) and
+  round trips to every HomePod on it tripled, with 1-4 % loss, whether or not anything was playing;
+  seven had been fine, the last four (the weakest clients among them) tipped it. Spread 3/4/2 across the
+  three radios, the router's radio was back to 30 ms while streaming to all nine, and the HomePods
+  behind a mesh point paid about 100 ms for the hop. An 802.11n 20 MHz radio shares time, not
+  bandwidth, and HomePods' constant small frames and multicast are expensive out of proportion to their
+  byte counts. The AmpliFi exposes no airtime figure, so this is inferred from round trips, link rates
+  and timing. Practical rule: a few HomePods per 2.4 GHz radio, and the HomePod that matters most on
+  the router's radio rather than behind a mesh point.
 - **The HomePod's AirPlay TXT record reports playback and grouping reliably**; see
   `docs/airplay-playback-state.md`. The router's per-client byte counters do not (they stick at 2^32-1
   for most HomePods for hours), so the audio rules read the record, not traffic.

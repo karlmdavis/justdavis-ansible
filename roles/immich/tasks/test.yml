@@ -33,7 +33,9 @@
     return_content: true
   register: immich_api_version
 
-# Catches an upgrade that did not take effect (containers not recreated, or an image that failed to pull).
+# Catches an upgrade that did not take effect: for example a previous run that rewrote docker-compose.yml
+# but was interrupted before the restart, so this run sees no change, never restarts the service, and the
+# old containers are still serving.
 - name: Test - Verify Immich Runs the Pinned Version
   ansible.builtin.assert:
     that:

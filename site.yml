@@ -67,7 +67,9 @@
     - name: Import role - jellyfin
       ansible.builtin.import_role:
         name: jellyfin
-    # Tagged so production upgrades of just this stack can be scoped with `--tags=immich`.
+    # Tagged so production upgrades of just this stack can be scoped with `--tags=immich`. Upgrades only:
+    # a first deploy needs a full run for the PostgreSQL APT repository, the media group, and the Apache
+    # vhost and DNS record, which other roles own.
     - name: Import role - immich
       ansible.builtin.import_role:
         name: immich

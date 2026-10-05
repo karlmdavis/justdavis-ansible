@@ -224,8 +224,10 @@
 
 # Restart Immich now rather than at the end of the play, so that after a version or configuration
 # change the role's tests check the new containers instead of the ones about to be replaced. This comes
-# before the start task below so that a stopped or newly installed service is started only once: a
-# second start moments later would interrupt the database migrations of the first.
+# before the start task below so that a stopped or newly installed service comes up only once: if the
+# start task ran first, the handler's restart moments later would tear the containers down
+# mid-migration. Handlers run in the order defined in handlers/main.yml, so Reload Systemd precedes
+# Restart Immich and a freshly deployed unit file is loaded first.
 - name: Flush handlers to restart Immich
   ansible.builtin.meta: flush_handlers
 

@@ -42,6 +42,10 @@
 # but was interrupted before the restart, so this run sees no change, never restarts the service, and the
 # old containers are still serving. Skipped in check mode, where a pending upgrade would make it fail
 # with nothing to fix.
+#
+# Only a pinned `vX.Y.Z` tag is supported: the running version is reconstructed in that exact shape from
+# the API's major/minor/patch fields. If `immich_version` is ever expected to take another form (a
+# floating tag such as `v3`, or a pre-release such as `v3.3.0-rc.2`), this comparison must change with it.
 - name: Test - Verify Immich Runs the Pinned Version
   ansible.builtin.assert:
     that:

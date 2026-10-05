@@ -52,3 +52,50 @@
     status_code: 200
   retries: 3
   delay: 5
+
+# The API checks above only see the server container. The machine-learning container can fail on its own
+# (its image once required a newer CPU than the server's), which only shows up later as search and face
+# detection quietly stopping. Same checks as the monitoring role's tests.
+- name: Test - List Immich Containers
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose ps --all --quiet
+    chdir: "{{ immich_base_dir }}"
+  register: immich_container_ids
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Inspect Immich Containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      # The assertions below key on field position; keep RestartCount last.
+      - "{{ '{{' }}.Name{{ '}}' }} {{ '{{' }}.State.Status{{ '}}' }} {{ '{{' }}.RestartCount{{ '}}' }}"
+      - "{{ item }}"
+  loop: "{{ immich_container_ids.stdout_lines }}"
+  register: immich_container_states
+  changed_when: false
+  check_mode: false
+  become: true
+
+# One container per service in docker-compose.yml.j2; update the count here and below when a service is
+# added.
+- name: Test - Verify Every Container is Running
+  ansible.builtin.assert:
+    that:
+      - immich_container_ids.stdout_lines | length == 3
+      - immich_container_states.results | map(attribute='stdout') | select('search', ' running ')
+        | list | length == 3
+    fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
+
+# A single historical crash must not fail every future production run, so restart counts are only
+# asserted on a fresh test system.
+- name: Test - Verify No Container Has Restarted (test only)
+  ansible.builtin.assert:
+    that:
+      - immich_container_states.results | map(attribute='stdout') | select('search', ' 0$')
+        | list | length == 3
+    fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
+  when: is_test

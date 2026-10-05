@@ -115,8 +115,10 @@ To upgrade to a new version:
      package.
    - Update the download URL in `roles/immich/tasks/install_and_configure.yml`.
    - The playbook restarts PostgreSQL to load the new library, and Immich updates the extension when it
-     next starts (it can, because the role grants the Immich database user `SUPERUSER`). The standalone
-     PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run by hand if it does not.
+     next starts (it can, because the role grants the Immich database user `SUPERUSER`). If only
+     VectorChord changed, nothing restarts Immich, so run `sudo systemctl restart immich` afterwards. The
+     standalone PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run by hand if
+     Immich does not update the extension itself.
 3. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
    immich_version: v3.2.4
@@ -145,9 +147,11 @@ To upgrade to a new version:
 To roll back:
 
 1. `sudo systemctl stop immich`.
-2. Set `immich_version` back. If the VectorChord URL was changed too, revert it as well; the old Immich
-   refuses to start on a newer extension, and the restore below recreates the extension at whatever version
-   the installed package provides.
+2. Set `immich_version` back. If the VectorChord URL was changed too, revert it as well, and downgrade the
+   package by hand before restoring (`sudo dpkg -i /usr/local/src/postgresql-16-vchord_<old>.deb`, then
+   `sudo systemctl restart postgresql@16-main`). The restore creates the `vchord` extension at whichever
+   version is installed at that moment, and the old Immich refuses both a newer package and a database
+   whose extension is newer than the package.
 3. Recreate the database with the Immich user as owner, then restore the dump:
    ```bash
    sudo -u postgres dropdb immich

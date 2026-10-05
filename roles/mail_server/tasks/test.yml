@@ -144,17 +144,19 @@
 - name: Verify Sieve Rules
   vars:
     sieve_test_cases:
-      - { from: 'no-reply@patreon.com', folder: 'INBOX.Lists.Patreon' }
-      - { from: 'bingo@creator.patreon.com', folder: 'INBOX.Lists.Patreon' }
+      - { to: 'karl', from: 'no-reply@patreon.com', folder: 'INBOX.Lists.Patreon' }
+      - { to: 'karl', from: 'bingo@creator.patreon.com', folder: 'INBOX.Lists.Patreon' }
       # A lookalike domain must not be filed as Patreon mail.
-      - { from: 'someone@notpatreon.com', folder: 'INBOX' }
+      - { to: 'karl', from: 'someone@notpatreon.com', folder: 'INBOX' }
+      # The whole script only applies to Karl's mailbox.
+      - { to: "{{ test_username }}", from: 'kai@kaidavis.com', folder: 'INBOX' }
   block:
     - name: Write Sieve Test Messages
       ansible.builtin.copy:
         dest: "/tmp/sieve-test-{{ index }}.eml"
         content: |
           From: Sender <{{ item.from }}>
-          To: {{ test_username }}@{{ domain }}
+          To: {{ item.to }}@{{ domain }}
           Subject: Sieve rule test
 
           This message is only read by sieve-test; it is never delivered.
@@ -166,7 +168,9 @@
     # Each message must result in exactly one action: being stored in the expected folder.
     - name: Verify that Sieve Rules File Messages Correctly
       ansible.builtin.command:
-        cmd: "/usr/bin/sieve-test /var/lib/dovecot/sieve.d/20-karl.sieve /tmp/sieve-test-{{ index }}.eml"
+        cmd: >-
+          /usr/bin/sieve-test -r {{ item.to }}@{{ domain }}
+          /var/lib/dovecot/sieve.d/20-karl.sieve /tmp/sieve-test-{{ index }}.eml
       become: true
       changed_when: false
       register: sieve_test

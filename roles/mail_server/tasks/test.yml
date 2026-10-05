@@ -163,6 +163,7 @@
       loop_control:
         index_var: index
 
+    # Each message must result in exactly one action: being stored in the expected folder.
     - name: Verify that Sieve Rules File Messages Correctly
       ansible.builtin.command:
         cmd: "/usr/bin/sieve-test /var/lib/dovecot/sieve.d/20-karl.sieve /tmp/sieve-test-{{ index }}.eml"
@@ -171,7 +172,8 @@
       register: sieve_test
       failed_when: >-
         sieve_test.rc != 0
-        or ('* store message in folder: ' ~ item.folder) not in (sieve_test.stdout_lines | map('trim'))
+        or (sieve_test.stdout_lines | map('trim') | select('match', '\\* ') | list)
+        != ['* store message in folder: ' ~ item.folder]
       loop: "{{ sieve_test_cases }}"
       loop_control:
         index_var: index

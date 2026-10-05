@@ -477,8 +477,9 @@
     mode: u=rwx,g=rx,o=rx
   become: true
 
-# Need Dovecot to restart after setting `sieve_extensions` in `90-sieve.conf`,
-# before we can compile the sieve rules.
+# Flush handlers so that a pending Dovecot restart happens before the sieve rules are compiled: `sievec`
+# gets its settings (e.g. `sieve_extensions`) from the running Dovecot rather than from the config files,
+# and the compile handler is defined ahead of the restart handler, so it would otherwise run first.
 - name: Meta - Flush Handlers
   ansible.builtin.meta: flush_handlers
 

@@ -1,36 +1,22 @@
 # name karl@justdavis.com
+require "envelope";
 require "fileinto";
 require "imap4flags";
-require "editheader";
-require "variables";
-require "envelope";
-require "copy";
 
-# Forward and file Patreon emails.
-# References:
-# * <https://doc.dovecot.org/configuration_manual/sieve/configuring_auto_forward_sender_address/>
-# * <https://pigeonhole.dovecot.org/>
-#TODO: think this is more complicated, so replaced below: if allof (address :all :contains :comparator "i;ascii-casemap" ["from"] "no-reply@patreon.com") {
-if anyof (
-    address :contains "from" "no-reply@patreon.com",
-    address :contains "from" "bingo@patreon.com"
-) {
-    fileinto :copy "INBOX.Lists.Patreon";
+# These rules are for Karl's mailbox only, but this script runs for every user (it's in the `sieve_before`
+# directory), so stop here for anyone else. Postfix's virtual aliases rewrite all of Karl's addresses to
+# the one matched here before delivery. Stopping leaves the implicit keep in place, so other users' mail
+# still goes to their INBOX and their own Sieve scripts still run.
+if not envelope :is "to" "karl@{{ domain }}" {
+    stop;
+}
 
-    # Obtain the user's full email address and set it as the sender, to avoid SPF errors.
-    if envelope :matches "to" "*" { set "user_email" "${1}"; }
-
-    # This part of the script MUST be the final rule, otherwise other rules are
-    # affected since the message is modified.
-
-    # Drop the original "From:" header
-    deleteheader "from";
-
-    # Add a new "From:" header
-    addheader "From" "${user_email}";
-
-    # This is the address for my Readwise Reader feed.
-    redirect "kasvwtkj@feed.readwise.io";
+# File Patreon emails into the Patreon folder.
+# Matches the whole patreon.com domain and its subdomains (creator.patreon.com, info.patreon.com, etc.)
+# rather than specific addresses: Patreon changes its sender addresses often, and a per-address rule
+# silently stops matching when it does.
+if address :domain :matches "from" ["patreon.com", "*.patreon.com"] {
+    fileinto "INBOX.Lists.Patreon";
     stop;
 }
 

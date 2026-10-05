@@ -11,8 +11,12 @@
     daemon_reload: true
   become: true
 
+# Reloads systemd itself rather than relying on the Reload Systemd handler having run first: a notify
+# resolves to the last handler of that name loaded into the play, and later roles define one too, so the
+# order the two run in depends on role order in site.yml.
 - name: Restart Immich
   ansible.builtin.systemd:
     name: immich
     state: restarted
+    daemon_reload: true
   become: true

@@ -7,6 +7,11 @@
   failed_when: immich_service_status.status.ActiveState != "active"
   become: true
 
+# The GET requests and docker commands in this file are read-only, so they run in check mode too;
+# otherwise the asserts that use their results have nothing to look at and error out.
+
+# Waits up to retries x delay (10 minutes at 120 x 5 s): the first start after a version change pulls new
+# images and runs database migrations before the API answers.
 - name: Test - Check Immich API Health
   ansible.builtin.uri:
     url: "http://{{ private_ip_address }}:2283/api/server/ping"
@@ -14,8 +19,9 @@
     status_code: 200
     return_content: true
   register: immich_ping
+  check_mode: false
   retries: 120
-  delay: 1
+  delay: 5
 
 - name: Test - Verify Immich API Response
   ansible.builtin.assert:
@@ -23,10 +29,91 @@
       - immich_ping.json.res == "pong"
     fail_msg: "Immich API did not respond with expected 'pong'"
 
+- name: Test - Get Immich Server Version
+  ansible.builtin.uri:
+    url: "http://{{ private_ip_address }}:2283/api/server/version"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: immich_api_version
+  check_mode: false
+
+# Catches an upgrade that did not take effect: for example a previous run that rewrote docker-compose.yml
+# but was aborted before the handlers ran (force_handlers covers a failed task, not a killed run), so this
+# run sees no change, never restarts the service, and the old containers are still serving. Skipped in
+# check mode, where a version bump that has not been applied yet would fail it for no actionable reason.
+#
+# Only a pinned `vX.Y.Z` tag is supported: the running version is reconstructed in that exact shape from
+# the API's major/minor/patch fields. If `immich_version` is ever expected to take another form (a
+# floating tag such as `v3`, or a pre-release such as `v3.3.0-rc.2`), this comparison must change with it.
+- name: Test - Verify Immich Runs the Pinned Version
+  ansible.builtin.assert:
+    that:
+      - immich_running == immich_version
+    fail_msg: "Immich is running {{ immich_running }}, but {{ immich_version }} is pinned"
+  vars:
+    immich_api: "{{ immich_api_version.json }}"
+    immich_running: "v{{ immich_api.major }}.{{ immich_api.minor }}.{{ immich_api.patch }}"
+  when: not ansible_check_mode
+
 - name: Test - Check Immich Web UI is Accessible
   ansible.builtin.uri:
     url: "http://{{ private_ip_address }}:2283/"
     method: GET
     status_code: 200
+  check_mode: false
   retries: 3
   delay: 5
+
+# The API checks above only see the server container. The machine-learning container can fail on its own
+# (the v2.7.0 ML image needed an x86-64-v2 CPU while the server image did not), which only shows up later
+# as search and face detection quietly stopping. Keep these in step with the monitoring role's tests.
+- name: Test - List Immich Containers
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose ps --all --quiet
+    chdir: "{{ immich_base_dir }}"
+  register: immich_container_ids
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Inspect Immich Containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      # The assertions below key on field position; keep RestartCount last.
+      - "{{ '{{' }}.Name{{ '}}' }} {{ '{{' }}.State.Status{{ '}}' }} {{ '{{' }}.RestartCount{{ '}}' }}"
+      - "{{ item }}"
+  loop: "{{ immich_container_ids.stdout_lines }}"
+  register: immich_container_states
+  changed_when: false
+  check_mode: false
+  become: true
+
+# One container per service in docker-compose.yml.j2; update the count here and below when a service is
+# added.
+- name: Test - Verify Every Container is Running
+  ansible.builtin.assert:
+    that:
+      - immich_container_ids.stdout_lines | length == 3
+      - immich_container_states.results | map(attribute='stdout') | select('search', ' running ')
+        | list | length == 3
+    fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
+
+# The restart count is the reliable signal for a crash loop: a single status sample mostly catches a
+# crash-looping container between restarts, when it is "running". Every restart of the service recreates
+# the containers with a count of zero, so the count is asserted whenever this run recreated them (and
+# always on a fresh test system). A no-change production run leaves it alone, so that a single historical
+# crash does not fail every later run. In check mode the handlers do not restart anything, so the
+# containers are the old ones and the count is not asserted.
+- name: Test - Verify No Container Has Restarted
+  ansible.builtin.assert:
+    that:
+      - immich_container_states.results | map(attribute='stdout') | select('search', ' 0$')
+        | list | length == 3
+    fail_msg: "{{ immich_container_states.results | map(attribute='stdout') | list }}"
+  when:
+    - not ansible_check_mode
+    - is_test or (immich_compose_file | default({})) is changed or (immich_env_file | default({})) is changed

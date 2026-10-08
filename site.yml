@@ -22,6 +22,8 @@
       ansible.builtin.import_role:
         name: eddings_networking
       when: not is_test
+      tags:
+        - networking
     - name: Import role - base
       ansible.builtin.import_role:
         name: base

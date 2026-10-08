@@ -35,3 +35,25 @@
   become: true
   notify:
     - Run netplan apply
+
+# Netplan has no setting for RoutesToDNS, so it is set in a drop-in on the unit netplan generates for
+# br-lan. The file explains why.
+- name: Create Drop-In Directory For br-lan
+  ansible.builtin.file:
+    path: /etc/systemd/network/10-netplan-br-lan.network.d
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Stop Routing The LAN Lease's DNS Servers Via The Router
+  ansible.builtin.copy:
+    src: systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf
+    dest: /etc/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Run netplan apply

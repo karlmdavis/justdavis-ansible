@@ -121,7 +121,7 @@ To upgrade to a new version:
      Immich does not update the extension itself.
 3. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
-   immich_version: v3.2.4
+   immich_version: v3.3.1
    ```
 4. Stop Immich and take a rollback point:
    ```bash

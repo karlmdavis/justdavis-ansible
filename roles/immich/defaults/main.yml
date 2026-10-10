@@ -1,6 +1,6 @@
 ---
 # Immich version to install (used in docker-compose and for upgrades)
-immich_version: v3.2.4
+immich_version: v3.3.1
 
 # Immich installation directory (used for multiple directory/file operations)
 immich_base_dir: /opt/immich

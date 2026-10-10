@@ -5,7 +5,9 @@
 #
 # * Create a network bridge on the WAN connection, eno1 (lower 2.5 GB port), for use by VMs.
 # * Configure static public IPs on bridge.
-# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP.
+# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP, without host routes to the
+#   lease's DNS servers (a networkd drop-in).
+# * Ignore routes whose link is down, so an unplugged WAN falls back to the LAN (a sysctl).
 ##
 
 - name: Install Network Bridging Utilities

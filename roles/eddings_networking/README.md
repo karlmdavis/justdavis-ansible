@@ -1,7 +1,8 @@
 # Eddings Networking Role
 
-Configures `eddings`' host networking via netplan — the WAN and LAN bridges the server uses to
-reach the internet and the home LAN.
+Configures `eddings`' host networking: the WAN and LAN bridges the server uses to reach the internet
+and the home LAN (netplan), a networkd drop-in for the LAN bridge's DHCP client, and a sysctl that
+ignores routes on an unplugged link.
 
 ## Overview
 
@@ -37,6 +38,7 @@ flowchart TD
 ```
 
 ### ISP / address block
+
 - Provider: **Comcast Business** — routed static block **`96.86.32.136/29`**, gateway
   **`96.86.32.142`**. IPv6 block **`2603:3003:5207:ad00::/56`**.
 
@@ -83,5 +85,7 @@ IPs (and everything it serves). The routed-mode + per-device static IP arrangeme
 ## Files
 
 - `files/netplan/00-installer-config.yaml` — the netplan applied to `eddings`.
+- `files/sysctl.d/local.conf` — ignore routes whose link is down, so an unplugged WAN falls back to
+  the LAN's default route.
 - `files/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf` — networkd drop-in on the
   unit netplan generates for `br-lan`; stops host routes to the lease's DNS servers.

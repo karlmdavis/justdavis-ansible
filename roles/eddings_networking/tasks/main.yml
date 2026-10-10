@@ -5,8 +5,7 @@
 #
 # * Create a network bridge on the WAN connection, eno1 (lower 2.5 GB port), for use by VMs.
 # * Configure static public IPs on bridge.
-# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP, without host routes to the
-#   lease's DNS servers (a networkd drop-in).
+# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP, plus a networkd drop-in for it.
 # * Ignore routes whose link is down, so an unplugged WAN falls back to the LAN (a sysctl).
 ##
 
@@ -38,9 +37,8 @@
   notify:
     - Run netplan apply
 
-# Netplan has no setting for RoutesToDNS, so it is set in a drop-in on the unit netplan generates for
-# br-lan. The file explains why. The directory name must match that unit (10-netplan-<bridge id>.network),
-# so rename it if br-lan is renamed; networkd does not warn about an orphaned drop-in directory.
+# Netplan has no setting for RoutesToDNS, so it goes in a drop-in on the unit netplan generates for
+# br-lan; the directory name follows the bridge id. The file says why.
 - name: Create Drop-In Directory For br-lan
   ansible.builtin.file:
     path: /etc/systemd/network/10-netplan-br-lan.network.d

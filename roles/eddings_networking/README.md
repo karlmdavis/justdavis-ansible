@@ -10,11 +10,9 @@ This role installs `files/netplan/00-installer-config.yaml`, which defines two b
 
 - **`br-wan`** (on `eno1`) — the public/WAN side, cabled directly to the Comcast Business modem.
   Holds the server's static public IPs and the default route.
-- **`br-lan`** (on `eno2`) — the home LAN side, a DHCP client on `10.0.0.0/24`
-  (reserved at `10.0.0.2`). It takes its address, its DNS servers and a fallback default route (see
-  "Outbound traffic and DNS keep working with the WAN unplugged" below) from the LAN router's lease,
-  but not host routes to those DNS servers; the networkd drop-in
-  `files/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf` says why.
+- **`br-lan`** (on `eno2`) — the home LAN side, a DHCP client on `10.0.0.0/24` (reserved at
+  `10.0.0.2`), with a networkd drop-in that keeps the lease's DNS servers from pulling routes onto
+  the LAN (`files/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf`, which says why).
 
 ## Home network topology
 
@@ -71,12 +69,11 @@ flowchart LR
     dev -->|"modem DHCP (10.1.10.x)"| bad([double-NAT — UPnP breaks])
 ```
 
-**Outbound traffic and DNS keep working with the WAN unplugged.** `eno1` is sometimes unplugged
-during maintenance or a security incident, as a simple way to take the public services offline. The
-`ignore_routes_with_linkdown` sysctl (`files/sysctl.d/local.conf`) then lets the lease's default route
-via the LAN router (metric 100) carry eddings' own traffic. Name resolution follows: eddings' resolver
-is systemd-resolved using networkd's per-link servers, which still include the lease's DNS servers,
-because the drop-in above removes only the host routes to them.
+**Unplugging the WAN is safe for eddings' own traffic.** `eno1` is sometimes unplugged during
+maintenance or a security incident, as a simple way to take the public services offline. The
+`ignore_routes_with_linkdown` sysctl then lets the lease's default route via the LAN router carry
+eddings' outbound traffic, name resolution included (the lease's DNS servers stay configured; only
+the routes to them are suppressed).
 
 **Do not put the modem in bridge mode.** Bridge mode passes a single public IP to a single device
 and stops routing the `/29` to multiple hosts — which would break `eddings`' directly-cabled public
@@ -87,5 +84,5 @@ IPs (and everything it serves). The routed-mode + per-device static IP arrangeme
 - `files/netplan/00-installer-config.yaml` — the netplan applied to `eddings`.
 - `files/sysctl.d/local.conf` — ignore routes whose link is down, so an unplugged WAN falls back to
   the LAN's default route.
-- `files/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf` — networkd drop-in on the
-  unit netplan generates for `br-lan`; stops host routes to the lease's DNS servers.
+- `files/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf` — networkd drop-in for
+  `br-lan`'s DHCP client; it says why.

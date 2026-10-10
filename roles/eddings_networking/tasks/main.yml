@@ -5,7 +5,8 @@
 #
 # * Create a network bridge on the WAN connection, eno1 (lower 2.5 GB port), for use by VMs.
 # * Configure static public IPs on bridge.
-# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP.
+# * Configure the LAN connection, eno2 (upper 2.5 GB port), for DHCP, plus a networkd drop-in for it.
+# * Ignore routes whose link is down, so an unplugged WAN falls back to the LAN (a sysctl).
 ##
 
 - name: Install Network Bridging Utilities
@@ -29,6 +30,28 @@
   ansible.builtin.copy:
     src: netplan/00-installer-config.yaml
     dest: /etc/netplan/00-installer-config.yaml
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Run netplan apply
+
+# Netplan has no setting for RoutesToDNS, so it goes in a drop-in on the unit netplan generates for
+# br-lan; the directory name follows the bridge id. The file says why.
+- name: Create Drop-In Directory For br-lan
+  ansible.builtin.file:
+    path: /etc/systemd/network/10-netplan-br-lan.network.d
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Stop Routing The LAN Lease's DNS Servers Via The LAN Router
+  ansible.builtin.copy:
+    src: systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf
+    dest: /etc/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf
     owner: root
     group: root
     mode: u=rw,g=r,o=r

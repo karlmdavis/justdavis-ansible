@@ -59,7 +59,9 @@ monitoring_ping_timeout_seconds: 2
 monitoring_ping_history_size: 60
 
 # Always-pinged addresses, layered from the LAN outwards. The AmpliFi exporter adds the tracked
-# devices' current addresses to this list.
+# devices' current addresses to this list. Each target must be reached by the path it stands for: a
+# public one that took the LAN router's route would report LAN trouble as WAN trouble, which is why
+# eddings_networking keeps the LAN lease's DNS servers from pulling routes onto the LAN.
 monitoring_static_ping_targets:
   # The AmpliFi router, LAN side.
   - 10.0.0.1
@@ -72,6 +74,6 @@ monitoring_static_ping_targets:
   # Comcast's anycast DNS resolver: the nearest thing inside the ISP's network that answers ping. The
   # gateway's first hop drops ICMP, and its address changes with the WAN DHCP lease.
   - 75.75.75.75
-  # Public anchors.
+  # Public DNS resolvers, out on the open internet; the WAN alert rules rest on 1.1.1.1.
   - 1.1.1.1
   - 8.8.8.8

@@ -72,8 +72,9 @@ monitoring_static_ping_targets:
   # Comcast's anycast DNS resolver: the nearest thing inside the ISP's network that answers ping. The
   # gateway's first hop drops ICMP, and its address changes with the WAN DHCP lease.
   - 75.75.75.75
-  # Public anchors. The WAN alert rules rest on 1.1.1.1. It only leaves by br-wan because the
-  # eddings_networking role stops networkd from adding a host route to it via the AmpliFi (the LAN
-  # lease names it as a DNS server); without that, the WAN rules would be measuring the home router.
+  # Public anchors. The WAN alert rules rest on 1.1.1.1. In production it reaches the internet by
+  # br-wan (the static default route) only because the eddings_networking role stops networkd from
+  # adding a host route to it via the LAN router, whose DHCP lease names it as a DNS server; see that
+  # role's README.
   - 1.1.1.1
   - 8.8.8.8

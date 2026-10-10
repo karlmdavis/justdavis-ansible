@@ -17,7 +17,8 @@
       ansible.builtin.import_role:
         name: eddings_base
     # Configure networking, except during tests in AWS (because networking there is
-    # completely different and incompatible).
+    # completely different and incompatible). Tagged so a change to it can be deployed on its own
+    # with `--tags=networking`; the role depends on nothing the other roles set up.
     - name: Import role - eddings_networking
       ansible.builtin.import_role:
         name: eddings_networking

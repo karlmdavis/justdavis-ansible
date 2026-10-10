@@ -35,4 +35,6 @@ network:
     br-lan:
       interfaces: [eno2]
       # On the AmpliFi HD router, this interface has a DHCP-reserved assignment of 10.0.0.2.
+      # A networkd drop-in (files/systemd/network/10-netplan-br-lan.network.d/) adjusts this bridge's
+      # DHCP client; its directory is named after the bridge id, so rename both together.
       dhcp4: true

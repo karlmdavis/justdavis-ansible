@@ -37,7 +37,8 @@
     - Run netplan apply
 
 # Netplan has no setting for RoutesToDNS, so it is set in a drop-in on the unit netplan generates for
-# br-lan. The file explains why.
+# br-lan. The file explains why. The directory name must match that unit (10-netplan-<bridge id>.network),
+# so rename it if br-lan is renamed; networkd does not warn about an orphaned drop-in directory.
 - name: Create Drop-In Directory For br-lan
   ansible.builtin.file:
     path: /etc/systemd/network/10-netplan-br-lan.network.d

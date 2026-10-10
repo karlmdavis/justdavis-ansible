@@ -47,7 +47,7 @@
     mode: u=rwx,g=rx,o=rx
   become: true
 
-- name: Stop Routing The LAN Lease's DNS Servers Via The Router
+- name: Stop Routing The LAN Lease's DNS Servers Via The LAN Router
   ansible.builtin.copy:
     src: systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf
     dest: /etc/systemd/network/10-netplan-br-lan.network.d/routes-to-dns.conf

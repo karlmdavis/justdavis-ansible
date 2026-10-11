@@ -17,3 +17,26 @@
     cmd: /usr/sbin/update-ca-certificates
   when: download_staging_ca_result.changed
   become: true
+
+# This role configured the Apache jails a few tasks earlier (jail.d/apache.conf). Flushing here lets
+# Apache (re)start and create the virtual-host log files, then lets fail2ban reload and glob them,
+# before the check below reads what the jail is watching.
+- name: Flush Handlers Before Testing fail2ban
+  ansible.builtin.meta: flush_handlers
+
+- name: Read the fail2ban Apache Jail's Log Paths
+  ansible.builtin.command:
+    cmd: /usr/bin/fail2ban-client get apache-auth logpath
+  register: fail2ban_apache_logpath_result
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Verify fail2ban Watches the Global and Virtual-Host Apache Logs
+  ansible.builtin.assert:
+    that:
+      - "'/var/log/apache2/' in fail2ban_apache_logpath_result.stdout"
+      - "'/var/apache2/' in fail2ban_apache_logpath_result.stdout"
+    fail_msg: >-
+      The fail2ban apache-auth jail is not watching both /var/log/apache2/ and /var/apache2/:
+      {{ fail2ban_apache_logpath_result.stdout }}

@@ -119,7 +119,7 @@ a row update it.
 | Immich database role without `SUPERUSER` | Turns an Immich compromise from a cluster compromise into a one-database compromise; needs the extensions pre-created as `postgres` and the database owned by the Immich role | Planned |
 | Administrative API reachable only from the LAN, Tailscale and the home network's public block | A stolen session or a future authorization bug cannot reach configuration, jobs or user management from the internet | Planned (public virtual host) |
 | HTTP probe of the service with alerts for downtime and certificate expiry | Notice an outage or an expiring certificate before family members do | Planned |
-| Automated release tracking with a written update deadline | The exposure window is the patch delay; see the update policy | Planned |
+| Automated release tracking with a written update deadline | The exposure window is the patch delay; see the update policy | In place (Renovate `renovate.json5`; policy above) |
 | Public upload disabled on shared links; metadata hidden | A leaked link cannot be used to upload or to read locations | Operating practice |
 | Strong unique passwords on every account | Passwords are the only authentication factor | Operating practice |
 | ufw connection-rate limit on 80/443 (pre-existing) | Slows connection floods from a single source; not a brute-force control in itself | In place |

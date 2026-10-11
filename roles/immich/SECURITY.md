@@ -110,7 +110,7 @@ a row update it.
 
 | Control | Why | State |
 | --- | --- | --- |
-| Modern TLS profile, `ServerTokens Prod`, `X-Content-Type-Options`, `Referrer-Policy` on all virtual hosts | Baseline for anything on the public address; drops CBC suites and version disclosure | Planned (shared Apache configuration) |
+| Modern TLS profile, `ServerTokens Prod`, `X-Content-Type-Options`, `Referrer-Policy` on all virtual hosts | Baseline for anything on the public address; drops CBC suites and version disclosure | In place (apache role, shared `ssl.conf` and `security.conf`) |
 | HTTP/2 | One connection per client, which keeps the firewall's per-source connection limit from affecting normal browsing | Planned (shared Apache configuration) |
 | HSTS on the Immich virtual hosts | The critical 2026 advisory needed the victim to load the login page; HSTS removes the plain-HTTP path | Planned |
 | fail2ban jail on Immich failed logins | Immich has no lockout or rate limiting; five failures in ten minutes ban the source for an hour | Planned |

@@ -192,10 +192,13 @@ To roll back:
 
 ## Security Considerations
 
-- Service only accessible on internal network (intranet)
-- Database credentials stored in Ansible vault
-- No external access configured by default
-- Redis is not exposed outside of Docker network
+The threat model, the controls that follow from it and their current state, the update policy, and the
+incident runbook are in [SECURITY.md](SECURITY.md). In brief:
+
+- Service only accessible on internal network (intranet); public access is planned and the analysis above
+  is the prerequisite for it.
+- Database credentials stored in Ansible vault.
+- Redis is not exposed outside of Docker network.
 
 ## Troubleshooting
 

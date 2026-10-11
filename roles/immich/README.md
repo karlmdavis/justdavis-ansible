@@ -104,6 +104,13 @@ Things that hold for every upgrade:
 - **The vector extension range can move.** A new Immich release may need a newer VectorChord, and an older
   Immich will not start on a VectorChord newer than it knows (v1.140 accepted < 0.5; v3.2.4 accepts < 2.0).
 
+New releases arrive as pull requests. Renovate (`renovate.json5` at the repository root) watches the Immich,
+Valkey and VectorChord releases and opens one pull request per release, with the upstream release notes in
+the PR body, so that the deadlines in [SECURITY.md](SECURITY.md) can be met. The pull request changes only
+the pin; everything below still applies to it: review the release notes, check the extension ranges, run the
+test harness on the branch, take the rollback point, and deploy. A VectorChord pull request is labelled
+`needs-decision` because that version is pinned by choice, not tracked.
+
 To upgrade to a new version:
 
 1. Read the [Immich release notes](https://github.com/immich-app/immich/releases) for every release between

@@ -8,3 +8,22 @@ modules:
     timeout: 5s
     tcp:
       preferred_ip_protocol: ip4
+
+  # Fetches a URL over HTTPS and expects a 2xx answer (the prober's default), verifying the certificate
+  # chain on the way, so one probe of a service behind the Apache proxy covers the service, the proxy
+  # and the certificate. Redirects are not followed: the targets are the HTTPS URLs themselves, and a
+  # redirect in place of an answer would be a change worth noticing.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      follow_redirects: false
+      fail_if_not_ssl: true
+      tls_config:
+        # The test environment's certificates come from Let's Encrypt's staging CA, which the exporter
+        # does not trust: it runs in a container with its image's own CA bundle, not the host's, where
+        # the apache role installs that CA for the tests. Verification is therefore off in the test
+        # environment and on in production.
+        insecure_skip_verify: {{ 'true' if is_test else 'false' }}

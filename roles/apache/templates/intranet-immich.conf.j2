@@ -51,6 +51,13 @@
     Allow from all
   </Proxy>
 
+  # HSTS is a per-site decision (the shared security configuration deliberately leaves it out); this host
+  # is HTTPS-only, so browsers may as well stop trying plain HTTP.
+  Header always set Strict-Transport-Security "max-age=63072000"
+
+  # Immich's reverse-proxy guide asks for these alongside X-Forwarded-For, which mod_proxy adds on its own.
+  RequestHeader set X-Forwarded-Proto "https"
+  RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
   ProxyPass / "http://127.0.0.1:2283/" timeout=600 upgrade=websocket
   ProxyPassReverse / "http://127.0.0.1:2283/"
   ProxyPreserveHost On

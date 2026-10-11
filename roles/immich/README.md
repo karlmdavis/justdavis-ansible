@@ -217,6 +217,19 @@ sudo docker compose -f /opt/immich/docker-compose.yml logs
 - Check disk space: `df -h /var/fileshares`
 - Verify permissions: `ls -la /var/fileshares/justdavis.com/groups/media/photos`
 
+### Client Addresses in Logs
+Apache is the only client Immich ever sees: its requests arrive from the Docker network gateway
+(`172.30.0.1`), so by default every login, session and failed attempt would carry that address.
+`IMMICH_TRUSTED_PROXIES` in `/opt/immich/.env` lists the gateway, which makes Immich honour the
+`X-Forwarded-For` header Apache adds. To confirm it is working:
+
+```bash
+sudo docker logs immich_server 2>&1 | grep 'Failed login attempt'
+```
+
+The lines should end in real client addresses. If they all end in `172.30.0.1`, the environment file is out
+of date or the containers have not been recreated since it changed.
+
 ## Known Limitations
 
 - Hardware acceleration may not work in virtualized environments

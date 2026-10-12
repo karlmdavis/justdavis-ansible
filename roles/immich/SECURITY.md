@@ -123,7 +123,7 @@ a row update it.
 | Public upload disabled on shared links; metadata hidden | A leaked link cannot be used to upload or to read locations | Operating practice |
 | Strong unique passwords on every account | Passwords are the only authentication factor | Operating practice |
 | ufw connection-rate limit on 80/443 (pre-existing) | Slows connection floods from a single source; not a brute-force control in itself | In place |
-| fail2ban on sshd, Apache and mail (pre-existing) | Baseline | In place |
+| fail2ban on sshd, Apache and mail (pre-existing) | Baseline | In place; the Apache jails now read Apache's log files, including the virtual hosts' |
 
 Considered and not adopted, with reasons:
 

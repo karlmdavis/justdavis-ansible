@@ -19,7 +19,10 @@ unit:
 - **ping_exporter** pings every target continuously (one packet per second) and reports latency,
   jitter, and loss over a rolling window.
 - **blackbox_exporter** connects to each HomePod's AirPlay port to tell "wedged AirPlay service" from
-  "bad WiFi".
+  "bad WiFi", and fetches Immich's health endpoint over HTTPS by its intranet name through the Apache
+  proxy, so that the service, the proxy and the certificate are checked together. (In the AWS test
+  environment the certificate is from Let's Encrypt's staging CA, which the exporter's container does
+  not trust, so the probe skips certificate verification there and nowhere else.)
 - **node_exporter** records eddings' own CPU, memory, and WAN/LAN interface counters.
 - **amplifi_exporter** (custom) reads the AmpliFi router's web UI: which mesh point and band every
   client is on, its signal quality and link rates, mesh point backhaul health, and WAN throughput. It
@@ -115,6 +118,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | The WAN probe itself has gone missing | `absent()` of the anchor's ping series, without which the three WAN rules would be silent. | `WanProbeMissing` |
 | Alerts are not being delivered | Alertmanager's failed-notification counter, or Prometheus seeing no Alertmanager. | `AlertmanagerNotificationsFailing`, `PrometheusAlertmanagerUnreachable` |
 | The offsite backup is not happening | `offsite_backups_*` gauges from the `offsite_backups` role. | `OffsiteBackupStale`, `OffsiteBackupFailed`, `OffsiteBackupMetricsMissing` |
+| Immich is down, or its certificate is about to lapse | `probe_success{job="blackbox_http"}` is 0 for the HTTPS probe of `immich.intranet.justdavis.com/api/server/ping` (the Immich container, the Apache proxy, the certificate, or the name's resolution), or `probe_ssl_earliest_cert_expiry` is within 14 days (certbot renews at 30, so renewal has been failing for two weeks). | `ImmichDown`, `ImmichCertificateExpiringSoon` |
 
 ### Why three custom exporters
 
@@ -219,7 +223,8 @@ can no longer be read for its playback state; a mesh point offline or missing
 from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
 going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
-success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
+success for 36 hours, a failed run, or the metrics missing for an hour; Immich not answering its HTTPS
+health probe for 5 minutes, or its certificate within 14 days of expiry; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which
 still reaches the other). What no rule can cover is the whole stack being down at once; a dead-man's
 switch to an outside heartbeat service would, and is a possible follow-up.

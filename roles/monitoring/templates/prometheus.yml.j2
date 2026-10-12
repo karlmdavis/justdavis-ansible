@@ -78,3 +78,25 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox_exporter:{{ monitoring_blackbox_port }}
+
+  # HTTPS probes of the services behind the Apache proxy, made as a LAN client would make them: by the
+  # intranet name, through the proxy. The exporter resolves the name through Docker's embedded DNS,
+  # which forwards to the host's upstream resolvers rather than to the BIND on this host, so the probe
+  # rests on the public delegation of the intranet zone, which is how the name reaches the LAN too.
+  - job_name: blackbox_http
+    metrics_path: /probe
+    params:
+      module:
+        - http_2xx
+    static_configs:
+      - targets:
+          - https://immich.intranet.{{ domain }}/api/server/ping
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox_exporter:{{ monitoring_blackbox_port }}

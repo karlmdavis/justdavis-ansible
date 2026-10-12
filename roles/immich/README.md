@@ -20,6 +20,24 @@ Rather than using Immich's containerized PostgreSQL, this role integrates with t
 - Maintains consistency with other applications
 - Leverages existing PostgreSQL maintenance and monitoring
 
+### Database Role Without Superuser
+
+Immich expects its database role to be a superuser by default, and this role used to grant that. It no
+longer does: a superuser Immich role would make a compromise of Immich a compromise of every database on
+the host and of the `postgres` operating-system user (`COPY ... PROGRAM`), while without it the blast radius
+is the Immich database. Immich's
+[standalone PostgreSQL guide](https://docs.immich.app/administration/postgres-standalone) ("Without
+superuser permission") describes the arrangement: the database is owned by the Immich role, and the
+extensions are created beforehand as `postgres` (`vchord` with its `vector` dependency, and the list in
+`immich_postgres_extensions` in `defaults/main.yml`, taken from Immich's schema). Immich's startup only
+runs `CREATE EXTENSION IF NOT EXISTS`, which is a no-op once they exist; if an extension is missing it
+logs a request to create it manually as a superuser and refuses to start.
+
+Two things follow from this, both covered below: a VectorChord upgrade has to be applied by hand (see
+[Upgrading Immich](#upgrading-immich)), and Immich's built-in database backup job stays disabled (see
+[Backup Strategy](#backup-strategy)). The role's tests check that the role is not a superuser and that the
+extensions are installed.
+
 ### Storage Location
 Photos are stored in `/var/fileshares/justdavis.com/groups/media/photos`, which:
 - Integrates with existing file share structure
@@ -83,7 +101,8 @@ The role performs the following steps:
 
 1. Creates system user and directories
 2. Installs VectorChord PostgreSQL extension
-3. Creates PostgreSQL database and user
+3. Creates PostgreSQL database and user, and creates the extensions Immich expects in the database (the
+   user is not a superuser, so Immich cannot create them itself)
 4. Configures Docker Compose with:
    - Immich server
    - Machine learning container
@@ -114,11 +133,19 @@ To upgrade to a new version:
    - Check [VectorChord releases](https://github.com/tensorchord/VectorChord/releases) for a PostgreSQL 16
      package.
    - Update the download URL in `roles/immich/tasks/install_and_configure.yml`.
-   - The playbook restarts PostgreSQL to load the new library, and Immich updates the extension when it
-     next starts (it can, because the role grants the Immich database user `SUPERUSER`). If only
-     VectorChord changed, nothing restarts Immich, so run `sudo systemctl restart immich` afterwards. The
-     standalone PostgreSQL guide lists the `ALTER EXTENSION` and `REINDEX` commands to run by hand if
-     Immich does not update the extension itself.
+   - The playbook installs the package and restarts PostgreSQL to load the new library, but the extension
+     in the database stays at the old version: only a superuser can update it, and the Immich database
+     role is not one (it would log that it could not update the extension and refuse to start). After the
+     playbook has run, stop Immich, update the extension and rebuild the vector indexes by hand as
+     `postgres`, then start Immich again:
+     ```bash
+     sudo systemctl stop immich
+     sudo -u postgres psql immich -c 'ALTER EXTENSION vchord UPDATE;' \
+       -c 'REINDEX INDEX face_index;' -c 'REINDEX INDEX clip_index;'
+     sudo systemctl start immich
+     ```
+     These are the commands from the "Updating VectorChord" section of the standalone PostgreSQL guide. The
+     reindex can take a while on a large library.
 3. Update the version in `roles/immich/defaults/main.yml`:
    ```yaml
    immich_version: v3.3.1
@@ -160,6 +187,8 @@ To roll back:
    sudo -u postgres createdb -O immich immich
    sudo -u postgres pg_restore -d immich /var/lib/postgresql/backups/immich-pre-upgrade.dump
    ```
+   The restore runs as `postgres`, which is why it can recreate the extensions in the dump; the Immich
+   role could not.
 4. Run the playbook as in step 5 above.
 5. Phones keep working only if the rolled-back server is at most one major behind their app.
 
@@ -186,9 +215,18 @@ To roll back:
 
 ## Backup Strategy
 
-- **Database**: Automatically backed up via existing PostgreSQL pg_dumpall
-- **Photos**: Stored in `/var/fileshares` which is included in the offsite backups
-- **Configuration**: Minimal configuration in `/opt/immich` (can be recreated)
+- **Database**: Backed up by the host's hourly `pg_dumpall` (the `postgresql-dumpall` timer from the
+  `postgresql_server` role, writing to `/var/lib/postgresql/backups`), which the nightly offsite backups
+  include.
+- **Photos**: Stored in `/var/fileshares` which is included in the offsite backups.
+- **Configuration**: Minimal configuration in `/opt/immich` (can be recreated).
+
+Immich's own database backup job (Administration → Settings → Backup) must stay disabled. Immich documents
+it as needing a superuser (the standalone PostgreSQL guide: "automated backups require superuser permission
+due to the usage of `pg_dumpall`"), which the Immich database role is not; it would also only duplicate the
+host's dumps, inside the upload directory. Its in-app restore would fail as well, since restoring a dump
+means dropping and recreating extensions the Immich role does not own. Restore from the host's dumps as
+`postgres` instead, as in the rollback steps above.
 
 ## Security Considerations
 

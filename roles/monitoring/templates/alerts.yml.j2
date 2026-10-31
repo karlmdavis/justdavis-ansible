@@ -342,6 +342,40 @@ groups:
             The {{ L }} $labels.source {{ R }} source of the device address inventory has not been
             written for 15 minutes
 
+  - name: hue
+    rules:
+      # hue_up is 0 for a bridge that cannot be reached, a rejected key, a certificate that is not the
+      # bridge's, a response that does not parse, and a bridge no address source has seen within the
+      # freshness window; hue_scrape_errors_total{stage} tells them apart (address, login, tls, fetch,
+      # parse). The only Hue alert for now: lights off their Zigbee network, the bridge's cloud link, and
+      # software installs are recorded first (hue_zigbee_connectivity, hue_bridge_internet_connected,
+      # hue_bridge_last_software_install_timestamp_seconds) and get rules once a week of data shows what
+      # normal looks like.
+      - alert: HueScrapeFailing
+        expr: hue_up == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The Hue exporter cannot read the bridge; hue_scrape_errors_total{stage} says whether it is the
+            address, the key, the certificate, the connection or the response
+
+  - name: homekit
+    rules:
+      # Status flag bit 0 set: the accessory says no controller is paired with it. That is a reset
+      # accessory, or one dropped from the Home, and nothing else shows it. Only while its announcement
+      # is current: a stale record of a reset accessory that has since been re-paired is not news.
+      - alert: HomeKitAccessoryUnpaired
+        expr: homekit_accessory_paired == 0 and on (accessory) homekit_accessory_present == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            HomeKit accessory {{ L }} $labels.accessory {{ R }} reports it is not paired with any
+            controller: it was reset, or dropped from the Home
+
   - name: gateway
     rules:
       - alert: GatewayRebooted

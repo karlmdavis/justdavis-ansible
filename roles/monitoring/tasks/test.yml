@@ -56,8 +56,8 @@
   register: monitoring_targets
   until: >-
     (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'lan_discovery', 'node', 'ping',
-          'prometheus']
+    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'hue', 'lan_discovery', 'node',
+          'ping', 'prometheus']
          | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
         == []
   retries: 30
@@ -92,9 +92,9 @@
 - name: Test - Verify Every Container is Running
   ansible.builtin.assert:
     that:
-      - monitoring_container_ids.stdout_lines | length == 10
+      - monitoring_container_ids.stdout_lines | length == 11
       - monitoring_container_states.results | map(attribute='stdout') | select('search', ' running ')
-        | list | length == 10
+        | list | length == 11
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
 
 # A single historical crash must not fail every future production run, so restart counts are only
@@ -103,7 +103,7 @@
   ansible.builtin.assert:
     that:
       - monitoring_container_states.results | map(attribute='stdout') | select('search', ' 0$')
-        | list | length == 10
+        | list | length == 11
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
   when: is_test
 
@@ -123,6 +123,8 @@
       - alerts_docsis_test.yml
       - alerts_playback_state_test.yml
       - alerts_addresses_test.yml
+      - alerts_hue_test.yml
+      - alerts_homekit_test.yml
   block:
     - name: Test - Create Directory for Rule Unit Tests
       ansible.builtin.tempfile:

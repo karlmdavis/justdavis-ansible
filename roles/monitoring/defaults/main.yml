@@ -47,6 +47,7 @@ monitoring_ping_exporter_port: 9427
 monitoring_amplifi_exporter_port: 9801
 monitoring_gateway_exporter_port: 9802
 monitoring_airplay_exporter_port: 9803
+monitoring_lan_discovery_exporter_port: 9804
 
 # The Comcast gateway, whose TLS certificate the role fetches at deploy time and whose status page the
 # gateway exporter reads.
@@ -58,8 +59,8 @@ monitoring_ping_interval_seconds: 1
 monitoring_ping_timeout_seconds: 2
 monitoring_ping_history_size: 60
 
-# Always-pinged addresses, layered from the LAN outwards. The AmpliFi exporter adds the tracked
-# devices' current addresses to this list. Each target must be reached by the path it stands for: a
+# Always-pinged addresses, layered from the LAN outwards. The LAN discovery exporter adds the tracked
+# devices' current addresses to this list from the device address inventory. Each target must be reached by the path it stands for: a
 # public one that took the LAN router's route would report LAN trouble as WAN trouble, which is why
 # eddings_networking keeps the LAN lease's DNS servers from pulling routes onto the LAN.
 monitoring_static_ping_targets:

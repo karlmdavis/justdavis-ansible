@@ -1,6 +1,6 @@
 ---
 # Installs and configures the home network monitoring stack (Prometheus, Grafana, Alertmanager,
-# ping_exporter, blackbox_exporter, node_exporter, and three custom exporters). See README.md.
+# ping_exporter, blackbox_exporter, node_exporter, and four custom exporters). See README.md.
 
 - name: Verify Vault Variables are Defined
   ansible.builtin.assert:
@@ -78,6 +78,7 @@
     - "{{ monitoring_base_dir }}/data/alertmanager"
     - "{{ monitoring_base_dir }}/secrets"
     - "{{ monitoring_base_dir }}/shared"
+    - "{{ monitoring_base_dir }}/shared/device-addresses"
   become: true
 
 # Fixed-subnet bridge network, pre-created so that its gateway address exists for the host-network
@@ -102,9 +103,27 @@
     dest: "{{ monitoring_docker_gateway }}"
     port: >-
       {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port
-      }},{{ monitoring_airplay_exporter_port }}
+      }},{{ monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port }}
   become: true
   when: "'Microsoft' not in ansible_kernel"
+
+# The LAN discovery exporter reads the host's IPv4 neighbour table as one source of device addresses.
+# By default the kernel only learns a neighbour when something talks to it; with arp_accept=2 (Linux
+# 5.18+) it also creates an entry from a gratuitous ARP on the same subnet, which every DHCP client
+# sends when it takes a new lease, so a device that moved shows up without anyone asking. Not in the
+# test environment, which has no LAN interface of that name.
+- name: Learn Neighbour Addresses From Gratuitous ARP
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (roles/monitoring). See the task that writes this file.
+      net.ipv4.conf.{{ private_ip_interface }}.arp_accept = 2
+    dest: /etc/sysctl.d/60-monitoring-arp-accept.conf
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify: Load Monitoring sysctl Configuration
+  when: not is_test
 
 # The validators below run inside the images, so make sure those images are present first.
 - name: Pull Images Used for Configuration Validation
@@ -236,9 +255,9 @@
   become: true
   notify: Restart Monitoring
 
-# Seed the dynamic target files with the static targets only; the AmpliFi exporter rewrites them
-# whenever the set of tracked devices' addresses changes (and leaves them alone at start-up), so
-# never overwrite an existing file here.
+# Seed the dynamic target files with the static targets only; the LAN discovery exporter rewrites them
+# from the device address inventory whenever the set of fresh addresses changes, so never overwrite an
+# existing file here.
 - name: Seed Dynamic Target Files
   ansible.builtin.template:
     src: "{{ item }}.j2"

@@ -38,6 +38,11 @@ scrape_configs:
       - targets:
           - {{ monitoring_docker_gateway }}:{{ monitoring_airplay_exporter_port }}
 
+  - job_name: lan_discovery
+    static_configs:
+      - targets:
+          - {{ monitoring_docker_gateway }}:{{ monitoring_lan_discovery_exporter_port }}
+
   # Bridge-network exporters are reached by service name.
   - job_name: amplifi
     static_configs:
@@ -60,7 +65,8 @@ scrape_configs:
       - targets:
           - alertmanager:{{ monitoring_alertmanager_port }}
 
-  # AirPlay TCP port probes; targets are rewritten by the AmpliFi exporter as HomePod addresses change.
+  # AirPlay TCP port probes; the LAN discovery exporter rewrites the targets from the device address
+  # inventory as HomePod addresses change, and drops a HomePod no source has seen lately.
   - job_name: airplay_tcp
     metrics_path: /probe
     params:

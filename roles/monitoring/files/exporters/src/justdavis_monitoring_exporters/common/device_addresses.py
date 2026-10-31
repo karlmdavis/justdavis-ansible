@@ -232,6 +232,7 @@ class SourceStore:
                 role=sighting.role,
                 extra=dict(sighting.extra),
             )
+        self._path.parent.mkdir(exist_ok=True)
         document = {
             "source": self._source,
             "written_at": now,

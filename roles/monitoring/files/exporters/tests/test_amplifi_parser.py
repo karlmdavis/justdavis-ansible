@@ -216,3 +216,31 @@ def test_wan_link_down_has_no_bitrates(info_async_bytes: bytes) -> None:
     wan = parse_info_async(json.dumps(data).encode()).wan_port
     assert wan.link is False
     assert (wan.link_speed_mbps, wan.rx_bitrate_kbps, wan.tx_bitrate_kbps) == (None, None, None)
+
+
+def test_parses_the_device_directory_and_wired_ports(info_async_bytes: bytes) -> None:
+    snapshot = parse_info_async(info_async_bytes)
+    server = snapshot.directory[Mac("02:00:00:00:00:30")]
+    assert (server.ip, server.hostname, server.connection, server.lease_validity) == (
+        "192.0.2.2",
+        "server",
+        "ethernet",
+        None,
+    )
+    assert snapshot.directory[SPEAKER_A_MAC].lease_validity == 2520
+    assert snapshot.wired == frozenset({Mac("02:00:00:00:00:30")})
+
+
+def test_directory_is_read_leniently_entry_by_entry(info_async_bytes: bytes) -> None:
+    # The directory is a secondary source of addresses and was unparsed until 2026-10-31, so one odd
+    # entry must not cost the whole poll the way an odd mesh point does.
+    data = json.loads(info_async_bytes)
+    data[2]["02:00:00:00:00:40"] = "not a mapping"
+    data[2]["02:00:00:00:00:41"] = {"ip": 42}
+    data[2]["02:00:00:00:00:42"] = {"host_name": "no-address"}
+    data[3]["02:00:00:00:00:02"] = "not a mapping"
+    snapshot = parse_info_async(json.dumps(data).encode())
+    assert Mac("02:00:00:00:00:40") not in snapshot.directory
+    assert Mac("02:00:00:00:00:41") not in snapshot.directory
+    assert snapshot.directory[Mac("02:00:00:00:00:42")].ip is None
+    assert snapshot.wired == frozenset({Mac("02:00:00:00:00:30")})

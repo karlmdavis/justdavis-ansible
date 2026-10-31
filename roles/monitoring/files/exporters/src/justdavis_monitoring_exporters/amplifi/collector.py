@@ -72,6 +72,7 @@ class AmplifiCollector(Collector):
         self._byte_totals = byte_totals
         self._publish_lock = threading.Lock()
         self._target_files_ok: bool | None = None
+        self._address_source_ok: bool | None = None
 
     def publish(self, snapshot: AmplifiSnapshot) -> None:
         with self._publish_lock:
@@ -92,6 +93,9 @@ class AmplifiCollector(Collector):
 
     def set_target_files_ok(self, ok: bool) -> None:
         self._target_files_ok = ok
+
+    def set_address_source_ok(self, ok: bool) -> None:
+        self._address_source_ok = ok
 
     def collect(self) -> Iterator[Metric]:
         yield from status_families("amplifi", self.statuses.get())
@@ -124,6 +128,13 @@ class AmplifiCollector(Collector):
                 "amplifi_target_files_ok",
                 "1 when the ping/AirPlay target files were last written successfully.",
                 value=float(self._target_files_ok),
+            )
+        if self._address_source_ok is not None:
+            yield GaugeMetricFamily(
+                "amplifi_address_source_ok",
+                "1 when the router's device address observations were last written to the inventory "
+                "(/shared/device-addresses/router.json) successfully.",
+                value=float(self._address_source_ok),
             )
 
     @staticmethod

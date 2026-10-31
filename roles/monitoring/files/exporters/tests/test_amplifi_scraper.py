@@ -1,5 +1,6 @@
 """Tests for the AmpliFi scraper glue: snapshot publication, error attribution, and target files."""
 
+import time
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,9 @@ from justdavis_monitoring_exporters.amplifi.main import (
     build_registry,
 )
 from justdavis_monitoring_exporters.amplifi.targets import PingConfig
+from justdavis_monitoring_exporters.common.device_addresses import DEVICE_ADDRESSES_DIR, AddressInventory
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.common.settings import Mac
 from tests.fakes import FailingHttpClient, FakeHttpClient, response
 from tests.helpers import tracked
 
@@ -72,6 +75,11 @@ def test_successful_poll_publishes_snapshot_and_writes_target_files(tmp_path: Pa
     assert (tmp_path / "ping-targets.yml").read_text().endswith("  - 192.0.2.110\n")
     assert '"192.0.2.110:7000"' in (tmp_path / "airplay-targets.json").read_text()
     assert registry.get_sample_value("amplifi_target_files_ok") == 1.0
+    inventory = AddressInventory.load(tmp_path / DEVICE_ADDRESSES_DIR)
+    seen = inventory.latest(Mac("02:00:00:00:00:10"), now=time.time(), max_age=60)
+    assert seen is not None and (seen.source, seen.address) == ("router", "192.0.2.110")
+    assert inventory.role(Mac("02:00:00:00:00:01")) == "router"
+    assert registry.get_sample_value("amplifi_address_source_ok") == 1.0
 
 
 def test_unchanged_poll_does_not_rewrite_target_files(tmp_path: Path) -> None:
@@ -108,7 +116,8 @@ def test_target_file_write_failure_is_reported_without_failing_the_poll(tmp_path
     scraper()
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
     assert registry.get_sample_value("amplifi_target_files_ok") == 0.0
-    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "write"}) == 1.0
+    assert registry.get_sample_value("amplifi_address_source_ok") == 0.0
+    assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "write"}) == 2.0
 
 
 def test_seed_only_creates_missing_target_files(tmp_path: Path) -> None:

@@ -71,6 +71,21 @@ class WifiClient:
 
 
 @dataclass(frozen=True, slots=True)
+class DirectoryEntry:
+    """One device in the router's directory (element 2): every device it holds a DHCP lease or a wired
+    port for, wireless or not, so this is where a wired device's address comes from."""
+
+    mac: Mac
+    ip: str | None
+    hostname: str | None
+    # "wireless" or "ethernet", as the router spells it.
+    connection: str | None
+    # Seconds of DHCP lease left; -1 for a lease the router treats as permanent (2026-10-31: the
+    # wired devices and the devices with a reserved address).
+    lease_validity: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class WanPort:
     link: bool
     link_speed_mbps: int | None
@@ -85,3 +100,6 @@ class AmplifiSnapshot:
     clients: tuple[WifiClient, ...]
     wan_port: WanPort
     bonjour: Mapping[Mac, frozenset[str]]
+    directory: Mapping[Mac, DirectoryEntry]
+    # The clients the router (or a mesh point) lists on its own Ethernet ports (element 3).
+    wired: frozenset[Mac]

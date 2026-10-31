@@ -71,3 +71,21 @@ def test_every_failure_is_reraised_without_the_key(
     )
     if stage is not None:
         assert isinstance(raised.value, FetchError) and raised.value.stage == stage
+
+
+def test_certificate_problems_are_told_apart_by_exception_type_not_wording() -> None:
+    import ssl
+
+    from justdavis_monitoring_exporters.hue.client import _is_certificate_problem
+
+    pool = urllib3.HTTPConnectionPool("example.invalid")
+    chain = requests.exceptions.SSLError(
+        urllib3.exceptions.MaxRetryError(
+            pool, "/x", urllib3.exceptions.SSLError(ssl.SSLCertVerificationError("unusual wording"))
+        )
+    )
+    assert _is_certificate_problem(chain) is True
+    name = requests.exceptions.SSLError(urllib3.exceptions.SSLError(ssl.CertificateError("renamed message")))
+    assert _is_certificate_problem(name) is True
+    cut = requests.exceptions.SSLError(urllib3.exceptions.SSLError("EOF occurred in violation of protocol"))
+    assert _is_certificate_problem(cut) is False

@@ -101,7 +101,8 @@ class HueSettings:
         mac_text = env.get("MONITORING_HUE_BRIDGE_MAC", "").strip()
         bridge: HueBridge | None = None
         if mac_text:
-            key = env.get("HUE_APPLICATION_KEY", "")
+            # A trailing newline or space pasted into the vault would turn every poll into a rejected key.
+            key = env.get("HUE_APPLICATION_KEY", "").strip()
             if not key:
                 raise SettingsError("HUE_APPLICATION_KEY: required when MONITORING_HUE_BRIDGE_MAC is set")
             bridge = HueBridge(mac=normalise_mac(mac_text, "MONITORING_HUE_BRIDGE_MAC"), application_key=key)

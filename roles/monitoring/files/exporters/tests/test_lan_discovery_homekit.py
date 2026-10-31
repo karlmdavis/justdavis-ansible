@@ -99,3 +99,12 @@ def test_collector_labels_the_accessory_never_the_instance() -> None:
     assert registry.get_sample_value("homekit_accessory_config_number", a) == 3.0
     assert registry.get_sample_value("homekit_accessory_last_seen_timestamp_seconds", a) == NOW
     assert registry.get_sample_value("homekit_accessory_address_info", {**a, "address": "192.0.2.50"}) == 1.0
+
+
+def test_the_cap_evicts_vanished_accessories_before_present_ones() -> None:
+    tracker = HomekitTracker(max_accessories=2)
+    tracker.refresh([hap("Old", {}, seen_at=NOW - 5000)], now=NOW - 5000)
+    # "Old" has vanished (not in this refresh); two fresh guests arrive while the household's own
+    # accessory, heard long ago but still present, must stay.
+    kept = tracker.refresh([hap("Household", {}, seen_at=NOW - 4000), hap("Guest", {}, seen_at=NOW)], now=NOW)
+    assert [a.instance for a in kept] == ["Guest", "Household"]

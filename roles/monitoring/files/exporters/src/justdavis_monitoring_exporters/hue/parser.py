@@ -99,9 +99,12 @@ def _owner_id(resource: Mapping[str, object], ctx: str) -> str:
 
 
 def _reported(resource: Mapping[str, object], section: str, field: str, ctx: str) -> object | None:
-    """`<section>.<field>_report.<field>` when present (the current API), else `<section>.<field>`."""
+    """`<section>.<field>_report.<field>` when present (the current API), else `<section>.<field>`; None
+    when the bridge marks the reading invalid (`<field>_valid` false) or the sensor disabled."""
+    if resource.get("enabled") is False:
+        return None
     block = _optional_dict(resource, section, ctx)
-    if block is None:
+    if block is None or block.get(f"{field}_valid") is False:
         return None
     report = _optional_dict(block, f"{field}_report", f"{ctx}.{section}")
     if report is not None and field in report:
@@ -151,7 +154,8 @@ def parse_resources(
         for child_index, child_value in enumerate(as_list(resource.get("children", []), f"{ctx}.children")):
             child = as_dict(child_value, f"{ctx}.children[{child_index}]")
             if as_str(child.get("rtype", ""), f"{ctx}.children[{child_index}].rtype") == "device":
-                rooms[as_str(get(child, "rid", ctx), f"{ctx}.children[{child_index}].rid")] = name
+                child_ctx = f"{ctx}.children[{child_index}]"
+                rooms[as_str(get(child, "rid", child_ctx), f"{child_ctx}.rid")] = name
     temperature: dict[str, float] = {}
     for resource, ctx in by_type.get("temperature", []):
         value = _reported(resource, "temperature", "temperature", ctx)

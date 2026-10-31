@@ -117,3 +117,11 @@ def test_without_a_snapshot_only_the_status_families_are_served() -> None:
     registry = registry_with(None)
     assert registry.get_sample_value("hue_up") == 0.0
     assert registry.get_sample_value("hue_bridge_zigbee_channel") is None
+
+
+def test_a_raw_light_level_of_zero_is_zero_lux() -> None:
+    from dataclasses import replace
+
+    dark = replace(SNAPSHOT, sensors=tuple(replace(s, light_level_raw=0) for s in SNAPSHOT.sensors))
+    registry = registry_with(dark)
+    assert registry.get_sample_value("hue_sensor_light_level_lux", SENSOR_A) == 0.0

@@ -37,6 +37,8 @@ Options:
 * `--out PATH` writes the key somewhere other than `~/hue-application-key.txt` (the file must not exist).
 * `--devicetype NAME` names the key on the bridge (default `justdavis-monitoring#eddings`, which is how
   the Hue app lists it).
+* `--bridge-id ID` refuses any bridge but the expected one (the id is the MAC with `fffe` in the middle,
+  the same value the exporter derives from `vault_hue_bridge_mac`).
 
 SAMPLE OUTPUT
 
@@ -99,6 +101,10 @@ def main() -> int:
     parser.add_argument("--out", default=str(Path.home() / "hue-application-key.txt"))
     parser.add_argument("--devicetype", default="justdavis-monitoring#eddings")
     parser.add_argument("--check", action="store_true", help="verify TLS and print the bridge id only")
+    parser.add_argument(
+        "--bridge-id",
+        help="the bridge id to expect (the MAC with fffe in the middle); refuse any other bridge",
+    )
     args = parser.parse_args()
     base = f"https://{args.bridge}"
     context = tls_context()
@@ -121,6 +127,9 @@ def main() -> int:
     if common_name.lower() != bridge_id.lower():
         print(f"TLS: the certificate names {common_name!r}, not the bridge id {bridge_id!r}", file=sys.stderr)
         return 1
+    if args.bridge_id is not None and args.bridge_id.lower() != bridge_id.lower():
+        print(f"the bridge at {args.bridge} is {bridge_id}, not the expected {args.bridge_id}", file=sys.stderr)
+        return 1
     print("TLS: chain verified against Signify's root; certificate names the bridge id")
     if args.check:
         return 0
@@ -129,7 +138,8 @@ def main() -> int:
         print(f"{out} already exists; remove it or pass --out", file=sys.stderr)
         return 1
     input("Press the round link button on the bridge, then press Enter here (within 30 seconds)...")
-    body = json.dumps({"devicetype": args.devicetype, "generateclientkey": True}).encode()
+    # No client key: that one is for the entertainment streaming API, which the exporter never uses.
+    body = json.dumps({"devicetype": args.devicetype, "generateclientkey": False}).encode()
     for attempt in range(1, _RETRIES + 1):
         answer, _ = fetch(f"{base}/api", context, data=body)
         entry = answer[0] if isinstance(answer, list) and answer else {}

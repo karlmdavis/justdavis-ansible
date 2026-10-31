@@ -25,7 +25,7 @@
         "enable": true,
         "hide": false,
         "iconColor": "purple",
-        "expr": "changes(hue_bridge_last_software_install_timestamp_seconds[$__interval]) > 0",
+        "expr": "changes(hue_bridge_last_software_install_timestamp_seconds[$__rate_interval]) > 0",
         "titleFormat": "Bridge installed software",
         "useValueForTime": false
       },
@@ -38,7 +38,7 @@
         "enable": true,
         "hide": false,
         "iconColor": "blue",
-        "expr": "changes(hue_bridge_zigbee_channel[$__interval]) > 0",
+        "expr": "changes(hue_bridge_zigbee_channel[$__rate_interval]) > 0",
         "titleFormat": "Zigbee channel changed",
         "useValueForTime": false
       }
@@ -415,7 +415,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (name, status, room) (hue_zigbee_connectivity{status!=\"connected\"} == 1) * on (name) group_left (room) max by (name, room) (hue_device_info)",
+          "expr": "max by (device_id, name, status) (hue_zigbee_connectivity{status!=\"connected\"} == 1) * on (device_id) group_left (room) max by (device_id, room) (hue_device_info)",
           "format": "table",
           "instant": true
         }
@@ -426,7 +426,8 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "Value": true
+              "Value": true,
+              "device_id": true
             },
             "indexByName": {
               "name": 0,
@@ -463,7 +464,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (name, product, model, software_version, room) (hue_device_info)",
+          "expr": "max by (device_id, name, product, model, software_version, room) (hue_device_info)",
           "format": "table",
           "instant": true
         }
@@ -474,7 +475,8 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "Value": true
+              "Value": true,
+              "device_id": true
             },
             "indexByName": {
               "name": 0,
@@ -741,7 +743,7 @@
         },
         {
           "refId": "B",
-          "expr": "homekit_accessory_paired",
+          "expr": "max by (accessory) (homekit_accessory_paired)",
           "format": "table",
           "instant": true
         }
@@ -787,7 +789,23 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Yes",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
         "overrides": []
       }
     }

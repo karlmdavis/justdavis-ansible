@@ -21,11 +21,9 @@ from prometheus_client.registry import Collector
 
 from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.snapshot import SnapshotHolder
-from justdavis_monitoring_exporters.lan_discovery.mdns import CachedInstance
+from justdavis_monitoring_exporters.lan_discovery.mdns import HAP_TYPE, CachedInstance
 
 log = logging.getLogger(__name__)
-
-HAP_SERVICE = "_hap._tcp"
 RETENTION_SECONDS = 48 * 3600
 MAX_ACCESSORIES = 64
 
@@ -88,7 +86,7 @@ class HomekitTracker:
     def refresh(self, instances: Iterable[CachedInstance], *, now: float) -> tuple[HapAccessory, ...]:
         seen: set[str] = set()
         for cached in instances:
-            if cached.service != HAP_SERVICE:
+            if cached.service != HAP_TYPE:
                 continue
             accessory = accessory_from_instance(cached, present=True)
             if accessory is None:
@@ -105,7 +103,11 @@ class HomekitTracker:
             elif instance not in seen and accessory.present:
                 self._known[instance] = _with_present(accessory, False)
         if len(self._known) > self._max:
-            oldest = sorted(self._known.values(), key=lambda a: a.last_seen)[: len(self._known) - self._max]
+            # Vanished accessories go first, then the longest unheard: a flood of guest announcements
+            # must not evict the household's own, present accessories.
+            oldest = sorted(self._known.values(), key=lambda a: (a.present, a.last_seen))[
+                : len(self._known) - self._max
+            ]
             for accessory in oldest:
                 del self._known[accessory.instance]
             if not self._warned_cap:

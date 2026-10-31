@@ -31,9 +31,12 @@ unit:
   side every poll, and passively browses announcements; its unicast queries go to the addresses the
   device address inventory calls fresh.
 - **lan_discovery_exporter** (custom) watches the LAN passively (mDNS announcements and the host's
-  neighbour table), keeps the device address inventory with them, and renders the ping and AirPlay
-  probe target files from whatever addresses are fresh, so the probes follow DHCP without depending on
-  any one source.
+  neighbour table), keeps the device address inventory with them, renders the ping and AirPlay probe
+  target files from whatever addresses are fresh, so the probes follow DHCP without depending on any
+  one source, and records every HomeKit accessory's presence and pairing state from its announcements.
+- **hue_exporter** (custom) reads the Philips Hue bridge: each device's Zigbee link status, battery and
+  room, each light's on/off and brightness, the motion sensors' temperature, light level and motion,
+  and the bridge's Zigbee channel, cloud links and last software install.
 
 The custom exporters are a small typed Python package in `files/exporters/` (see below).
 
@@ -107,6 +110,12 @@ down a column is the diagnosis; the last column is the rule that says so.
 | Which HomePods are grouped | `airplay_group_info{group}`: HomePods in one group share the label. `airplay_group_leader` is 0 for a HomePod that follows another device. `homepod:session_state` (recording rule) combines `airplay_group_leader` with `homepod:audio_active` into one state per HomePod for the dashboard. A paused or stopped stream leaves the group in place, so a shared group does not by itself mean audio is playing. | None: recorded and charted. |
 | When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped, and `homepod:left_playing_group` the one where a HomePod was no longer in a group that kept playing (dashboard annotations). Seen 2026-09-28: one HomePod of eight went silent while the rest played on; it stayed on the WiFi with port 7000 open and answering queries, so nothing else showed it. A HomePod moved to another group on purpose is marked the same way, and so would be one whose whole group moved to a new session a poll after it did (not seen as of 2026-09-28). | None: recorded until a real incident says whether it needs one. |
 | How much a HomePod is downloading | `homepod:download_bits_per_second:rate1m` (recording rule), where the router reports byte counts. On 2026-09-28 it reported none for seven of the nine HomePods, which is why audio is not read from this. | None: charted. |
+| A Hue light is not responding | `hue_zigbee_connectivity{status}`: one series per device and status, exactly one of them 1. `disconnected` is what a lamp switched off at the wall reads, so it is not alerted on until a week of data shows the baseline; `connectivity_issue` and `unidirectional_incoming` are the interesting ones. `hue_bridge_zigbee_channel` against the 2.4 GHz WiFi channels says whether interference is plausible (Zigbee 11, 15 and 20 overlap WiFi 1, 6 and 11; 25 is mostly clear). | None yet: recorded first, rule later. |
+| The Hue bridge is unreachable, or its address moved | `hue_up` is 0 and `hue_scrape_errors_total{stage}` says why: `address` (no source of the device address inventory has seen it), `tls` (not the bridge's certificate), `login` (the key was rejected), `fetch`, `parse`. `hue_bridge_address_info` records the address it was reached at over time. | `HueScrapeFailing` |
+| The bridge installed software, or changed Zigbee channel | `hue_bridge_last_software_install_timestamp_seconds` and `hue_bridge_zigbee_channel` (the Hue dashboard draws both as annotations; the bridge is unresponsive for a few minutes during an install). | None: annotations. |
+| The bridge's cloud link is down | `hue_bridge_internet_connected{service}` for internet, remote access, time and software updates; matters for out-of-home control and updates, not for HomeKit or the Hue app on the LAN. | None: recorded. |
+| A HomeKit accessory was reset or dropped from the Home | `homekit_accessory_paired` is 0 while `homekit_accessory_present` is 1: the accessory's own announcement says no controller is paired with it. | `HomeKitAccessoryUnpaired` |
+| Which HomeKit accessories are on the LAN, and since when | `homekit_accessory_info`, `homekit_accessory_present`, `homekit_accessory_last_seen_timestamp_seconds`, `homekit_accessory_config_number`, from their `_hap._tcp` announcements, read passively (so a disappearance shows only once the record's 75-minute TTL runs out). This is the view a HomeKit home hub has of every accessory, Hue or not. | None: recorded until a recurrence of the 2026-10-31 "no response" says what to alert on. |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds` (absent for a mesh point that has not dropped out since the router booted, as seen after the 2026-10-30 reboot); the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
 | How the mesh is wired up | `amplifi_mesh_point_info{uplink,level,backhaul_band}`: each mesh point's backhaul band and whether it hangs off the router (level 2) or is daisy-chained through another mesh point (level 3). Both changed after the first reboots. | None: recorded. |
@@ -122,11 +131,12 @@ down a column is the diagnosis; the last column is the rule that says so.
 | Alerts are not being delivered | Alertmanager's failed-notification counter, or Prometheus seeing no Alertmanager. | `AlertmanagerNotificationsFailing`, `PrometheusAlertmanagerUnreachable` |
 | The offsite backup is not happening | `offsite_backups_*` gauges from the `offsite_backups` role. | `OffsiteBackupStale`, `OffsiteBackupFailed`, `OffsiteBackupMetricsMissing` |
 
-### Why four custom exporters
+### Why five custom exporters
 
 No existing Prometheus exporter fits any of the three devices; the exporters' README
-(`files/exporters/README.md`) records what was found and why it was not usable. The fourth, the LAN
-discovery exporter, exists because the probes' addresses used to come from the router scrape alone,
+(`files/exporters/README.md`) records what was found and why it was not usable. The Hue exporter is
+custom for the same reason: the exporters that exist speak the deprecated v1 API only, verify nothing
+about the bridge's certificate, or need Home Assistant in between. The LAN discovery exporter, exists because the probes' addresses used to come from the router scrape alone,
 and on 2026-10-30 that scrape failed for a day while the HomePods' addresses moved: the probes watched
 the wrong devices and said so with confidence. It keeps the device address inventory from sources that
 fail independently and renders the probe targets from it, dropping a device no source has seen lately.
@@ -158,6 +168,12 @@ fits". It is deliberately not backed up.
   neighbour table (an unprivileged netlink dump) and writes only under `/opt/monitoring/shared`. The
   inventory files there list every LAN device's addresses and hostnames, which is why the directory is
   service-owned and not world readable, like the TSDB that holds the same history.
+- The Hue bridge's application key (`/opt/monitoring/hue-credentials.env`, root-only, handed to the Hue
+  scraper alone) grants full control of the lights. It is only ever sent over TLS whose chain is
+  verified against Signify's published root certificate (`files/exporters/src/.../hue/huebridge_cacert.pem`)
+  and whose common name must be the bridge id, so a device merely holding the bridge's address never
+  sees it; the exporter keeps the key out of every log line and exception. The bridge is identified by
+  its MAC, which is a household device identifier and so lives in the vault with the tracked clients.
 - The AmpliFi password is the router's only admin credential; compromise of
   `/opt/monitoring/amplifi-credentials.env` equals control of the LAN. Each device scraper receives
   only its own device's credentials file, and the host-network AirPlay probe receives none. The
@@ -189,6 +205,8 @@ ping only the public anchors. The following must be set in the Ansible vault:
 vault_amplifi_password: <AmpliFi router web UI password>
 vault_gateway_username: <Comcast gateway admin username>
 vault_gateway_password: <Comcast gateway admin password>
+vault_hue_bridge_mac: "aa:bb:cc:dd:ee:ff"
+vault_hue_application_key: <created with scripts/hue_create_application_key.py>
 vault_grafana_admin_password: <Grafana admin password; applied on first start only>
 vault_alertmanager_slack_bot_token: <Bot User OAuth Token of the "Home Monitoring" Slack app, xoxb-...>
 vault_alertmanager_discord_webhook_url: <Discord channel webhook URL>
@@ -234,7 +252,8 @@ worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
 can no longer be read for its playback state; a tracked device expected online at all times whose address
-no source has seen for three minutes, and an address source that stops writing; a mesh point offline or
+no source has seen for three minutes, and an address source that stops writing; the Hue exporter unable to
+read the bridge for ten minutes; a HomeKit accessory announcing that no controller is paired with it; a mesh point offline or
 missing from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN
 probe series going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
@@ -291,6 +310,15 @@ minute on the LAN bridge): about 60 ARP frames a minute on the whole LAN, 23 of 
 itself sent about 30, of which 27 were unicast (the kernel re-validating its ping targets' entries) and
 3 broadcast, none attributable to the exporter. A sweep of the /24 every poll would have added about
 600 broadcasts a minute.
+
+The Hue exporter talks to the bridge over HTTPS verified against Signify's root certificate with the
+bridge id as the certificate name (the bridge's certificate has no subjectAltName, so the shared HTTP
+client has an adapter that lets urllib3 match the common name). Its address comes from the device
+address inventory every poll, by the bridge's MAC; with no fresh address the poll fails under the
+`address` stage rather than guessing. It reads the CLIP v2 resource list in one request and the v1
+configuration in another, because the Zigbee channel, the bridge's clock, its cloud links and its last
+software install are only in the latter. A rejected key answers 403 on the v2 call; the v1 call would
+answer 200 with the public configuration, which the parser recognises by its missing fields.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.
@@ -361,6 +389,14 @@ the stack restarts cleanly during a WAN outage.
   read from, `airplay_playback_state_readable` goes to 0, `HomePodPlaybackStateUnreadable` fires
   after 15 minutes, and the exporter logs what it found; if only a bit's meaning changes, nothing
   says so, and `airplay_status_flags` keeps the raw value for comparison.
+- HomeKit accessory presence is read passively from mDNS and lags a disappearance by up to the record's
+  75-minute TTL; it starts empty after a restart, so an accessory that was already gone when the stack
+  started is never listed. Only the announcement is read: what an accessory is doing (a thermostat's
+  temperature, a HomePod's sensors) needs a HomeKit pairing, which Apple does not hand out.
+- The Hue v1 API, deprecated by Signify, is still read for the Zigbee channel, clock, cloud links and
+  last software install, which the v2 API does not expose; a rejected key is detected by the shape of
+  the v1 answer. Battery levels are reported by the bridge only when a device wakes, so they update
+  sporadically.
 - The router reports a client's byte counts as unavailable for long stretches (2026-09-28: the
   download count of seven of the nine HomePods, for hours), so the download-rate series and
   `homepod_traffic.py` cover only the HomePods that have counts at the time.
@@ -374,6 +410,8 @@ curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"
 # The device address inventory: which source last wrote, and which tracked devices have a fresh address.
 sudo ls -l /opt/monitoring/shared/device-addresses/
 curl -s http://172.28.0.1:9804/metrics | grep -E '^device_address_(fresh|source)'
+# The Hue bridge: which step failed, if any, and every device's Zigbee link status.
+sudo docker compose -f /opt/monitoring/docker-compose.yml exec hue_exporter python -c "import urllib.request as u; print(u.urlopen('http://127.0.0.1:9805/metrics').read().decode())" | grep -E '^hue_(up|scrape_errors_total|zigbee_connectivity.*1$)'
 ```
 
 ### Diagnostic Scripts
@@ -464,6 +502,25 @@ uv run roles/monitoring/scripts/docsis_uncorrectables.py --hours 110
 
 The last section is the test of whether it mattered: ping loss or a jump in round-trip time in the same
 5 minutes means the connection suffered. Here the worst episode cost no ping loss.
+
+#### `hue_create_application_key.py`: create (or re-create) the Hue bridge's application key
+
+Run it once, from a Mac on the LAN, before the Hue exporter's first deploy, and again if the bridge is
+ever factory reset. It verifies the bridge's certificate the way the exporter does, waits for the
+bridge's link button, and writes the key to a file only you can read, never printing it; you paste the
+file's contents into `vault_hue_application_key` yourself and remove the file. `--check` only verifies
+TLS and prints the bridge id.
+
+```bash
+uv run roles/monitoring/scripts/hue_create_application_key.py --bridge 192.0.2.21
+```
+
+```text
+bridge 192.0.2.21: id 001788FFFE000000, model BSB002, software 1978545030, API 1.78.0
+TLS: chain verified against Signify's root; certificate names the bridge id
+Press the round link button on the bridge, then press Enter here (within 30 seconds)...
+key written to /Users/example/hue-application-key.txt (40 characters, mode 0600)
+```
 
 #### `tsdb_cleanup_2026_09_23.py` with `prometheus-admin-api.yml`
 

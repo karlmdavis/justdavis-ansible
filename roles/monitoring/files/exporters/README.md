@@ -1,6 +1,6 @@
 # Monitoring Exporters
 
-The four custom Prometheus exporters used by the `monitoring` role, packaged as one small Python
+The five custom Prometheus exporters used by the `monitoring` role, packaged as one small Python
 project that builds into one Docker image.
 
 ## What is here
@@ -17,7 +17,13 @@ project that builds into one Docker image.
 - `lan-discovery-exporter` watches the LAN passively (mDNS announcements and the host's neighbour table
   over netlink), records both into the device address inventory (`common/device_addresses.py`), and
   renders the ping and AirPlay probe target files from whatever addresses are fresh across every
-  source, dropping a device none has seen lately.
+  source, dropping a device none has seen lately. It also records every HomeKit accessory's presence
+  and pairing state from the `_hap._tcp` announcements the same browser hears.
+- `hue-exporter` reads the Philips Hue bridge over HTTPS (chain verified against Signify's root CA,
+  shipped in `src/.../hue/`, and the certificate's common name checked against the bridge id): every
+  device's Zigbee link status, battery and room, every light's state, the motion sensors' readings, and
+  the bridge's Zigbee channel, cloud links and last software install. The bridge's address comes from
+  the device address inventory each poll.
 
 Each exporter is a `[project.scripts]` entry point in `pyproject.toml`; the shared runtime (settings,
 HTTP client, scrape loop, metrics server, snapshot handling) lives in `src/.../common/`. Parsers are
@@ -30,7 +36,9 @@ No open-source Prometheus exporter covers these devices. AmpliFi has Home Assist
 no exporter; the one Comcast gateway exporter that exists targets a different firmware's page, logs in
 again on every failure (this gateway allows a single admin session and logs each login), and cannot pin
 the gateway's self-signed certificate; and the existing mDNS tools discover scrape targets rather than
-check whether a named AirPlay service still resolves. The AmpliFi and gateway modules are therefore
+check whether a named AirPlay service still resolves; the Hue exporters that exist speak only the
+deprecated v1 API, verify nothing about the bridge's certificate, or need Home Assistant in between.
+The AmpliFi and gateway modules are therefore
 built around the specific pages and login flows those devices expose, documented in each module's
 header.
 

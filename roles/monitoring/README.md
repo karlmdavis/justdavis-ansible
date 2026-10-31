@@ -133,10 +133,10 @@ down a column is the diagnosis; the last column is the rule that says so.
 
 ### Why five custom exporters
 
-No existing Prometheus exporter fits any of the three devices; the exporters' README
+No existing Prometheus exporter fits any of the four devices; the exporters' README
 (`files/exporters/README.md`) records what was found and why it was not usable. The Hue exporter is
 custom for the same reason: the exporters that exist speak the deprecated v1 API only, verify nothing
-about the bridge's certificate, or need Home Assistant in between. The LAN discovery exporter, exists because the probes' addresses used to come from the router scrape alone,
+about the bridge's certificate, or need Home Assistant in between. The LAN discovery exporter exists because the probes' addresses used to come from the router scrape alone,
 and on 2026-10-30 that scrape failed for a day while the HomePods' addresses moved: the probes watched
 the wrong devices and said so with confidence. It keeps the device address inventory from sources that
 fail independently and renders the probe targets from it, dropping a device no source has seen lately.

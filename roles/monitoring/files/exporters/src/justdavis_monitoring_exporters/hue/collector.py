@@ -170,7 +170,10 @@ def _sensor_families(snapshot: HueSnapshot) -> Iterator[Metric]:
             temperature.add_metric(labels, sensor.temperature_celsius)
         if sensor.light_level_raw is not None:
             raw.add_metric(labels, float(sensor.light_level_raw))
-            lux.add_metric(labels, 10 ** ((sensor.light_level_raw - 1) / 10000))
+            # The bridge reports 0 for darkness, which the formula would read as 1 lux.
+            lux.add_metric(
+                labels, 0.0 if sensor.light_level_raw == 0 else 10 ** ((sensor.light_level_raw - 1) / 10000)
+            )
         if sensor.motion is not None:
             motion.add_metric(labels, float(sensor.motion))
     yield temperature

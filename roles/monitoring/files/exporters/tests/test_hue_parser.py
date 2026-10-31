@@ -160,3 +160,14 @@ def test_malformed_configuration_fails_naming_the_path() -> None:
         parse_config(json.dumps(data).encode())
     with pytest.raises(ParseError, match="not valid JSON"):
         parse_config(b"<html>")
+
+
+def test_invalid_or_disabled_sensor_readings_are_not_exported() -> None:
+    data = json.loads(RESOURCES)
+    for resource in data["data"]:
+        if resource["type"] == "temperature":
+            resource["temperature"]["temperature_valid"] = False
+        if resource["type"] == "motion":
+            resource["enabled"] = False
+    _devices, _lights, (sensor,) = parse_resources(json.dumps(data).encode())
+    assert (sensor.temperature_celsius, sensor.light_level_raw, sensor.motion) == (None, 30001, None)

@@ -88,6 +88,21 @@ def test_offline_mesh_point_is_kept_with_its_counters(info_async_bytes: bytes) -
     assert living_room.last_disconnected_age_seconds == 105
 
 
+def test_mesh_point_without_disconnect_history_still_parses(info_async_bytes: bytes) -> None:
+    # Seen in production on 2026-10-30, after the router rebooted: a mesh point that had joined once and
+    # never dropped since carried no `last_disconnected` (nor, before its first join, `last_connected`).
+    data = json.loads(info_async_bytes)
+    kitchen = data[0]["02:00:00:00:00:01"]["children"]["wifi"][KITCHEN_MP_MAC]
+    del kitchen["last_disconnected"]
+    del kitchen["last_connected"]
+    snapshot = parse_info_async(json.dumps(data).encode())
+    by_mac = {mp.mac: mp for mp in snapshot.mesh_points}
+    assert by_mac[KITCHEN_MP_MAC].last_disconnected_age_seconds is None
+    assert by_mac[KITCHEN_MP_MAC].last_connected_age_seconds is None
+    assert by_mac[Mac("02:00:00:00:00:03")].last_disconnected_age_seconds == 105
+    assert (by_mac[KITCHEN_MP_MAC].connections_to, by_mac[KITCHEN_MP_MAC].connections_from) == (11, 4)
+
+
 def test_online_mesh_point_without_backhaul_fields_still_parses(info_async_bytes: bytes) -> None:
     # Also seen in production, for one poll, while a mesh point was on its way to `offline`.
     data = json.loads(info_async_bytes)

@@ -12,7 +12,8 @@ September 2026. The response is a JSON array of six elements:
    A mesh point the router has lost moves from `wifi` to
    `offline`, keeping its identity, address, and connection counters but losing `active_band`,
    `rssi_min`, and `uptime`; those three can also be missing from a `wifi` entry for one poll while
-   the mesh point is on its way out. The `last_*` fields are ages in seconds, not timestamps.
+   the mesh point is on its way out. The `last_*` fields are ages in seconds, not timestamps, and
+   each is absent until its event has happened since the router booted.
 1. WiFi associations: `{ap_mac: {band: {network_type: {client_mac: {Address?, HostName?, Mode?,
    SignalQuality, HappinessScore, RxBitrate, TxBitrate (kbit/s), RxBytes, TxBytes (32-bit counters),
    Inactive, ...}}}}}`. Band is "2.4 GHz" or "5 GHz"; network type is "User network", "Guest network"
@@ -112,12 +113,11 @@ def _parse_mesh_points(node: Mapping[str, object], ctx: str) -> list[MeshPoint]:
                     connections_from=as_int(
                         get(mp, "connections_from", mp_ctx), f"{mp_ctx}.connections_from"
                     ),
-                    last_connected_age_seconds=as_int(
-                        get(mp, "last_connected", mp_ctx), f"{mp_ctx}.last_connected"
-                    ),
-                    last_disconnected_age_seconds=as_int(
-                        get(mp, "last_disconnected", mp_ctx), f"{mp_ctx}.last_disconnected"
-                    ),
+                    # Both ages are missing until the event has happened since the router booted
+                    # (seen 2026-10-30: a mesh point that never dropped after a router reboot had no
+                    # `last_disconnected`, and requiring it failed every scrape for a day).
+                    last_connected_age_seconds=_optional_int(mp, "last_connected", mp_ctx),
+                    last_disconnected_age_seconds=_optional_int(mp, "last_disconnected", mp_ctx),
                 )
             )
             mesh_points.extend(_parse_mesh_points(mp, mp_ctx))

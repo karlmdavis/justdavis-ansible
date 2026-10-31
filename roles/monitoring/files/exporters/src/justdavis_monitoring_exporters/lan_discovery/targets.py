@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from justdavis_monitoring_exporters.common.device_addresses import AddressInventory
+from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.settings import ClientKind, TrackedClient
 
 AIRPLAY_PORT = 7000
@@ -109,10 +110,16 @@ def render_ping_targets(ping: PingConfig, infos: Sequence[TargetInfo]) -> bytes:
 
 
 def render_airplay_targets(infos: Sequence[TargetInfo]) -> bytes:
+    # The labels are sanitised the way every exporter's labels are, so that `on (name)` joins between
+    # the probe series and device_address_fresh hold for a name with a curly apostrophe in it.
     entries: list[dict[str, object]] = [
         {
             "targets": [f"{info.ip}:{AIRPLAY_PORT}"],
-            "labels": {"name": info.name, "kind": info.kind, "airplay_name": info.airplay_name},
+            "labels": {
+                "name": sanitise_label(info.name),
+                "kind": info.kind,
+                "airplay_name": sanitise_label(info.airplay_name),
+            },
         }
         for info in infos
         if info.kind == "homepod"

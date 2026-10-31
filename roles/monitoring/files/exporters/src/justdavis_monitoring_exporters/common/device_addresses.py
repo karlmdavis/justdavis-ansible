@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Literal, cast, get_args
 
 from justdavis_monitoring_exporters.common.files import write_if_changed
-from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_list, as_str, get
+from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_float, as_list, as_str, get
 from justdavis_monitoring_exporters.common.problem_log import ProblemLog
 from justdavis_monitoring_exporters.common.settings import Mac, normalise_mac
 
@@ -136,8 +136,8 @@ def _observation_from_json(value: object, source: Source, ctx: str) -> Observati
         if address is None:
             log.debug("%s: not an IPv4 address; skipped", ctx)
             return None
-        first_seen = float(as_number(get(entry, "first_seen", ctx), f"{ctx}.first_seen"))
-        last_seen = float(as_number(get(entry, "last_seen", ctx), f"{ctx}.last_seen"))
+        first_seen = as_float(get(entry, "first_seen", ctx), f"{ctx}.first_seen")
+        last_seen = as_float(get(entry, "last_seen", ctx), f"{ctx}.last_seen")
         name = as_str(entry.get("name", ""), f"{ctx}.name")
         role_text = as_str(entry.get("role", "client"), f"{ctx}.role")
         role: Role = cast(Role, role_text) if role_text in _ROLES else "client"
@@ -147,12 +147,6 @@ def _observation_from_json(value: object, source: Source, ctx: str) -> Observati
         log.debug("%s: unusable observation skipped: %s", ctx, exc)
         return None
     return Observation(source, address, first_seen, last_seen, mac, hostname, name, role, extra)
-
-
-def as_number(value: object, ctx: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{ctx}: expected a number")
-    return float(value)
 
 
 def _observation_to_json(observation: Observation) -> dict[str, object]:
@@ -185,10 +179,16 @@ def read_source(path: Path, source: Source, problems: ProblemLog | None = None) 
         if problems is not None:
             problems.clear(key, f"{path} is readable again")
         return SourceDocument(source, None, ())
+    except OSError as exc:
+        # A file that exists but cannot be read (permissions, a directory in its place) is a problem to
+        # report, not a reason for the reader to stop doing its own job.
+        if problems is not None:
+            problems.problem(key, f"ignoring {path}: {type(exc).__name__}: {exc}")
+        return SourceDocument(source, None, ())
     try:
         decoded: object = json.loads(raw)
         document = as_dict(decoded, path.name)
-        written_at = as_number(get(document, "written_at", path.name), f"{path.name}.written_at")
+        written_at = as_float(get(document, "written_at", path.name), f"{path.name}.written_at")
         entries = as_list(get(document, "observations", path.name), f"{path.name}.observations")
     except Exception as exc:
         if problems is not None:
@@ -231,13 +231,19 @@ class SourceStore:
     def __init__(self, directory: Path, source: Source) -> None:
         self._path = source_file(directory, source)
         self._source = source
+        # A corrupt file is reported once and then rewritten from this poll's sightings alone: the
+        # history it held cannot be recovered, and silence would hide that it was lost.
+        self._problems = ProblemLog(log)
 
     @property
     def path(self) -> Path:
         return self._path
 
     def record(self, sightings: Iterable[Sighting], *, now: float) -> None:
-        existing = {(o.identity, o.address): o for o in read_source(self._path, self._source).observations}
+        existing = {
+            (o.identity, o.address): o
+            for o in read_source(self._path, self._source, self._problems).observations
+        }
         for sighting in sightings:
             address = valid_address(sighting.address)
             if address is None:

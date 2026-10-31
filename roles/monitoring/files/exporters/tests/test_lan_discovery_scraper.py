@@ -121,6 +121,8 @@ def test_poll_records_both_sources_renders_the_files_and_publishes_freshness(tmp
     assert registry.get_sample_value(
         "device_address_source_last_write_timestamp_seconds", {"source": "router"}
     ) == pytest.approx(now, abs=5)
+    assert registry.get_sample_value("device_address_source_enabled", {"source": "mdns"}) == 1.0
+    assert registry.get_sample_value("device_address_source_enabled", {"source": "arp"}) == 1.0
     assert browser.requested == []
 
 
@@ -172,6 +174,8 @@ def test_without_a_lan_address_only_the_static_targets_are_rendered_and_up_is_1(
     assert (tmp_path / "ping-targets.yml").read_text().endswith("targets:\n  - 1.1.1.1\n")
     assert (tmp_path / "airplay-targets.json").read_text() == "[]\n"
     assert registry.get_sample_value("lan_discovery_target_files_ok") == 1.0
+    assert registry.get_sample_value("device_address_source_enabled", {"source": "mdns"}) == 0.0
+    assert registry.get_sample_value("device_address_source_enabled", {"source": "arp"}) == 0.0
     assert not (tmp_path / DEVICE_ADDRESSES_DIR).exists()
 
 
@@ -210,3 +214,21 @@ def test_an_unwritable_shared_directory_fails_the_poll(tmp_path: Path) -> None:
         scraper()
     assert registry.get_sample_value("lan_discovery_target_files_ok") == 0.0
     assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "write"}) == 1.0
+
+
+def test_a_source_file_that_cannot_be_written_is_a_write_failure_of_the_exporter(tmp_path: Path) -> None:
+    (tmp_path / DEVICE_ADDRESSES_DIR).mkdir()
+    (tmp_path / DEVICE_ADDRESSES_DIR / "arp.json").mkdir()  # a directory where the file should be
+    registry, collector, errors = build_registry()
+    scraper = LanDiscoveryScraper(
+        settings(tmp_path),
+        collector,
+        errors,
+        mdns=None,
+        neighbours=NeighbourSource(LAN, SUBNET),
+        read_neighbour_table=lambda: (Neighbour(LAN, "192.0.2.110", Mac(A), NUD_REACHABLE, 1.0, 1.0),),
+    )
+    scraper()
+    assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "write"}) == 1.0
+    assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "read"}) == 0.0
+    assert registry.get_sample_value("lan_discovery_target_files_ok") == 1.0

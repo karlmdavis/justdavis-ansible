@@ -10,9 +10,14 @@ to any process; verified 2026-10-31 inside the hardened host-network container),
 What is kept: entries on the LAN interface, inside the LAN subnet, with a hardware address and in a
 state that means the kernel has heard from the device (REACHABLE, STALE, DELAY, PROBE). INCOMPLETE and
 FAILED entries have no address to report; NOARP and PERMANENT are not devices. The sighting time is the
-most recent of the entry's `confirmed` and `updated` ages: an entry created from a gratuitous ARP (the
-kernel does that with `arp_accept=2`, so a device announcing a new lease lands here without anyone
-asking) starts with `confirmed` already in the past. Ages are in USER_HZ ticks (100 a second here).
+entry's `confirmed` age (when the device last answered), except for a STALE entry, where the more recent
+of `confirmed` and `updated` is used: an entry created from a gratuitous ARP (the kernel does that with
+`arp_accept=2`, so a device announcing a new lease lands here without anyone asking) starts STALE with
+`confirmed` already in the past and `updated` at creation. The kernel also bumps `updated` when a
+REACHABLE entry ages into STALE, at most `reachable_time` (about 45 s) after the last confirmation, so
+that reading is off by at most that much; the DELAY and PROBE states, whose `updated` moves with every
+probe, use `confirmed` alone so a departed device is not read as heard-from while the kernel is still
+asking after it. Ages are in USER_HZ ticks (100 a second here).
 
 Provoking: the table only learns an address once someone talks to it. For a tracked device no source
 has seen lately, `provoke()` sends one empty UDP datagram to each of its known addresses, which makes
@@ -159,10 +164,29 @@ def read_neighbours(*, ticks_per_second: int | None = None) -> tuple[Neighbour, 
         sock.send(request)
         while True:
             data = sock.recv(_RECV_BUFFER)
+            raise_netlink_error(data)
             neighbours.extend(parse_neighbour_dump(data, ticks_per_second=ticks))
             if _dump_finished(data):
                 break
     return tuple(neighbours)
+
+
+def raise_netlink_error(data: bytes) -> None:
+    """An `NLMSG_ERROR` reply (the kernel, or a seccomp policy, refusing the dump) is a failed read,
+    not an empty table: raise it as the OSError it carries, so the poll counts it and the source's
+    file is not rewritten as though the LAN were empty."""
+    offset = 0
+    while offset + _NLMSGHDR.size <= len(data):
+        length, kind, _flags, _seq, _pid = _NLMSGHDR.unpack_from(data, offset)
+        if kind == NLMSG_ERROR and length >= _NLMSGHDR.size + 4:
+            (negative_errno,) = struct.unpack_from("i", data, offset + _NLMSGHDR.size)
+            if negative_errno != 0:
+                raise OSError(
+                    -negative_errno, f"netlink neighbour dump refused: {os.strerror(-negative_errno)}"
+                )
+        if length < _NLMSGHDR.size:
+            return
+        offset += (length + 3) & ~3
 
 
 def _dump_finished(data: bytes) -> bool:
@@ -199,7 +223,9 @@ def neighbour_sightings(
             continue
         if ipaddress.IPv4Address(neighbour.address) not in subnet:
             continue
-        age = min(neighbour.confirmed_age_seconds, neighbour.updated_age_seconds)
+        age = neighbour.confirmed_age_seconds
+        if neighbour.state == NUD_STALE:
+            age = min(age, neighbour.updated_age_seconds)
         sightings.append(
             Sighting(
                 address=neighbour.address,

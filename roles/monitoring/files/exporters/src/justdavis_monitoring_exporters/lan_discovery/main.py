@@ -26,12 +26,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-import ifaddr
 from prometheus_client import CollectorRegistry, Counter
 
 from justdavis_monitoring_exporters.common.device_addresses import (
     DEVICE_ADDRESSES_DIR,
     AddressInventory,
+    Sighting,
     SourceStore,
 )
 from justdavis_monitoring_exporters.common.files import write_if_changed
@@ -132,11 +132,6 @@ class LanDiscoverySettings:
         )
 
 
-def lan_ip_is_local(lan_ip: str) -> bool:
-    """zeroconf silently binds nothing for an address that is not on a local interface, so check first."""
-    return any(str(ip.ip) == lan_ip for adapter in ifaddr.get_adapters() for ip in adapter.ips if ip.is_IPv4)
-
-
 def build_registry() -> tuple[CollectorRegistry, LanDiscoveryCollector, Counter]:
     """The registry served over HTTP, with the collector and the per-stage error counter on it."""
     registry = CollectorRegistry()
@@ -207,7 +202,12 @@ class LanDiscoveryScraper:
             max_age=settings.max_age_seconds,
         )
         states = tuple(self._assess(inventory, client, now) for client in settings.tracked_clients)
-        self._collector.publish(LanDiscoverySnapshot(infos, states, inventory.written_at))
+        enabled = frozenset(
+            source
+            for source, on in (("mdns", self._mdns is not None), ("arp", self._neighbours is not None))
+            if on
+        )
+        self._collector.publish(LanDiscoverySnapshot(infos, states, inventory.written_at, enabled))
         try:
             if write_if_changed(
                 settings.shared_dir / PING_TARGETS_FILE, render_ping_targets(settings.ping, infos)
@@ -227,10 +227,11 @@ class LanDiscoveryScraper:
             return ()
         try:
             instances = self._mdns.cached_instances(now=now)
-            self._mdns_store.record(mdns_sightings(instances), now=now)
+            sightings = mdns_sightings(instances)
         except Exception:
-            self._fail("resolve", "could not record the mDNS sightings")
+            self._fail("resolve", "could not read the mDNS cache")
             return ()
+        self._store(self._mdns_store, sightings, now)
         return instances
 
     def _record_neighbours(self, now: float) -> None:
@@ -241,9 +242,17 @@ class LanDiscoveryScraper:
             sightings = neighbour_sightings(
                 neighbours, ifindex=self._neighbours.ifindex, subnet=self._neighbours.subnet, now=now
             )
-            self._arp_store.record(sightings, now=now)
         except Exception:
-            self._fail("read", "could not record the neighbour table")
+            self._fail("read", "could not read the neighbour table")
+            return
+        self._store(self._arp_store, sightings, now)
+
+    def _store(self, store: SourceStore, sightings: tuple[Sighting, ...], now: float) -> None:
+        """A source file that cannot be written is a `write` failure of this exporter, not of the source."""
+        try:
+            store.record(sightings, now=now)
+        except OSError:
+            self._fail("write", f"could not write {store.path}")
 
     def _assess(self, inventory: AddressInventory, client: TrackedClient, now: float) -> TrackedAddressState:
         latest = inventory.latest(client.mac, now=now, max_age=self._settings.max_age_seconds)
@@ -301,8 +310,10 @@ def main() -> None:
         log.warning("MONITORING_LAN_IP is not set; rendering the static targets only")
     else:
         # Both of these can be transient at boot (the LAN address not yet configured), so exit and
-        # let the container's restart policy retry rather than idling until someone notices.
-        if not lan_ip_is_local(settings.lan_ip):
+        # let the container's restart policy retry rather than idling until someone notices. zeroconf
+        # silently binds nothing for an address that is not on a local interface, hence the check.
+        ifindex = lan_interface_index(settings.lan_ip)
+        if ifindex is None:
             log.error("MONITORING_LAN_IP %s is not an address of this host; exiting", settings.lan_ip)
             shutdown()
             sys.exit(1)
@@ -315,11 +326,7 @@ def main() -> None:
         if settings.lan_subnet is None:
             log.warning("MONITORING_LAN_SUBNET is not set; not reading the neighbour table")
         else:
-            ifindex = lan_interface_index(settings.lan_ip)
-            if ifindex is None:
-                log.error("no interface holds %s; not reading the neighbour table", settings.lan_ip)
-            else:
-                neighbours = NeighbourSource(ifindex, settings.lan_subnet)
+            neighbours = NeighbourSource(ifindex, settings.lan_subnet)
     scraper = LanDiscoveryScraper(settings, collector, errors, mdns=mdns, neighbours=neighbours)
     thread = start_scrape_thread(
         "lan-discovery-scrape",

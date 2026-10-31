@@ -122,7 +122,7 @@
     group: root
     mode: 'u=rw,g=r,o=r'
   become: true
-  notify: Load Monitoring sysctl Configuration
+  notify: Load Monitoring Sysctl Configuration
   when: not is_test
 
 # The validators below run inside the images, so make sure those images are present first.

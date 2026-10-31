@@ -7,7 +7,8 @@
 #   C: expect_online device with no fresh address -> TrackedDeviceAddressUnknown after 15 minutes; the
 #      same for a tablet (expect_online 0) -> nothing.
 #   D: the mdns source last written 1000 s before now -> DeviceAddressSourceStale; the router source
-#      equally old -> nothing (AmpliFiScrapeFailing covers it).
+#      equally old -> nothing (AmpliFiScrapeFailing covers it); the arp source never written but not
+#      enabled -> nothing.
 #   E: lan_discovery_up 0 for 10 minutes -> LanDiscoveryFailing.
 rule_files:
   - alerts.yml
@@ -41,6 +42,11 @@ tests:
         values: '-1000x40'
       - series: 'device_address_source_last_write_timestamp_seconds{source="arp"}'
         values: '0+30x40'
+      - series: 'device_address_source_enabled{source="mdns"}'
+        values: '1x40'
+      # The arp source is switched off here: its file is never written, and that is not staleness.
+      - series: 'device_address_source_enabled{source="arp"}'
+        values: '0x40'
       - series: 'lan_discovery_up'
         values: '0x40'
     alert_rule_test:

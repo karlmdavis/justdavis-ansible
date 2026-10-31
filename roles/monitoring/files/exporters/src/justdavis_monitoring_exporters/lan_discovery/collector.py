@@ -31,6 +31,8 @@ class LanDiscoverySnapshot:
     targets: tuple[TargetInfo, ...]
     tracked: tuple[TrackedAddressState, ...]
     source_written_at: Mapping[Source, float | None]
+    # The sources this exporter itself runs (mdns, arp); the router source is the AmpliFi exporter's.
+    enabled_sources: frozenset[str]
 
 
 class LanDiscoveryCollector(Collector):
@@ -62,7 +64,7 @@ class LanDiscoveryCollector(Collector):
             return
         yield from _target_families(published.targets)
         yield from _tracked_families(published.tracked)
-        yield _source_family(published.source_written_at)
+        yield from _source_families(published.source_written_at, published.enabled_sources)
 
 
 def _target_families(targets: Sequence[TargetInfo]) -> Iterator[Metric]:
@@ -112,13 +114,22 @@ def _tracked_families(states: Sequence[TrackedAddressState]) -> Iterator[Metric]
     yield age
 
 
-def _source_family(written_at: Mapping[Source, float | None]) -> Metric:
-    family = GaugeMetricFamily(
+def _source_families(written_at: Mapping[Source, float | None], enabled: frozenset[str]) -> Iterator[Metric]:
+    last_write = GaugeMetricFamily(
         "device_address_source_last_write_timestamp_seconds",
         "Unix time the source's inventory file was last written by its producer (0 when the file is "
         "absent), read at the last poll.",
         labels=["source"],
     )
     for source in SOURCES:
-        family.add_metric([source], written_at.get(source) or 0.0)
-    return family
+        last_write.add_metric([source], written_at.get(source) or 0.0)
+    yield last_write
+    running = GaugeMetricFamily(
+        "device_address_source_enabled",
+        "1 when this exporter runs the source (mdns, arp); 0 when it is switched off by configuration "
+        "(no LAN address or subnet), so a file it never writes is not mistaken for a stale one.",
+        labels=["source"],
+    )
+    for source in ("mdns", "arp"):
+        running.add_metric([source], float(source in enabled))
+    yield running

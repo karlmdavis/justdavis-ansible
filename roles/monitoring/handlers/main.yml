@@ -2,7 +2,7 @@
 # Handlers run in the order they are defined here (not in notification order), which is what makes
 # "build, then pull, then restart" work: image work happens during the deploy, never at boot.
 
-- name: Load Monitoring sysctl Configuration
+- name: Load Monitoring Sysctl Configuration
   ansible.builtin.command: /usr/sbin/sysctl -p /etc/sysctl.d/60-monitoring-arp-accept.conf
   become: true
 

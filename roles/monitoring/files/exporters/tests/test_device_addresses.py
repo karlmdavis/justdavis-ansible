@@ -143,13 +143,13 @@ def test_corrupt_file_is_reported_once_and_read_as_empty_until_it_recovers(
     with caplog.at_level(logging.INFO, logger="test.inventory"):
         first = AddressInventory.load(tmp_path, problems=problems)
         second = AddressInventory.load(tmp_path, problems=problems)
-        assert [record.levelname for record in caplog.records] == ["WARNING"]
+        assert [r.levelname for r in caplog.records if r.name == "test.inventory"] == ["WARNING"]
         assert "arp.json" in caplog.text
         assert first.latest(A, now=NOW, max_age=180).source == "mdns"  # type: ignore[union-attr]
         assert second.written_at["arp"] is None
         SourceStore(tmp_path, "arp").record([sighting(A, "192.0.2.3", NOW)], now=NOW)
         third = AddressInventory.load(tmp_path, problems=problems)
-        assert [record.levelname for record in caplog.records] == ["WARNING", "INFO"]
+        assert [r.levelname for r in caplog.records if r.name == "test.inventory"] == ["WARNING", "INFO"]
         assert third.latest(A, now=NOW, max_age=180).source == "arp"  # type: ignore[union-attr]
 
 
@@ -228,3 +228,27 @@ def test_a_hostname_two_macs_claim_attributes_nothing(tmp_path: Path) -> None:
 def test_a_sighting_needs_a_mac_or_a_hostname() -> None:
     with pytest.raises(ValueError):
         Sighting(address="192.0.2.1", observed_at=NOW)
+
+
+def test_an_unreadable_source_file_is_reported_and_read_as_empty(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    source_file(tmp_path, "arp").mkdir()  # a directory where the file should be: EISDIR on read
+    problems = ProblemLog(logging.getLogger("test.unreadable"))
+    with caplog.at_level(logging.WARNING, logger="test.unreadable"):
+        inventory = AddressInventory.load(tmp_path, problems=problems)
+        AddressInventory.load(tmp_path, problems=problems)
+    assert inventory.written_at["arp"] is None
+    assert [r.levelname for r in caplog.records] == ["WARNING"]
+
+
+def test_a_corrupt_file_is_logged_once_before_the_store_rewrites_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    source_file(tmp_path, "arp").write_text("{truncated")
+    store = SourceStore(tmp_path, "arp")
+    with caplog.at_level(logging.INFO):
+        store.record([sighting(A, "192.0.2.110", NOW)], now=NOW)
+        store.record([sighting(A, "192.0.2.110", NOW + 30)], now=NOW + 30)
+    assert [r.levelname for r in caplog.records] == ["WARNING", "INFO"]
+    assert [o.address for o in AddressInventory.load(tmp_path).observations] == ["192.0.2.110"]

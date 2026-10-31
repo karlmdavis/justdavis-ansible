@@ -60,9 +60,10 @@ monitoring_ping_timeout_seconds: 2
 monitoring_ping_history_size: 60
 
 # Always-pinged addresses, layered from the LAN outwards. The LAN discovery exporter adds the tracked
-# devices' current addresses to this list from the device address inventory. Each target must be reached by the path it stands for: a
-# public one that took the LAN router's route would report LAN trouble as WAN trouble, which is why
-# eddings_networking keeps the LAN lease's DNS servers from pulling routes onto the LAN.
+# devices' current addresses to this list from the device address inventory. Each target must be
+# reached by the path it stands for: a public one that took the LAN router's route would report LAN
+# trouble as WAN trouble, which is why eddings_networking keeps the LAN lease's DNS servers from pulling
+# routes onto the LAN.
 monitoring_static_ping_targets:
   # The AmpliFi router, LAN side.
   - 10.0.0.1

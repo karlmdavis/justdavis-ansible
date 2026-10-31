@@ -329,9 +329,12 @@ groups:
             (router, mDNS, neighbour table) for the freshness window, so nothing is probing it
 
       # A producer that has stopped writing its file. The router source is left out: when it stops,
-      # AmpliFiScrapeFailing already says so, and two notifications for one cause is noise.
+      # AmpliFiScrapeFailing already says so, and two notifications for one cause is noise. A source the
+      # exporter is not running (no LAN subnet configured) never writes, which is not staleness.
       - alert: DeviceAddressSourceStale
-        expr: time() - device_address_source_last_write_timestamp_seconds{source=~"mdns|arp"} > 900
+        expr: >-
+          (time() - device_address_source_last_write_timestamp_seconds{source=~"mdns|arp"} > 900)
+          and on (source) device_address_source_enabled == 1
         labels:
           severity: warning
         annotations:

@@ -4,15 +4,19 @@ import ipaddress
 import socket
 import struct
 
+import pytest
+
 from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.lan_discovery.neigh import (
     NDA_CACHEINFO,
     NDA_DST,
     NDA_LLADDR,
     NLMSG_DONE,
+    NLMSG_ERROR,
     NUD_FAILED,
     NUD_INCOMPLETE,
     NUD_NOARP,
+    NUD_PROBE,
     NUD_REACHABLE,
     NUD_STALE,
     RTM_NEWNEIGH,
@@ -20,6 +24,7 @@ from justdavis_monitoring_exporters.lan_discovery.neigh import (
     neighbour_sightings,
     parse_neighbour_dump,
     provoke,
+    raise_netlink_error,
 )
 
 LAN = 5
@@ -89,6 +94,9 @@ def test_sightings_keep_heard_from_entries_on_the_lan_interface_inside_the_subne
         Neighbour(LAN, "192.0.2.111", Mac("02:00:00:00:00:11"), NUD_STALE, 2387.2, 2370.3),
         # A gratuitous-ARP-created entry: confirmed long ago, updated just now.
         Neighbour(LAN, "192.0.2.112", Mac("02:00:00:00:00:12"), NUD_STALE, 13060.1, 0.9),
+        # A departed device the kernel is still asking after: `updated` moves with every probe, so
+        # only `confirmed` counts.
+        Neighbour(LAN, "192.0.2.113", Mac("02:00:00:00:00:13"), NUD_PROBE, 95.0, 0.5),
         Neighbour(LAN, "192.0.2.60", None, NUD_FAILED, 13060.1, 0.9),
         Neighbour(LAN, "192.0.2.61", Mac("02:00:00:00:00:61"), NUD_NOARP, 0.0, 0.0),
         Neighbour(165, "172.28.0.6", Mac("02:00:00:00:00:a6"), NUD_REACHABLE, 1.0, 1.0),
@@ -99,6 +107,7 @@ def test_sightings_keep_heard_from_entries_on_the_lan_interface_inside_the_subne
         (Mac("02:00:00:00:00:10"), "192.0.2.110", NOW - 6.5, "REACHABLE"),
         (Mac("02:00:00:00:00:11"), "192.0.2.111", NOW - 2370.3, "STALE"),
         (Mac("02:00:00:00:00:12"), "192.0.2.112", NOW - 0.9, "STALE"),
+        (Mac("02:00:00:00:00:13"), "192.0.2.113", NOW - 95.0, "PROBE"),
     ]
 
 
@@ -112,3 +121,15 @@ def test_provoke_sends_one_datagram_per_address_skipping_itself_and_surviving_an
 
     count = provoke("192.0.2.2", ["192.0.2.2", "192.0.2.12", "192.0.2.13", "192.0.2.14"], send=send)
     assert (count, sent) == (2, ["192.0.2.12", "192.0.2.14"])
+
+
+def test_a_netlink_error_reply_is_raised_not_read_as_an_empty_table() -> None:
+    import errno
+
+    error = struct.pack("IHHII", 36, NLMSG_ERROR, 0, 1, 0) + struct.pack("i", -errno.EPERM) + b"\0" * 16
+    with pytest.raises(OSError) as raised:
+        raise_netlink_error(error)
+    assert raised.value.errno == errno.EPERM
+    # A zero errno is the acknowledgement form, not an error; a DONE message is not one either.
+    raise_netlink_error(struct.pack("IHHII", 36, NLMSG_ERROR, 0, 1, 0) + struct.pack("i", 0) + b"\0" * 16)
+    raise_netlink_error(done())

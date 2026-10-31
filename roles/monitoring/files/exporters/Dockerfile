@@ -1,5 +1,6 @@
-# Image for the three justdavis monitoring exporters (amplifi-exporter, gateway-exporter,
-# airplay-exporter). One image, three entry points; Compose picks the command per service.
+# Image for the four justdavis monitoring exporters (amplifi-exporter, gateway-exporter,
+# airplay-exporter, lan-discovery-exporter). One image, four entry points; Compose picks the command
+# per service.
 FROM python:3.13.13-slim-trixie
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /bin/uv

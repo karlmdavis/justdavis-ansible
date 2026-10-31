@@ -20,12 +20,19 @@ router's directory is a lease list that can lag a reassignment; mDNS sits betwee
 fresh observation the answer is None, and the caller must treat the device as having no known address
 (no probe target, no gauge): that is the fail-safe this module exists for.
 
-Every producer fills a small core (MAC, address, first/last seen) plus two optional fields: its own
-`name` for the device and a `role` (only the router knows which entries are infrastructure). Anything
-else a producer knows goes into `extra`, a string map stored raw and never read by this module; it is
-for a person reading the files or a later consumer. Addresses are IPv4 only: every consumer (ping
-targets, the AirPlay unicast socket, blackbox) speaks IPv4 on this LAN, and an IPv6 address would
-break them.
+Every producer fills a small core (address, first/last seen, and the device's identity: its MAC, or
+its hostname when the producer does not know the MAC) plus two optional fields: its own `name` for the
+device and a `role` (only the router knows which entries are infrastructure). Anything else a producer
+knows goes into `extra`, a string map stored raw and never read by this module; it is for a person
+reading the files or a later consumer. Addresses are IPv4 only: every consumer (ping targets, the
+AirPlay unicast socket, blackbox) speaks IPv4 on this LAN, and an IPv6 address would break them.
+
+Identity. Consumers ask by MAC, because that is how tracked devices are configured. mDNS announcements
+of Apple devices carry no MAC (2026-10-31: the AirPlay `deviceid` is a separate identifier, not the
+WiFi MAC; only the Hue bridge's `bridgeid` encodes one) but do carry the hostname, which is the DHCP
+hostname the router's directory pairs with the MAC. So an observation without a MAC is attributed at
+load time to the MAC that any observation within retention pairs with the same hostname, and left
+unattributed (visible in the files, invisible to `latest()`) when no such pairing exists.
 
 File shape (`sort_keys` JSON, one document per source):
 
@@ -72,37 +79,59 @@ def valid_address(address: str) -> str | None:
         return None
 
 
+def canonical_hostname(hostname: str) -> str:
+    """Hostnames compare case-insensitively and without the mDNS `.local.` suffix."""
+    return hostname.strip().lower().removesuffix(".").removesuffix(".local")
+
+
 @dataclass(frozen=True, slots=True)
 class Sighting:
-    """What a producer hands in for one poll: this MAC had this address at this time."""
+    """What a producer hands in for one poll: this device had this address at this time. The device
+    is its MAC when the producer knows it, else its hostname (at least one is required)."""
 
-    mac: Mac
     address: str
     observed_at: float
+    mac: Mac | None = None
+    hostname: str = ""
     name: str = ""
     role: Role = "client"
     extra: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.mac is None and not canonical_hostname(self.hostname):
+            raise ValueError("a sighting needs a MAC or a hostname")
 
 
 @dataclass(frozen=True, slots=True)
 class Observation:
-    """A (device, address) pair as one source has recorded it, with its first and last sighting."""
+    """A (device, address) pair as one source has recorded it, with its first and last sighting. `mac`
+    is None for a producer that knows the device only by hostname (see the module docstring)."""
 
     source: Source
-    mac: Mac
     address: str
     first_seen: float
     last_seen: float
+    mac: Mac | None = None
+    hostname: str = ""
     name: str = ""
     role: Role = "client"
     extra: Mapping[str, str] = field(default_factory=dict)
+
+    @property
+    def identity(self) -> str:
+        return self.mac if self.mac is not None else f"host:{canonical_hostname(self.hostname)}"
 
 
 def _observation_from_json(value: object, source: Source, ctx: str) -> Observation | None:
     """One stored observation, or None (logged at debug) when the entry is unusable."""
     try:
         entry = as_dict(value, ctx)
-        mac = normalise_mac(as_str(get(entry, "mac", ctx), f"{ctx}.mac"), ctx)
+        mac_text = as_str(entry.get("mac", ""), f"{ctx}.mac")
+        mac = normalise_mac(mac_text, ctx) if mac_text else None
+        hostname = as_str(entry.get("hostname", ""), f"{ctx}.hostname")
+        if mac is None and not canonical_hostname(hostname):
+            log.debug("%s: neither a MAC nor a hostname; skipped", ctx)
+            return None
         address = valid_address(as_str(get(entry, "address", ctx), f"{ctx}.address"))
         if address is None:
             log.debug("%s: not an IPv4 address; skipped", ctx)
@@ -117,7 +146,7 @@ def _observation_from_json(value: object, source: Source, ctx: str) -> Observati
     except Exception as exc:
         log.debug("%s: unusable observation skipped: %s", ctx, exc)
         return None
-    return Observation(source, mac, address, first_seen, last_seen, name, role, extra)
+    return Observation(source, address, first_seen, last_seen, mac, hostname, name, role, extra)
 
 
 def as_number(value: object, ctx: str) -> float:
@@ -128,7 +157,8 @@ def as_number(value: object, ctx: str) -> float:
 
 def _observation_to_json(observation: Observation) -> dict[str, object]:
     return {
-        "mac": observation.mac,
+        "mac": observation.mac or "",
+        "hostname": observation.hostname,
         "address": observation.address,
         "first_seen": observation.first_seen,
         "last_seen": observation.last_seen,
@@ -176,26 +206,26 @@ def read_source(path: Path, source: Source, problems: ProblemLog | None = None) 
 
 
 def _trimmed(observations: Iterable[Observation], *, now: float) -> tuple[Observation, ...]:
-    """Retention and the per-MAC cap, in a stable order: by MAC, newest first."""
-    kept: dict[Mac, list[Observation]] = {}
+    """Retention and the per-device cap, in a stable order: by identity, newest first."""
+    kept: dict[str, list[Observation]] = {}
     for observation in observations:
         if now - observation.last_seen > RETENTION_SECONDS:
             continue
-        kept.setdefault(observation.mac, []).append(observation)
+        kept.setdefault(observation.identity, []).append(observation)
     result: list[Observation] = []
-    for mac in sorted(kept):
-        per_mac = sorted(kept[mac], key=lambda o: (-o.last_seen, o.address))
-        result.extend(per_mac[:MAX_ADDRESSES_PER_MAC])
+    for identity in sorted(kept):
+        per_device = sorted(kept[identity], key=lambda o: (-o.last_seen, o.address))
+        result.extend(per_device[:MAX_ADDRESSES_PER_MAC])
     return tuple(result)
 
 
 class SourceStore:
     """One producer's file. `record()` merges a poll's sightings into it and rewrites it.
 
-    The merge key is (mac, address): a repeat sighting moves `last_seen` (and refreshes name, role and
-    extra); a new address for a MAC is a new entry alongside the old ones, which is how the history is
-    kept. `written_at` is the producer's heartbeat and changes every poll, so the file is rewritten
-    every poll; nothing watches these files, so that costs nothing.
+    The merge key is (device identity, address): a repeat sighting moves `last_seen` (and refreshes
+    name, role and extra); a new address for a device is a new entry alongside the old ones, which is
+    how the history is kept. `written_at` is the producer's heartbeat and changes every poll, so the file
+    is rewritten every poll; nothing watches these files, so that costs nothing.
     """
 
     def __init__(self, directory: Path, source: Source) -> None:
@@ -207,31 +237,38 @@ class SourceStore:
         return self._path
 
     def record(self, sightings: Iterable[Sighting], *, now: float) -> None:
-        existing = {(o.mac, o.address): o for o in read_source(self._path, self._source).observations}
+        existing = {(o.identity, o.address): o for o in read_source(self._path, self._source).observations}
         for sighting in sightings:
             address = valid_address(sighting.address)
             if address is None:
-                log.debug(
-                    "%s: %r is not an IPv4 address; sighting of %s skipped",
-                    self._source,
-                    sighting.address,
-                    sighting.mac,
-                )
+                log.debug("%s: %r is not an IPv4 address; sighting skipped", self._source, sighting.address)
                 continue
-            key = (sighting.mac, address)
-            previous = existing.get(key)
-            existing[key] = Observation(
+            observation = Observation(
                 source=self._source,
-                mac=sighting.mac,
                 address=address,
-                first_seen=min(previous.first_seen, sighting.observed_at)
-                if previous
-                else sighting.observed_at,
-                last_seen=max(previous.last_seen, sighting.observed_at) if previous else sighting.observed_at,
-                name=sighting.name or (previous.name if previous else ""),
+                first_seen=sighting.observed_at,
+                last_seen=sighting.observed_at,
+                mac=sighting.mac,
+                hostname=sighting.hostname,
+                name=sighting.name,
                 role=sighting.role,
                 extra=dict(sighting.extra),
             )
+            key = (observation.identity, address)
+            previous = existing.get(key)
+            if previous is not None:
+                observation = Observation(
+                    source=self._source,
+                    address=address,
+                    first_seen=min(previous.first_seen, sighting.observed_at),
+                    last_seen=max(previous.last_seen, sighting.observed_at),
+                    mac=sighting.mac,
+                    hostname=sighting.hostname or previous.hostname,
+                    name=sighting.name or previous.name,
+                    role=sighting.role,
+                    extra=dict(sighting.extra),
+                )
+            existing[key] = observation
         self._path.parent.mkdir(exist_ok=True)
         document = {
             "source": self._source,
@@ -255,9 +292,27 @@ class AddressInventory:
             if source in by_source
             for observation in by_source[source].observations
         )
-        self._by_mac: dict[Mac, list[Observation]] = {}
+        # Hostname -> MAC, from every observation that carries both; a hostname two MACs claim is
+        # ambiguous and attributes nothing.
+        macs_by_hostname: dict[str, set[Mac]] = {}
         for observation in self.observations:
-            self._by_mac.setdefault(observation.mac, []).append(observation)
+            if observation.mac is not None and canonical_hostname(observation.hostname):
+                macs_by_hostname.setdefault(canonical_hostname(observation.hostname), set()).add(
+                    observation.mac
+                )
+        self._by_mac: dict[Mac, list[Observation]] = {}
+        unattributed: list[Observation] = []
+        for observation in self.observations:
+            mac = observation.mac
+            if mac is None:
+                candidates = macs_by_hostname.get(canonical_hostname(observation.hostname), set())
+                if len(candidates) != 1:
+                    unattributed.append(observation)
+                    continue
+                mac = next(iter(candidates))
+            self._by_mac.setdefault(mac, []).append(observation)
+        # Observations no MAC could be found for: in the files, invisible to the lookups.
+        self.unattributed: tuple[Observation, ...] = tuple(unattributed)
 
     @classmethod
     def load(cls, directory: Path, *, problems: ProblemLog | None = None) -> "AddressInventory":
@@ -282,6 +337,16 @@ class AddressInventory:
         if not observations:
             return None
         return max(0.0, now - max(o.last_seen for o in observations))
+
+    def observations_of(self, mac: Mac) -> tuple[Observation, ...]:
+        """Every observation attributed to the device, any source, any age within retention."""
+        return tuple(self._by_mac.get(mac, ()))
+
+    def hostnames(self, mac: Mac) -> tuple[str, ...]:
+        """The canonical hostnames any source has paired with the device."""
+        return tuple(
+            sorted({canonical_hostname(o.hostname) for o in self._by_mac.get(mac, ()) if o.hostname})
+        )
 
     def role(self, mac: Mac) -> Role:
         """What the device is: `router` or `mesh_point` when any source says so (only the router feed

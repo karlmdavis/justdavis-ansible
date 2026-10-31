@@ -3,8 +3,9 @@
 What counts as a sighting: the router itself, every online mesh point, every WiFi association that
 carries an address, and every device on an Ethernet port whose directory entry carries an address. A
 directory entry on its own does not: it is a lease the router remembers, not evidence that the device
-holds the address now. Addresses are validated by the store; what each entry knows beyond the core
-(wired or wireless, access point, band, lease) travels in `extra`, unread by anything yet.
+holds the address now. Each client sighting carries the DHCP hostname, which is what lets the inventory
+attribute mDNS sightings (hostname only) to a MAC. Addresses are validated by the store; what each entry
+knows beyond the core (wired or wireless, access point, band, lease) travels in `extra`, unread yet.
 """
 
 from justdavis_monitoring_exporters.amplifi.collector import dedupe_clients
@@ -15,9 +16,9 @@ from justdavis_monitoring_exporters.common.device_addresses import Sighting
 def router_sightings(snapshot: AmplifiSnapshot, *, now: float) -> tuple[Sighting, ...]:
     sightings: list[Sighting] = [
         Sighting(
-            mac=snapshot.router.mac,
             address=snapshot.router.ip,
             observed_at=now,
+            mac=snapshot.router.mac,
             name=snapshot.router.name,
             role="router",
             extra={"platform": snapshot.router.platform},
@@ -27,9 +28,9 @@ def router_sightings(snapshot: AmplifiSnapshot, *, now: float) -> tuple[Sighting
         if mesh_point.online:
             sightings.append(
                 Sighting(
-                    mac=mesh_point.mac,
                     address=mesh_point.ip,
                     observed_at=now,
+                    mac=mesh_point.mac,
                     name=mesh_point.name,
                     role="mesh_point",
                     extra={"platform": mesh_point.platform},
@@ -40,9 +41,10 @@ def router_sightings(snapshot: AmplifiSnapshot, *, now: float) -> tuple[Sighting
             continue
         sightings.append(
             Sighting(
-                mac=client.mac,
                 address=client.ip,
                 observed_at=now,
+                mac=client.mac,
+                hostname=client.hostname or "",
                 name=client.hostname or "",
                 extra={"connection": "wireless", "ap": client.ap_mac, "band": client.band},
             )
@@ -55,6 +57,13 @@ def router_sightings(snapshot: AmplifiSnapshot, *, now: float) -> tuple[Sighting
         if entry.lease_validity is not None:
             extra["lease_validity"] = str(entry.lease_validity)
         sightings.append(
-            Sighting(mac=mac, address=entry.ip, observed_at=now, name=entry.hostname or "", extra=extra)
+            Sighting(
+                address=entry.ip,
+                observed_at=now,
+                mac=mac,
+                hostname=entry.hostname or "",
+                name=entry.hostname or "",
+                extra=extra,
+            )
         )
     return tuple(sightings)

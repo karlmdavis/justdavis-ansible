@@ -15,18 +15,9 @@ from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, B
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
 from justdavis_monitoring_exporters.amplifi.sightings import router_sightings
-from justdavis_monitoring_exporters.amplifi.targets import (
-    AIRPLAY_TARGETS_FILE,
-    PING_TARGETS_FILE,
-    PingConfig,
-    render_airplay_targets,
-    render_ping_targets,
-    target_infos,
-)
 from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.device_addresses import DEVICE_ADDRESSES_DIR, SourceStore
 from justdavis_monitoring_exporters.common.errors import LoginError
-from justdavis_monitoring_exporters.common.files import write_if_changed
 from justdavis_monitoring_exporters.common.http import RequestsHttpClient, lan_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import ErrorStage, count_error, error_counter
@@ -44,7 +35,6 @@ from justdavis_monitoring_exporters.common.settings import (
     env_int,
     env_port,
     env_str,
-    parse_static_targets,
     parse_tracked_clients,
 )
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
@@ -77,9 +67,8 @@ class AmplifiSettings:
     listen_addr: str
     interval_seconds: int
     tracked_clients: tuple[TrackedClient, ...]
-    static_ping_targets: tuple[str, ...]
+    # Where the exporter writes its device address observations (device-addresses/router.json).
     shared_dir: Path
-    ping: PingConfig
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AmplifiSettings":
@@ -96,13 +85,7 @@ class AmplifiSettings:
             listen_addr=env_str(env, "MONITORING_LISTEN_ADDR", "0.0.0.0"),
             interval_seconds=env_int(env, "MONITORING_AMPLIFI_INTERVAL", 30, minimum=1),
             tracked_clients=parse_tracked_clients(env.get("MONITORING_TRACKED_CLIENTS", "")),
-            static_ping_targets=parse_static_targets(env.get("MONITORING_STATIC_PING_TARGETS", "")),
             shared_dir=Path(env_str(env, "MONITORING_SHARED_DIR", "/shared")),
-            ping=PingConfig(
-                interval_seconds=env_int(env, "MONITORING_PING_INTERVAL", 1, minimum=1),
-                timeout_seconds=env_int(env, "MONITORING_PING_TIMEOUT", 2, minimum=1),
-                history_size=env_int(env, "MONITORING_PING_HISTORY_SIZE", 60, minimum=1),
-            ),
         )
 
 
@@ -119,12 +102,9 @@ def build_registry(tracked: tuple[TrackedClient, ...]) -> tuple[CollectorRegistr
 
 
 class AmplifiScraper:
-    """One poll: fetch, parse, publish the snapshot, refresh the dynamic target files, and record the
-    router's device sightings in the address inventory.
-
-    A target-file write failure is reported through `amplifi_target_files_ok` and the `write` error
-    stage but does not fail the poll, since the router data itself is fine.
-    """
+    """One poll: fetch, parse, publish the snapshot, and record the router's device sightings in the
+    address inventory (the probe target files are rendered from that inventory by the LAN discovery
+    exporter)."""
 
     def __init__(
         self, settings: AmplifiSettings, client: AmplifiClient, collector: AmplifiCollector, errors: Counter
@@ -151,7 +131,6 @@ class AmplifiScraper:
             self._fail("parse")
             raise
         log.debug("parsed %d clients, %d mesh points", len(snapshot.clients), len(snapshot.mesh_points))
-        self._write_targets(snapshot)
         self._record_sightings(snapshot)
 
     def _record_sightings(self, snapshot: AmplifiSnapshot) -> None:
@@ -172,44 +151,6 @@ class AmplifiScraper:
         count_error(self._errors, stage)
         self._collector.clear()
 
-    def _write_targets(self, snapshot: AmplifiSnapshot) -> None:
-        settings = self._settings
-        infos = target_infos(settings.static_ping_targets, snapshot, settings.tracked_clients)
-        self._collector.set_targets(infos)
-        try:
-            if write_if_changed(
-                settings.shared_dir / PING_TARGETS_FILE, render_ping_targets(settings.ping, infos)
-            ):
-                log.info("rewrote %s with %d targets", PING_TARGETS_FILE, len(infos))
-            airplay = render_airplay_targets(snapshot, settings.tracked_clients)
-            if write_if_changed(settings.shared_dir / AIRPLAY_TARGETS_FILE, airplay):
-                log.info("rewrote %s", AIRPLAY_TARGETS_FILE)
-        except OSError:
-            count_error(self._errors, "write")
-            self._collector.set_target_files_ok(False)
-            log.error("could not write target files in %s", settings.shared_dir, exc_info=True)
-            return
-        self._collector.set_target_files_ok(True)
-
-    def seed_targets(self) -> None:
-        """Create the target files with static targets only when they do not exist yet.
-
-        Existing files are left alone so that the last known dynamic targets survive a restart until
-        the first successful poll replaces them.
-        """
-        settings = self._settings
-        infos = target_infos(settings.static_ping_targets, None, settings.tracked_clients)
-        seeds = {
-            settings.shared_dir / PING_TARGETS_FILE: render_ping_targets(settings.ping, infos),
-            settings.shared_dir / AIRPLAY_TARGETS_FILE: render_airplay_targets(
-                None, settings.tracked_clients
-            ),
-        }
-        for path, content in seeds.items():
-            if not path.exists():
-                write_if_changed(path, content)
-                log.info("seeded %s", path.name)
-
 
 def main() -> None:
     env = os.environ
@@ -227,12 +168,6 @@ def main() -> None:
             password=settings.device.password,
         )
         scraper = AmplifiScraper(settings, client, collector, errors)
-        try:
-            scraper.seed_targets()
-        except OSError:
-            count_error(errors, "write")
-            collector.set_target_files_ok(False)
-            log.error("could not seed target files in %s", settings.shared_dir, exc_info=True)
         thread = start_scrape_thread(
             "amplifi-scrape",
             scraper,

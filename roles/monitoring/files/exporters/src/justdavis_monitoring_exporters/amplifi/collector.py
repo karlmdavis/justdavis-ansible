@@ -17,7 +17,6 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, InfoM
 from prometheus_client.registry import Collector
 
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WifiClient
-from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
 from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.labels import sanitise_label
 from justdavis_monitoring_exporters.common.mdns import AIRPLAY_SERVICES, short_service
@@ -67,11 +66,9 @@ class AmplifiCollector(Collector):
     ) -> None:
         self.statuses = statuses
         self._published: SnapshotHolder[PublishedSnapshot] = SnapshotHolder()
-        self._targets: SnapshotHolder[tuple[TargetInfo, ...]] = SnapshotHolder()
         self._tracked = {client.mac: client for client in tracked}
         self._byte_totals = byte_totals
         self._publish_lock = threading.Lock()
-        self._target_files_ok: bool | None = None
         self._address_source_ok: bool | None = None
 
     def publish(self, snapshot: AmplifiSnapshot) -> None:
@@ -88,18 +85,12 @@ class AmplifiCollector(Collector):
         with self._publish_lock:
             self._published.clear()
 
-    def set_targets(self, targets: tuple[TargetInfo, ...]) -> None:
-        self._targets.set(targets)
-
-    def set_target_files_ok(self, ok: bool) -> None:
-        self._target_files_ok = ok
-
     def set_address_source_ok(self, ok: bool) -> None:
         self._address_source_ok = ok
 
     def collect(self) -> Iterator[Metric]:
         yield from status_families("amplifi", self.statuses.get())
-        yield from self._target_families()
+        yield from self._source_families()
         published = self._published.get()
         if published is None:
             return
@@ -109,26 +100,7 @@ class AmplifiCollector(Collector):
         yield from self._tracked_families(published)
         yield from self._airplay_families(published.snapshot)
 
-    def _target_families(self) -> Iterator[Metric]:
-        info = InfoMetricFamily(
-            "monitoring_target", "Friendly name and kind for every ping target.", labels=["ip"]
-        )
-        for target in self._targets.get() or ():
-            info.add_metric(
-                [target.ip],
-                {
-                    "name": sanitise_label(target.name),
-                    "kind": target.kind,
-                    "airplay_name": sanitise_label(target.airplay_name),
-                },
-            )
-        yield info
-        if self._target_files_ok is not None:
-            yield GaugeMetricFamily(
-                "amplifi_target_files_ok",
-                "1 when the ping/AirPlay target files were last written successfully.",
-                value=float(self._target_files_ok),
-            )
+    def _source_families(self) -> Iterator[Metric]:
         if self._address_source_ok is not None:
             yield GaugeMetricFamily(
                 "amplifi_address_source_ok",

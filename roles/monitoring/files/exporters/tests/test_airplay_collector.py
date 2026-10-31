@@ -17,6 +17,12 @@ from justdavis_monitoring_exporters.airplay.models import (
     UnicastAnswer,
 )
 from justdavis_monitoring_exporters.airplay.resolver import AIRPLAY_TYPE, RAOP_TYPE, _Listener, poll
+from justdavis_monitoring_exporters.common.device_addresses import (
+    DEVICE_ADDRESSES_DIR,
+    Sighting,
+    SourceStore,
+)
+from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 from tests.helpers import tracked
 
@@ -37,6 +43,7 @@ SETTINGS = AirplaySettings(
     resolve_timeout_ms=10,
     tracked_clients=TRACKED,
     shared_dir=Path("/nonexistent"),
+    max_age_seconds=180,
 )
 NO_ADDRESSES: dict[str, str] = {}
 # The record forms seen on 2026-09-28, with made-up group ids.
@@ -202,12 +209,19 @@ def test_answer_without_a_txt_record_is_unreadable() -> None:
     assert snapshot.services[A_AIRPLAY].state_unreadable == "the answer carried no TXT record"
 
 
+def write_inventory(tmp_path: Path, mac: str, address: str, *, age_seconds: float = 0.0) -> None:
+    """A fresh (or aged) router sighting of one device in the shared directory's inventory."""
+    import time
+
+    now = time.time()
+    store = SourceStore(tmp_path / DEVICE_ADDRESSES_DIR, "router")
+    store.record([Sighting(address=address, observed_at=now - age_seconds, mac=Mac(mac))], now=now)
+
+
 def test_unreadable_record_is_logged_when_it_changes_and_not_every_poll(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (tmp_path / "airplay-targets.json").write_bytes(
-        b'[{"targets": ["192.0.2.110:7000"], "labels": {"name": "Speaker-A", "kind": "homepod"}}]'
-    )
+    write_inventory(tmp_path, "02:00:00:00:00:10", "192.0.2.110")
     resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"}, txt={"Speaker A": {"flags": "0x4"}})
     registry, collector, errors = build_registry()
     scraper = AirplayScraper(replace(SETTINGS, shared_dir=tmp_path), resolver, collector, errors)
@@ -294,10 +308,8 @@ def test_resolver_error_fails_the_poll_and_keeps_last_seen_for_the_next_one() ->
     assert registry.get_sample_value("airplay_service_last_seen_timestamp_seconds", a) == first_seen
 
 
-def test_scraper_reads_addresses_from_the_shared_target_file(tmp_path: Path) -> None:
-    (tmp_path / "airplay-targets.json").write_bytes(
-        b'[{"targets": ["192.0.2.110:7000"], "labels": {"name": "Speaker-A", "kind": "homepod"}}]'
-    )
+def test_scraper_reads_fresh_addresses_from_the_device_inventory(tmp_path: Path) -> None:
+    write_inventory(tmp_path, "02:00:00:00:00:10", "192.0.2.110")
     resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
     registry, collector, errors = build_registry()
     AirplayScraper(replace(SETTINGS, shared_dir=tmp_path), resolver, collector, errors)()
@@ -306,6 +318,18 @@ def test_scraper_reads_addresses_from_the_shared_target_file(tmp_path: Path) -> 
     assert registry.get_sample_value("airplay_service_resolved", a) == 0.0
     assert registry.get_sample_value("airplay_service_unicast_resolved", a) == 1.0
     assert registry.get_sample_value("airplay_service_unicast_resolved", b) is None
+
+
+def test_a_stale_address_is_not_queried_by_unicast(tmp_path: Path) -> None:
+    # The fail-safe: no source has seen the device's address within the window, so nothing is sent to
+    # an address that may now belong to another device (2026-10-30: two HomePods had swapped).
+    write_inventory(tmp_path, "02:00:00:00:00:10", "192.0.2.110", age_seconds=600)
+    resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
+    registry, collector, errors = build_registry()
+    AirplayScraper(replace(SETTINGS, shared_dir=tmp_path), resolver, collector, errors)()
+    a = {"name": "Speaker A", "service": "_airplay._tcp"}
+    assert registry.get_sample_value("airplay_service_unicast_resolved", a) is None
+    assert resolver.unicast_requests == []
 
 
 def test_collector_exports_playback_state_only_for_homepods_whose_record_was_read() -> None:

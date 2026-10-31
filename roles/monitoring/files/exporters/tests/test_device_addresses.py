@@ -23,8 +23,8 @@ ROUTER = Mac("02:00:00:00:00:01")
 NOW = 1_000_000.0
 
 
-def sighting(mac: Mac, address: str, at: float, **kwargs: object) -> Sighting:
-    return Sighting(mac=mac, address=address, observed_at=at, **kwargs)  # type: ignore[arg-type]
+def sighting(mac: Mac | None, address: str, at: float, **kwargs: object) -> Sighting:
+    return Sighting(address=address, observed_at=at, mac=mac, **kwargs)  # type: ignore[arg-type]
 
 
 def test_store_keeps_first_seen_and_moves_last_seen_for_a_repeat_sighting(tmp_path: Path) -> None:
@@ -37,6 +37,7 @@ def test_store_keeps_first_seen_and_moves_last_seen_for_a_repeat_sighting(tmp_pa
     assert document["observations"] == [
         {
             "mac": A,
+            "hostname": "",
             "address": "192.0.2.110",
             "first_seen": NOW - 100,
             "last_seen": NOW,
@@ -187,3 +188,43 @@ def test_problem_log_speaks_once_per_change_and_once_on_recovery(caplog: pytest.
         ("INFO", "fine again"),
     ]
     assert problems.active("k") is False
+
+
+def test_hostname_only_observations_are_attributed_through_a_source_that_knows_both(tmp_path: Path) -> None:
+    # mDNS knows Apple devices by hostname only; the router's directory pairs hostname and MAC.
+    SourceStore(tmp_path, "router").record(
+        [sighting(A, "192.0.2.110", NOW - 3000, hostname="Speaker-A", name="Speaker-A")], now=NOW - 3000
+    )
+    SourceStore(tmp_path, "mdns").record(
+        [
+            sighting(None, "192.0.2.111", NOW - 5, hostname="speaker-a.local.", name="Speaker A"),
+            sighting(None, "192.0.2.50", NOW - 5, hostname="nobody-knows.local.", name="Guest"),
+        ],
+        now=NOW,
+    )
+    inventory = AddressInventory.load(tmp_path)
+    latest = inventory.latest(A, now=NOW, max_age=180)
+    assert latest is not None and (latest.source, latest.address) == ("mdns", "192.0.2.111")
+    assert inventory.hostnames(A) == ("speaker-a",)
+    assert [o.name for o in inventory.unattributed] == ["Guest"]
+
+
+def test_a_hostname_two_macs_claim_attributes_nothing(tmp_path: Path) -> None:
+    SourceStore(tmp_path, "router").record(
+        [
+            sighting(A, "192.0.2.110", NOW, hostname="iPhone"),
+            sighting(B, "192.0.2.120", NOW, hostname="iPhone"),
+        ],
+        now=NOW,
+    )
+    SourceStore(tmp_path, "mdns").record(
+        [sighting(None, "192.0.2.130", NOW, hostname="iphone.local.")], now=NOW
+    )
+    inventory = AddressInventory.load(tmp_path)
+    assert inventory.latest(A, now=NOW, max_age=180).address == "192.0.2.110"  # type: ignore[union-attr]
+    assert len(inventory.unattributed) == 1
+
+
+def test_a_sighting_needs_a_mac_or_a_hostname() -> None:
+    with pytest.raises(ValueError):
+        Sighting(address="192.0.2.1", observed_at=NOW)

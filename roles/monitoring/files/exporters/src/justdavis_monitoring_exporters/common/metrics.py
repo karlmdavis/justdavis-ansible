@@ -33,7 +33,7 @@ def status_families(prefix: str, status: ScrapeStatus | None) -> Iterator[Metric
 
 
 # The step of a poll that failed, as the `stage` label of `<prefix>_scrape_errors_total`.
-type ErrorStage = Literal["login", "fetch", "tls", "parse", "write", "resolve"]
+type ErrorStage = Literal["login", "fetch", "tls", "parse", "write", "resolve", "read", "arp"]
 
 
 def error_counter(prefix: str, stages: Iterable[ErrorStage], registry: CollectorRegistry) -> Counter:

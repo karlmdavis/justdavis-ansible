@@ -60,6 +60,7 @@ from justdavis_monitoring_exporters.lan_discovery.collector import (
     LanDiscoverySnapshot,
     TrackedAddressState,
 )
+from justdavis_monitoring_exporters.lan_discovery.homekit import HomekitCollector, HomekitTracker
 from justdavis_monitoring_exporters.lan_discovery.mdns import (
     AddressBrowser,
     CachedInstance,
@@ -132,21 +133,25 @@ class LanDiscoverySettings:
         )
 
 
-def build_registry() -> tuple[CollectorRegistry, LanDiscoveryCollector, Counter]:
-    """The registry served over HTTP, with the collector and the per-stage error counter on it."""
+def build_registry() -> tuple[CollectorRegistry, LanDiscoveryCollector, Counter, HomekitTracker]:
+    """The registry served over HTTP, with the collectors and the per-stage error counter on it."""
     registry = CollectorRegistry()
     statuses: SnapshotHolder[ScrapeStatus] = SnapshotHolder()
     statuses.set(ScrapeStatus.initial())
     collector = LanDiscoveryCollector(statuses)
     registry.register(collector)
+    homekit = HomekitTracker()
+    registry.register(HomekitCollector(homekit))
     errors = error_counter("lan_discovery", ("resolve", "read", "arp", "write"), registry)
-    return registry, collector, errors
+    return registry, collector, errors, homekit
 
 
 class MdnsSource(Protocol):
     """What the scraper needs from the mDNS browser (so a test can stand in for zeroconf)."""
 
     def cached_instances(self, *, now: float) -> tuple[CachedInstance, ...]: ...
+
+    def hap_instances(self, *, now: float) -> tuple[CachedInstance, ...]: ...
 
     def request(self, fqdn: str, timeout_ms: int) -> bool: ...
 
@@ -171,12 +176,14 @@ class LanDiscoveryScraper:
         mdns: MdnsSource | None,
         neighbours: NeighbourSource | None,
         read_neighbour_table: Callable[[], tuple[Neighbour, ...]] = read_neighbours,
+        homekit: HomekitTracker | None = None,
     ) -> None:
         self._settings = settings
         self._collector = collector
         self._errors = errors
         self._mdns = mdns
         self._neighbours = neighbours
+        self._homekit = homekit
         self._read_neighbours = read_neighbour_table
         inventory_dir = settings.shared_dir / DEVICE_ADDRESSES_DIR
         self._inventory_dir = inventory_dir
@@ -221,6 +228,16 @@ class LanDiscoveryScraper:
             raise
         self._collector.set_target_files_ok(True)
         self._nudge_stale_devices(inventory, states, instances)
+        self._refresh_homekit(now)
+
+    def _refresh_homekit(self, now: float) -> None:
+        """HomeKit accessory presence rides on the same browser; a fault here is counted, not fatal."""
+        if self._homekit is None or self._mdns is None:
+            return
+        try:
+            self._homekit.refresh(self._mdns.hap_instances(now=now), now=now)
+        except Exception:
+            self._fail("resolve", "could not read the HomeKit announcements")
 
     def _record_mdns(self, now: float) -> tuple[CachedInstance, ...]:
         if self._mdns is None:
@@ -301,7 +318,7 @@ def main() -> None:
     env = os.environ
     configure_logging(env)
     settings = load_settings(LanDiscoverySettings.from_env, env)
-    registry, collector, errors = build_registry()
+    registry, collector, errors, homekit = build_registry()
     stop = threading.Event()
     shutdown = serve(registry, addr=settings.listen_addr, port=settings.port)
     mdns: AddressBrowser | None = None
@@ -327,7 +344,9 @@ def main() -> None:
             log.warning("MONITORING_LAN_SUBNET is not set; not reading the neighbour table")
         else:
             neighbours = NeighbourSource(ifindex, settings.lan_subnet)
-    scraper = LanDiscoveryScraper(settings, collector, errors, mdns=mdns, neighbours=neighbours)
+    scraper = LanDiscoveryScraper(
+        settings, collector, errors, mdns=mdns, neighbours=neighbours, homekit=homekit
+    )
     thread = start_scrape_thread(
         "lan-discovery-scrape",
         scraper,

@@ -54,6 +54,11 @@ scrape_configs:
       - targets:
           - gateway_exporter:{{ monitoring_gateway_exporter_port }}
 
+  - job_name: hue
+    static_configs:
+      - targets:
+          - hue_exporter:{{ monitoring_hue_exporter_port }}
+
   - job_name: blackbox
     static_configs:
       - targets:

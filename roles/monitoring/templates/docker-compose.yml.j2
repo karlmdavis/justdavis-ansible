@@ -158,6 +158,30 @@ services:
       timeout: 5s
       retries: 3
 
+  # Reads the Hue bridge over HTTPS (Signify's root CA, the bridge id as the certificate name) at the
+  # address the device address inventory has for it, so it reads the shared directory and writes nothing.
+  hue_exporter:
+    <<: *exporter
+    env_file:
+      - .env
+      - hue-credentials.env
+    command:
+      - hue-exporter
+    environment:
+      MONITORING_LISTEN_ADDR: 0.0.0.0
+      MONITORING_HUE_PORT: "{{ monitoring_hue_exporter_port }}"
+    volumes:
+      - {{ monitoring_base_dir }}/shared:/shared:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request as u;
+          u.urlopen('http://127.0.0.1:{{ monitoring_hue_exporter_port }}/metrics', timeout=3)"
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
   # mDNS needs the LAN's multicast domain, hence host networking.
   airplay_exporter:
     <<: *exporter

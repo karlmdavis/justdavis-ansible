@@ -8,6 +8,7 @@ from justdavis_monitoring_exporters.airplay.main import AirplaySettings
 from justdavis_monitoring_exporters.amplifi.main import AmplifiSettings
 from justdavis_monitoring_exporters.common.settings import SettingsError, parse_fingerprint
 from justdavis_monitoring_exporters.gateway.main import GatewayDevice, GatewaySettings, UnpinnedGateway
+from justdavis_monitoring_exporters.hue.main import HueSettings
 from justdavis_monitoring_exporters.lan_discovery.main import LanDiscoverySettings
 
 TRACKED_JSON = json.dumps([{"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod"}])
@@ -185,3 +186,27 @@ def test_expect_online_follows_from_the_kind(kind: str, expected: bool) -> None:
 
     (client,) = parse_tracked_clients(json.dumps([{"mac": "02:00:00:00:00:10", "name": "A", "kind": kind}]))
     assert client.expect_online is expected
+
+
+def test_hue_settings_defaults_and_not_configured() -> None:
+    settings = HueSettings.from_env({})
+    assert settings.bridge is None
+    assert (settings.port, settings.interval_seconds, settings.max_age_seconds) == (9805, 30, 180)
+
+
+def test_hue_settings_full_and_key_required() -> None:
+    settings = HueSettings.from_env(
+        {
+            "MONITORING_HUE_BRIDGE_MAC": "02:00:00:00:00:30",
+            "HUE_APPLICATION_KEY": "k",
+            "MONITORING_HUE_PORT": "9905",
+        }
+    )
+    assert settings.bridge is not None
+    assert settings.bridge.bridge_id == "020000fffe000030"
+    assert settings.port == 9905
+    assert "k" not in repr(settings).replace("key", "")
+    with pytest.raises(SettingsError):
+        HueSettings.from_env({"MONITORING_HUE_BRIDGE_MAC": "02:00:00:00:00:30"})
+    with pytest.raises(SettingsError):
+        HueSettings.from_env({"MONITORING_HUE_BRIDGE_MAC": "not-a-mac", "HUE_APPLICATION_KEY": "k"})

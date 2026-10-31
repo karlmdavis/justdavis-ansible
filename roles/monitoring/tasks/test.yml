@@ -122,6 +122,7 @@
       - alerts_airplay_test.yml
       - alerts_docsis_test.yml
       - alerts_playback_state_test.yml
+      - alerts_addresses_test.yml
   block:
     - name: Test - Create Directory for Rule Unit Tests
       ansible.builtin.tempfile:

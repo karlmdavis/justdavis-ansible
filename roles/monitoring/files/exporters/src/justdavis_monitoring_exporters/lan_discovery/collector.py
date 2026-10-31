@@ -13,7 +13,7 @@ from justdavis_monitoring_exporters.common.settings import TrackedClient
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
 from justdavis_monitoring_exporters.lan_discovery.targets import TargetInfo
 
-_TRACKED_LABELS = ["mac", "name", "kind", "airplay_name"]
+_TRACKED_LABELS = ["mac", "name", "kind", "airplay_name", "expect_online"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +86,8 @@ def _tracked_families(states: Sequence[TrackedAddressState]) -> Iterator[Metric]
         "device_address_fresh",
         "1 when some source has seen the tracked device's address within the freshness window, so it "
         "is being probed; 0 when it has no usable address and its probe series are absent (from the "
-        "last poll).",
+        "last poll). expect_online is the tracked-client flag: 1 for a device that should always be "
+        "on the LAN, which is what TrackedDeviceAddressUnknown alerts on.",
         labels=_TRACKED_LABELS,
     )
     age = GaugeMetricFamily(
@@ -102,6 +103,7 @@ def _tracked_families(states: Sequence[TrackedAddressState]) -> Iterator[Metric]
             sanitise_label(state.client.name),
             state.client.kind,
             sanitise_label(state.client.airplay_name),
+            "1" if state.client.expect_online else "0",
         ]
         fresh.add_metric(labels, float(state.fresh))
         if state.age_seconds is not None:

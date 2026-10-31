@@ -1,0 +1,107 @@
+# promtool unit test for the device address inventory rules and the freshness guard on the HomePod
+# probe rules. The role's smoke tests run it against the alert rules rendered with the device groups
+# (roles/monitoring/tasks/test.yml).
+#   A: fresh address, ping loss 1, port probe 0 -> HomePodUnreachable and HomePodAirPlayPortDown.
+#   B: stale address (fresh 0), same probe values -> nothing: the probes may be aimed at an address the
+#      HomePod no longer has (2026-10-30), so they are not believed.
+#   C: expect_online device with no fresh address -> TrackedDeviceAddressUnknown after 15 minutes; the
+#      same for a tablet (expect_online 0) -> nothing.
+#   D: the mdns source last written 1000 s before now -> DeviceAddressSourceStale; the router source
+#      equally old -> nothing (AmpliFiScrapeFailing covers it).
+#   E: lan_discovery_up 0 for 10 minutes -> LanDiscoveryFailing.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'monitoring_target_info{ip="192.0.2.110", name="A", kind="homepod", airplay_name="A"}'
+        values: '1x40'
+      - series: 'ping_loss_ratio{ip="192.0.2.110"}'
+        values: '1x40'
+      - series: 'probe_success{job="airplay_tcp", name="A", instance="192.0.2.110:7000"}'
+        values: '0x40'
+      - series: 'device_address_fresh{mac="02:00:00:00:00:10", name="A", kind="homepod", airplay_name="A", expect_online="1"}'
+        values: '1x40'
+      - series: 'monitoring_target_info{ip="192.0.2.111", name="B", kind="homepod", airplay_name="B"}'
+        values: '1x40'
+      - series: 'ping_loss_ratio{ip="192.0.2.111"}'
+        values: '1x40'
+      - series: 'probe_success{job="airplay_tcp", name="B", instance="192.0.2.111:7000"}'
+        values: '0x40'
+      - series: 'device_address_fresh{mac="02:00:00:00:00:11", name="B", kind="homepod", airplay_name="B", expect_online="1"}'
+        values: '0x40'
+      - series: 'device_address_fresh{mac="02:00:00:00:00:20", name="Tablet", kind="ipad", airplay_name="Tablet", expect_online="0"}'
+        values: '0x40'
+      - series: 'device_address_source_last_write_timestamp_seconds{source="mdns"}'
+        values: '-1000x40'
+      - series: 'device_address_source_last_write_timestamp_seconds{source="router"}'
+        values: '-1000x40'
+      - series: 'device_address_source_last_write_timestamp_seconds{source="arp"}'
+        values: '0+30x40'
+      - series: 'lan_discovery_up'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HomePodUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              ip: 192.0.2.110
+              name: A
+              kind: homepod
+            exp_annotations:
+              summary: "HomePod A (192.0.2.110) is not answering ping"
+      - eval_time: 6m
+        alertname: HomePodAirPlayPortDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: airplay_tcp
+              name: A
+              instance: 192.0.2.110:7000
+            exp_annotations:
+              summary: "HomePod A is not accepting AirPlay connections"
+      - eval_time: 14m
+        alertname: TrackedDeviceAddressUnknown
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: TrackedDeviceAddressUnknown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              mac: 02:00:00:00:00:11
+              name: B
+              kind: homepod
+              airplay_name: B
+              expect_online: "1"
+            exp_annotations:
+              summary: >-
+                homepod B has had no address from any source (router, mDNS, neighbour table) for the
+                freshness window, so nothing is probing it
+      - eval_time: 1m
+        alertname: DeviceAddressSourceStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              source: mdns
+            exp_annotations:
+              summary: The mdns source of the device address inventory has not been written for 15 minutes
+      - eval_time: 9m
+        alertname: LanDiscoveryFailing
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: LanDiscoveryFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: >-
+                The LAN discovery exporter cannot render the probe targets from the device address
+                inventory; the ping and AirPlay target files are frozen until it recovers
+      # The removed rule must stay removed.
+      - eval_time: 15m
+        alertname: AmpliFiTargetFilesNotWritable
+        exp_alerts: []

@@ -51,6 +51,10 @@ class TrackedClient:
     name: str
     kind: ClientKind
     airplay_name: str
+    # Whether the device is expected on the LAN at all times (a HomePod, the Apple TV, the Hue bridge),
+    # so that no source seeing its address is worth an alert; phones, tablets and laptops sleep and
+    # rotate their MAC addresses, so for them it is not.
+    expect_online: bool = False
 
     def __post_init__(self) -> None:
         if not _MAC_RE.match(self.mac):
@@ -80,12 +84,16 @@ def parse_tracked_clients(raw: str) -> tuple[TrackedClient, ...]:
             if not name:
                 raise SettingsError(f"{ctx}.name: missing")
             airplay_name = as_str(entry.get("airplay_name", name), f"{ctx}.airplay_name")
+            expect_online = entry.get("expect_online", False)
+            if not isinstance(expect_online, bool):
+                raise SettingsError(f"{ctx}.expect_online: expected true or false")
             clients.append(
                 TrackedClient(
                     mac=normalise_mac(as_str(entry.get("mac", ""), f"{ctx}.mac"), ctx),
                     name=name,
                     kind=_kind(as_str(entry.get("kind", ""), f"{ctx}.kind"), ctx),
                     airplay_name=airplay_name,
+                    expect_online=expect_online,
                 )
             )
         seen: set[Mac] = set()

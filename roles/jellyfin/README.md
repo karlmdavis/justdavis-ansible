@@ -41,8 +41,6 @@ Facts that matter on eddings (checked 2026-10-31, re-checked 2026-11-01):
   would not.
 - `jellyfin-ffmpeg7` 7.1.3-3-noble was installed before the upgrade. The repository still publishes every
   10.x build and every ffmpeg7 build, so the rollback below can pin them.
-- While eddings is the Tailscale exit node, its DNS name times out from the LAN; SSH to the Tailscale IP
-  instead.
 
 ### Before
 

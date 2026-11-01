@@ -1,2 +1,52 @@
 ---
-# TODO: Add Jellyfin tests
+
+- name: Test - Verify Jellyfin Service is Running
+  ansible.builtin.systemd:
+    name: jellyfin
+  register: jellyfin_service_status
+  failed_when: jellyfin_service_status.status.ActiveState != "active"
+  become: true
+
+# The GET requests in this file are read-only, so they run in check mode too; otherwise the asserts that
+# use their results have nothing to look at and error out.
+
+# Waits up to retries x delay (5 minutes at 30 x 10 s). `/health` answers 200 once the server is up and can
+# reach its database; while the server is still starting (and, after a major upgrade, running its one-shot
+# database migration) it does not answer as expected, which is why this is patient rather than a single
+# probe. Only the status code is asserted: the body ("Healthy") is the ASP.NET default and not a contract.
+- name: Test - Check Jellyfin Health
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8096/health
+    method: GET
+    status_code: 200
+  check_mode: false
+  retries: 30
+  delay: 10
+
+- name: Test - Get Jellyfin Public System Info
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8096/System/Info/Public
+    method: GET
+    status_code: 200
+    return_content: true
+  register: jellyfin_public_info
+  check_mode: false
+
+- name: Test - Verify Jellyfin Reports a Version
+  ansible.builtin.assert:
+    that:
+      - jellyfin_public_info.json.Version is match('^\d+\.\d+')
+    fail_msg: "Jellyfin did not report a version: {{ jellyfin_public_info.json | default({}) }}"
+
+# Catches a server that is running an older version than expected, for example after a restore from backup
+# that brought the old packages back, or a run of this role on a rebuilt host before the manual upgrade.
+# The API version is checked rather than dpkg's, because the two can disagree after a partial upgrade.
+# Skipped unless `jellyfin_min_version` is set; see defaults/main.yml for why it is empty by default.
+- name: Test - Verify Jellyfin Runs at Least the Minimum Version
+  ansible.builtin.assert:
+    that:
+      - jellyfin_public_info.json.Version is version(jellyfin_min_version, '>=')
+    fail_msg: >-
+      Jellyfin is running {{ jellyfin_public_info.json.Version }},
+      but at least {{ jellyfin_min_version }} is expected
+  when: jellyfin_min_version | length > 0

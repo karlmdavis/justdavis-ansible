@@ -17,9 +17,11 @@
     url: http://127.0.0.1:5000/api/health
     method: GET
     status_code: 200
+  register: kavita_health
   check_mode: false
   retries: 60
   delay: 5
+  until: kavita_health.status == 200
 
 - name: Test - Inspect Kavita Container
   ansible.builtin.command:

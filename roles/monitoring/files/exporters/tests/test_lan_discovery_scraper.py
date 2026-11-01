@@ -105,7 +105,7 @@ def test_poll_records_both_sources_renders_the_files_and_publishes_freshness(tmp
     assert ping.endswith("targets:\n  - 1.1.1.1\n  - 192.0.2.111\n  - 192.0.2.212\n")
     airplay = json.loads((tmp_path / "airplay-targets.json").read_text())
     assert [entry["targets"] for entry in airplay] == [["192.0.2.111:7000"], ["192.0.2.212:7000"]]
-    a = {"mac": A, "name": "Speaker-A", "kind": "homepod", "airplay_name": "Speaker A", "expect_online": "0"}
+    a = {"mac": A, "name": "Speaker-A", "kind": "homepod", "airplay_name": "Speaker A", "expect_online": "1"}
     assert registry.get_sample_value("device_address_fresh", a) == 1.0
     assert registry.get_sample_value("device_address_age_seconds", {**a, "source": "arp"}) == pytest.approx(
         2.0, abs=1.0
@@ -154,8 +154,8 @@ def test_a_device_with_no_fresh_address_has_no_target_and_is_asked_about(
         read_neighbour_table=lambda: (),
     )
     scraper()
-    a = {"mac": A, "name": "Speaker-A", "kind": "homepod", "airplay_name": "Speaker A", "expect_online": "0"}
-    b = {"mac": B, "name": "Speaker-B", "kind": "homepod", "airplay_name": "Speaker B", "expect_online": "0"}
+    a = {"mac": A, "name": "Speaker-A", "kind": "homepod", "airplay_name": "Speaker A", "expect_online": "1"}
+    b = {"mac": B, "name": "Speaker-B", "kind": "homepod", "airplay_name": "Speaker B", "expect_online": "1"}
     assert registry.get_sample_value("device_address_fresh", a) == 0.0
     assert registry.get_sample_value("device_address_age_seconds", {**a, "source": "mdns"}) == pytest.approx(
         900, abs=5

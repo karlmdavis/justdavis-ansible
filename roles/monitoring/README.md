@@ -99,7 +99,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
 | HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1 (and that address is fresh, see below). `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
 | HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails, at a fresh address. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
-| How the probes know each device's address | The device address inventory: three sources each record what they see (the router's client table and wired directory, mDNS announcements, the host's neighbour table), and the probes use the freshest observation under three minutes old, preferring the neighbour table (the device itself answering for the address), then mDNS, then the router. `device_address_fresh` is 1 for a tracked device being probed, `device_address_age_seconds{source}` says how long since any source saw it. A device no source has seen for three minutes is not probed at all: its ping, port and unicast series end rather than following an address it may no longer have (2026-10-30: the router source failed for a day, two HomePods swapped addresses, and the probes reported the wrong one gone). | `TrackedDeviceAddressUnknown`, for devices flagged `expect_online`. |
+| How the probes know each device's address | The device address inventory: three sources each record what they see (the router's client table and wired directory, mDNS announcements, the host's neighbour table), and the probes use the freshest observation under three minutes old, preferring the neighbour table (the device itself answering for the address), then mDNS, then the router. `device_address_fresh` is 1 for a tracked device being probed, `device_address_age_seconds{source}` says how long since any source saw it. A device no source has seen for three minutes is not probed at all: its ping, port and unicast series end rather than following an address it may no longer have (2026-10-30: the router source failed for a day, two HomePods swapped addresses, and the probes reported the wrong one gone). | `TrackedDeviceAddressUnknown`, for the kinds expected online at all times. |
 | HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | None: recorded and charted. It was an alert until 2026-09-28, and fired most of the time for HomePods that could be played to. |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point, the wrong band, or the wrong SSID | `amplifi_client_info{ap_name,band,network}` history on the WiFi dashboard. Since 2026-10-03 the HomePods live on a 2.4 GHz-only SSID (the router reports it as `network="Device specific network"`; the main SSID is `"User network"`), because HomePods on 5 GHz kept dropping out of the multicast path described above. A HomePod back on 5 GHz or on the main SSID means someone moved it. | None yet: recorded first, rule later. |
@@ -198,15 +198,14 @@ vault_monitoring_tracked_clients:
     kind: homepod
     # Optional: the device's Bonjour name, when it differs from `name`.
     airplay_name: Kitchen
-    # Optional, default false: the device should always be on the LAN, so no source knowing its
-    # address for three minutes is alerted on (TrackedDeviceAddressUnknown).
-    expect_online: true
 ```
 
-`kind` is one of `homepod`, `appletv`, `ipad`, `phone`, `laptop`, or `other`. Only `homepod` entries
-get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never in loss alerts. Set
-`expect_online` on the HomePods, the Apple TV and any wired device that should never disappear; leave
-it off for anything that sleeps or rotates its address.
+`kind` is one of `homepod`, `appletv`, `ipad`, `phone`, `laptop`, `other`, or `other_infra`. Only
+`homepod` entries get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never in
+loss alerts. `homepod`, `appletv` and `other_infra` devices are expected on the LAN at all times, so no
+source knowing their address for three minutes is alerted on (`TrackedDeviceAddressUnknown`); use
+`other_infra` for an always-on device that is none of the named kinds (the Hue bridge) and `other` for
+anything that may be switched off or that rotates its address.
 
 ## Adding or Changing a Tracked Device
 
@@ -234,8 +233,8 @@ codewords a second, and a first estimate (1% is the field rule of thumb for when
 worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
-can no longer be read for its playback state; a tracked device flagged `expect_online` whose address no
-source has seen for three minutes, and an address source that stops writing; a mesh point offline or
+can no longer be read for its playback state; a tracked device expected online at all times whose address
+no source has seen for three minutes, and an address source that stops writing; a mesh point offline or
 missing from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN
 probe series going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no

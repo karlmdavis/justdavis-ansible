@@ -16,7 +16,12 @@ from typing import Literal, NewType, cast, get_args
 from justdavis_monitoring_exporters.common.errors import ExporterError
 from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_list, as_str
 
-type ClientKind = Literal["homepod", "appletv", "ipad", "phone", "laptop", "other"]
+type ClientKind = Literal["homepod", "appletv", "ipad", "phone", "laptop", "other", "other_infra"]
+# The kinds that are expected on the LAN at all times: HomePods, the Apple TV, and `other_infra`,
+# the kind for always-on devices such as the Hue bridge. Phones, tablets and laptops sleep and rotate
+# their MAC addresses, and `other` is for anything that may be switched off without it being an
+# incident.
+ALWAYS_ON_KINDS: frozenset[str] = frozenset({"homepod", "appletv", "other_infra"})
 
 # A MAC address in canonical form (lowercase, colon-separated), so that router-reported and
 # configured addresses join by plain equality; produced only by `canonical_mac`/`normalise_mac`.
@@ -51,16 +56,18 @@ class TrackedClient:
     name: str
     kind: ClientKind
     airplay_name: str
-    # Whether the device is expected on the LAN at all times (a HomePod, the Apple TV, the Hue bridge),
-    # so that no source seeing its address is worth an alert; phones, tablets and laptops sleep and
-    # rotate their MAC addresses, so for them it is not.
-    expect_online: bool = False
 
     def __post_init__(self) -> None:
         if not _MAC_RE.match(self.mac):
             raise SettingsError(f"TrackedClient.mac: {self.mac!r} is not a canonical MAC address")
         if not self.name:
             raise SettingsError("TrackedClient.name: must not be empty")
+
+    @property
+    def expect_online(self) -> bool:
+        """Whether the device is expected on the LAN at all times, so that no source seeing its address
+        is worth an alert; follows from the kind (see `ALWAYS_ON_KINDS`)."""
+        return self.kind in ALWAYS_ON_KINDS
 
 
 def _kind(value: str, ctx: str) -> ClientKind:
@@ -84,16 +91,12 @@ def parse_tracked_clients(raw: str) -> tuple[TrackedClient, ...]:
             if not name:
                 raise SettingsError(f"{ctx}.name: missing")
             airplay_name = as_str(entry.get("airplay_name", name), f"{ctx}.airplay_name")
-            expect_online = entry.get("expect_online", False)
-            if not isinstance(expect_online, bool):
-                raise SettingsError(f"{ctx}.expect_online: expected true or false")
             clients.append(
                 TrackedClient(
                     mac=normalise_mac(as_str(entry.get("mac", ""), f"{ctx}.mac"), ctx),
                     name=name,
                     kind=_kind(as_str(entry.get("kind", ""), f"{ctx}.kind"), ctx),
                     airplay_name=airplay_name,
-                    expect_online=expect_online,
                 )
             )
         seen: set[Mac] = set()

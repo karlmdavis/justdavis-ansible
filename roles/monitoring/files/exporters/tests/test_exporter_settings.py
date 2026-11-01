@@ -168,18 +168,20 @@ def test_airplay_settings_carry_the_address_freshness_window() -> None:
     assert AirplaySettings.from_env({"MONITORING_DEVICE_ADDRESS_MAX_AGE": "60"}).max_age_seconds == 60
 
 
-def test_tracked_clients_carry_the_optional_expect_online_flag() -> None:
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("homepod", True),
+        ("appletv", True),
+        ("other_infra", True),
+        ("ipad", False),
+        ("phone", False),
+        ("laptop", False),
+        ("other", False),
+    ],
+)
+def test_expect_online_follows_from_the_kind(kind: str, expected: bool) -> None:
     from justdavis_monitoring_exporters.common.settings import parse_tracked_clients
 
-    raw = json.dumps(
-        [
-            {"mac": "02:00:00:00:00:10", "name": "Speaker A", "kind": "homepod", "expect_online": True},
-            {"mac": "02:00:00:00:00:20", "name": "Tablet", "kind": "ipad"},
-        ]
-    )
-    speaker, tablet = parse_tracked_clients(raw)
-    assert (speaker.expect_online, tablet.expect_online) == (True, False)
-    with pytest.raises(SettingsError):
-        parse_tracked_clients(
-            json.dumps([{"mac": "02:00:00:00:00:10", "name": "A", "kind": "homepod", "expect_online": "yes"}])
-        )
+    (client,) = parse_tracked_clients(json.dumps([{"mac": "02:00:00:00:00:10", "name": "A", "kind": kind}]))
+    assert client.expect_online is expected

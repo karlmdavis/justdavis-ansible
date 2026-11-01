@@ -88,8 +88,8 @@ def _tracked_families(states: Sequence[TrackedAddressState]) -> Iterator[Metric]
         "device_address_fresh",
         "1 when some source has seen the tracked device's address within the freshness window, so it "
         "is being probed; 0 when it has no usable address and its probe series are absent (from the "
-        "last poll). expect_online is the tracked-client flag: 1 for a device that should always be "
-        "on the LAN, which is what TrackedDeviceAddressUnknown alerts on.",
+        "last poll). expect_online follows from kind: 1 for a homepod, appletv or other_infra device, "
+        "which should always be on the LAN and is what TrackedDeviceAddressUnknown alerts on.",
         labels=_TRACKED_LABELS,
     )
     age = GaugeMetricFamily(

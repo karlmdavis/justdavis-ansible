@@ -315,9 +315,10 @@ groups:
   - name: addresses
     rules:
       # No source (router, mDNS, neighbour table) has seen the device's address within the freshness
-      # window, so it is not being probed at all. Only for devices flagged expect_online in the tracked
-      # list: phones, tablets and laptops sleep and rotate their addresses, and a device someone
-      # switched off is not an incident.
+      # window, so it is not being probed at all. Only for the kinds expected online at all times
+      # (homepod, appletv, other_infra; the exporter sets the label from the kind): phones, tablets
+      # and laptops sleep and rotate their addresses, and a device someone switched off is not an
+      # incident.
       - alert: TrackedDeviceAddressUnknown
         expr: device_address_fresh{expect_online="1"} == 0
         for: 15m

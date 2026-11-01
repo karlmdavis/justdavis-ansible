@@ -111,7 +111,9 @@ def main() -> int:
     try:
         config, common_name = fetch(f"{base}/api/0/config", context)
     except ssl.SSLError as exc:
-        print(f"TLS: the bridge's certificate does not validate against Signify's root: {exc}", file=sys.stderr)
+        print(
+            f"TLS: the bridge's certificate does not validate against Signify's root: {exc}", file=sys.stderr
+        )
         return 1
     except (urllib.error.URLError, OSError) as exc:
         print(f"could not reach the bridge at {args.bridge}: {exc}", file=sys.stderr)
@@ -128,7 +130,9 @@ def main() -> int:
         print(f"TLS: the certificate names {common_name!r}, not the bridge id {bridge_id!r}", file=sys.stderr)
         return 1
     if args.bridge_id is not None and args.bridge_id.lower() != bridge_id.lower():
-        print(f"the bridge at {args.bridge} is {bridge_id}, not the expected {args.bridge_id}", file=sys.stderr)
+        print(
+            f"the bridge at {args.bridge} is {bridge_id}, not the expected {args.bridge_id}", file=sys.stderr
+        )
         return 1
     print("TLS: chain verified against Signify's root; certificate names the bridge id")
     if args.check:
@@ -138,8 +142,10 @@ def main() -> int:
         print(f"{out} already exists; remove it or pass --out", file=sys.stderr)
         return 1
     input("Press the round link button on the bridge, then press Enter here (within 30 seconds)...")
-    # No client key: that one is for the entertainment streaming API, which the exporter never uses.
-    body = json.dumps({"devicetype": args.devicetype, "generateclientkey": False}).encode()
+    # No `generateclientkey`: that key is for the entertainment streaming API, which the exporter never
+    # uses, and the bridge accepts the parameter only as `true` (`false` is "invalid value", error type
+    # 7; seen 2026-11-01 on software 1978545030).
+    body = json.dumps({"devicetype": args.devicetype}).encode()
     for attempt in range(1, _RETRIES + 1):
         answer, _ = fetch(f"{base}/api", context, data=body)
         entry = answer[0] if isinstance(answer, list) and answer else {}

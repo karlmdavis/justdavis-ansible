@@ -66,8 +66,8 @@ ROOT_CA_FILE = Path(__file__).with_name("huebridge_cacert.pem")
 
 
 def bridge_id_for(mac: Mac) -> str:
-    """The Hue bridge id is its MAC with `fffe` inserted in the middle: `ec:b5:fa:10:96:3b` is
-    `ecb5fafffe10963b` (lowercase, as the certificate's common name spells it)."""
+    """The Hue bridge id is its MAC with `fffe` inserted in the middle: `02:00:00:00:00:30` is
+    `020000fffe000030` (lowercase, as the certificate's common name spells it)."""
     digits = mac.replace(":", "")
     return f"{digits[:6]}fffe{digits[6:]}"
 

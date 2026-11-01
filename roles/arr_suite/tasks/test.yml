@@ -1,3 +1,98 @@
 ---
 
-# TODO add tests for arr
+- name: Test - Verify arr_suite Service is Running
+  ansible.builtin.systemd:
+    name: arr_suite
+  register: arr_suite_service_status
+  failed_when: arr_suite_service_status.status.ActiveState != "active"
+  become: true
+
+# The GET requests and docker commands in this file are read-only, so they run in check mode too; otherwise
+# the asserts that use their results have nothing to look at and error out.
+
+# Waits up to retries x delay (5 minutes at 60 x 5 s): the unit pulls images on every start, and Bindery
+# runs its database migrations before the API answers. The health route sits under the URL base.
+- name: Test - Check Bindery API Health
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8787/bindery/api/v1/health
+    method: GET
+    status_code: 200
+  check_mode: false
+  retries: 60
+  delay: 5
+
+- name: Test - Inspect Bindery Container
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      # The assertions below key on field position; keep RestartCount last.
+      - >-
+        {{ '{{' }}.State.Health.Status{{ '}}' }} {{ '{{' }}.Config.Image{{ '}}' }}
+        {{ '{{' }}.RestartCount{{ '}}' }}
+      - bindery
+  register: bindery_container_state
+  changed_when: false
+  check_mode: false
+  become: true
+  # The image's HEALTHCHECK runs every 30 s after a 20 s start period, so a container that just answered
+  # the API can still be "starting" here.
+  retries: 18
+  delay: 5
+  until: bindery_container_state.stdout is search('^healthy ')
+
+# Catches a pin bump that did not take effect (for example a run killed between rewriting
+# docker-compose.yml and restarting the unit). Skipped in check mode, where a bump that has not been applied
+# yet would fail it for no actionable reason.
+- name: Test - Verify Bindery Runs the Pinned Image
+  ansible.builtin.assert:
+    that:
+      - bindery_container_state.stdout.split(' ')[1] == bindery_pinned_image
+    fail_msg: >-
+      Bindery container runs {{ bindery_container_state.stdout }}, but {{ bindery_pinned_image }} is pinned
+  vars:
+    bindery_pinned_image: "ghcr.io/vavallee/bindery:{{ arr_suite_bindery_version }}"
+  when: not ansible_check_mode
+
+# The restart count is the reliable signal for a crash loop (for example Bindery refusing to start because
+# the user it runs as does not match BINDERY_PUID/PGID, or a config directory it cannot write). The unit
+# recreates every container on each run of this role, so the count is always fresh here.
+- name: Test - Verify Bindery Has Not Restarted
+  ansible.builtin.assert:
+    that:
+      - bindery_container_state.stdout is search(' 0$')
+    fail_msg: "{{ bindery_container_state.stdout }}"
+  when: not ansible_check_mode
+
+- name: Test - List arr_suite Containers
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose ps --all --quiet
+    chdir: /opt/arr_suite
+  register: arr_suite_container_ids
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Inspect arr_suite Containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      - "{{ '{{' }}.Name{{ '}}' }} {{ '{{' }}.State.Status{{ '}}' }}"
+      - "{{ item }}"
+  loop: "{{ arr_suite_container_ids.stdout_lines }}"
+  register: arr_suite_container_states
+  changed_when: false
+  check_mode: false
+  become: true
+
+# One container per service in docker-compose.yml.j2; update the count here when a service is added.
+- name: Test - Verify Every arr_suite Container is Running
+  ansible.builtin.assert:
+    that:
+      - arr_suite_container_ids.stdout_lines | length == 5
+      - arr_suite_container_states.results | map(attribute='stdout') | select('search', ' running$')
+        | list | length == 5
+    fail_msg: "{{ arr_suite_container_states.results | map(attribute='stdout') | list }}"

@@ -83,6 +83,22 @@ Device names are left out; the dashboards have them.
   byte counts. The AmpliFi exposes no airtime figure, so this is inferred from round trips, link rates
   and timing. Practical rule: a few HomePods per 2.4 GHz radio, and the HomePod that matters most on
   the router's radio rather than behind a mesh point.
+- **A mesh point can quietly drop to a 2.4 GHz backhaul, and then the whole 2.4 GHz band suffers**
+  (2026-10-16 to 11-01). The Kitchen mesh point's backhaul fell from 5 GHz to 2.4 GHz on 10-16 and
+  stayed there: its mean round trip went from 2 ms to 40-85 ms a day with the worst sample at the 2 s
+  ping timeout in every hour, about 1 % loss, and 15-37 re-joins a day by the end of October. The
+  Living Room mesh point was daisy-chained through it from 10-16 to 10-23 and suffered the same until
+  it rejoined the router. Every client on the router's 2.4 GHz radio suffered too (a HomePod at signal
+  quality 100 at 50-490 ms), because that radio carried the backhaul as well as the HomePods at
+  1-11 Mbit/s legacy rates; multi-room AirPlay from a tablet behind the mesh point was unlistenable.
+  Nothing alerted, and it was found by hand 16 days later. A restart of the mesh point from the
+  AmpliFi app made it rejoin on 5 GHz (link quality 89, better than its 5 GHz link had shown) and its
+  round trip returned to 2 ms within minutes. Replaying candidate rules over the 40 days of data gave
+  the three mesh point backhaul rules below their thresholds, and ruled out the alternatives: per-HomePod
+  round trip (50-150 ms is the normal cost of 2.4 GHz with power saving, every day since the SSID move),
+  the worst ping sample (at the 2 s timeout in every hour of every day, even when the mean was 2 ms),
+  daisy-chaining by itself (fine on 5 GHz, 2026-09-29 to 10-02), and the router's link-rate figure for
+  the backhaul (below 300 Mbit/s most hours regardless).
 - **The HomePod's AirPlay TXT record reports playback and grouping reliably**; see
   `docs/airplay-playback-state.md`. The router's per-client byte counters do not (they stick at 2^32-1
   for most HomePods for hours), so the audio rules read the record, not traffic.
@@ -108,8 +124,9 @@ down a column is the diagnosis; the last column is the rule that says so.
 | When did a stream stop, or a HomePod leave its group | `homepod:audio_ended` marks the evaluation where audio stopped, and `homepod:left_playing_group` the one where a HomePod was no longer in a group that kept playing (dashboard annotations). Seen 2026-09-28: one HomePod of eight went silent while the rest played on; it stayed on the WiFi with port 7000 open and answering queries, so nothing else showed it. A HomePod moved to another group on purpose is marked the same way, and so would be one whose whole group moved to a new session a poll after it did (not seen as of 2026-09-28). | None: recorded until a real incident says whether it needs one. |
 | How much a HomePod is downloading | `homepod:download_bits_per_second:rate1m` (recording rule), where the router reports byte counts. On 2026-09-28 it reported none for seven of the nine HomePods, which is why audio is not read from this. | None: charted. |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
-| A mesh point keeps re-joining the mesh | `rate(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds` (absent for a mesh point that has not dropped out since the router booted, as seen after the 2026-10-30 reboot); the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul. | None yet: recorded first, rule later. |
-| How the mesh is wired up | `amplifi_mesh_point_info{uplink,level,backhaul_band}`: each mesh point's backhaul band and whether it hangs off the router (level 2) or is daisy-chained through another mesh point (level 3). Both changed after the first reboots. | None: recorded. |
+| A mesh point keeps re-joining the mesh | `increase(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds` (absent for a mesh point that has not dropped out since the router booted, as seen after the 2026-10-30 reboot); the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul, and the last days of October 15-37 times a day on one. | `MeshPointBackhaulFlapping` (more than three re-joins in an hour). |
+| How the mesh is wired up | `amplifi_mesh_point_info{uplink,level,backhaul_band}`: each mesh point's backhaul band and whether it hangs off the router (level 2) or is daisy-chained through another mesh point (level 3). Both changed after the first reboots. | `MeshPointBackhaulOn24GHz` (an hour on 2.4 GHz; see below). Daisy-chaining alone is not alerted on. |
+| A mesh point's backhaul is slow | `ping_rtt_mean_seconds` for the mesh point's own address: about 2 ms on a healthy 5 GHz backhaul, tens of milliseconds on a 2.4 GHz one or a daisy chain through a bad link, and every client behind it pays the same. | `MeshPointBackhaulSlow` (mean above 20 ms over 30 minutes, for 30 minutes). |
 | The internet is bad | Loss, round trip, or jitter to the public anchor (`ping_*{target="1.1.1.1"}`). | `WanPacketLoss`, `WanLatencyHigh`, `WanJitterHigh` |
 | Where the internet is bad | The first hop to show it, in order: router LAN, router WAN, gateway LAN, gateway static IP, Comcast's resolver, public anchors (the layered ping panel). | Covered by the three above. |
 | The cable line, not the router | DOCSIS SNR, receive power, uncorrectable codewords, and `gateway_internet_active`; these persist through a reboot, a router fault does not. | `DocsisSnrLow`, `DocsisPowerOutOfRange`, `DocsisUncorrectableCodewords*`, `GatewayInternetInactive` |
@@ -235,8 +252,9 @@ gateway reporting its Internet connection inactive for 2 minutes; HomePods off t
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
 can no longer be read for its playback state; a tracked device expected online at all times whose address
 no source has seen for three minutes, and an address source that stops writing; a mesh point offline or
-missing from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN
-probe series going missing; the offsite backup
+missing from the topology, on a 2.4 GHz backhaul for an hour, answering ping slowly for an hour, or
+re-joining the mesh more than three times in an hour; router, mesh point, or gateway reboots; collectors
+that stop working; the WAN probe series going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which

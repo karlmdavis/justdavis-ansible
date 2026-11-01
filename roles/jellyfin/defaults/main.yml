@@ -1,0 +1,10 @@
+---
+# Defaults for the jellyfin role.
+
+# When set (for example `'12.4'`), the tests assert that the running server reports at least this version.
+# Left empty by default on purpose: Jellyfin is installed with `state: present` and never upgraded by
+# Ansible (see README.md), so a hard-coded minimum would fail every production run between a Jellyfin
+# major release and Karl's manual upgrade, while passing in AWS where a fresh install gets the newest
+# version. Set it in host_vars in the same change as the manual upgrade, so later runs catch a server that
+# silently fell back to the old version (for example after a restore).
+jellyfin_min_version: ''

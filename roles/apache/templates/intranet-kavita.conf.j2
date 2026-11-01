@@ -1,0 +1,66 @@
+<VirtualHost {{ private_ip_address }}:80>
+  ServerName kavita.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Redirect all HTTP traffic to HTTPS.
+  RewriteEngine On
+  RewriteCond %{HTTPS} =off
+  RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
+</VirtualHost>
+
+<VirtualHost {{ private_ip_address }}:443>
+  ServerName kavita.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl)
+  SSLEngine on
+  SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/{{ domain }}/chain.pem
+  SSLCACertificateFile /etc/ssl/certs/ca-certificates.crt
+
+  # Configure mod_proxy to be used for proxying URLs on this site to other URLs/ports on this server.
+  ProxyRequests Off
+  <Proxy *>
+    AddDefaultCharset off
+    Order deny,allow
+    Allow from all
+  </Proxy>
+
+  # Tells Kavita the scheme and port clients used; mod_proxy adds X-Forwarded-For/Host/Server by itself.
+  # Kavita only honours these from proxies listed in its appsettings.json KnownProxies (default: loopback,
+  # which the Docker bridge is not), so they are informational here; the addresses in OPDS feeds and emails
+  # come from the Host Name setting (see roles/kavita/README.md, first-run step 2).
+  RequestHeader set X-Forwarded-Proto "https"
+  RequestHeader set X-Forwarded-Port "443"
+
+  # Kavita listens on loopback only (see roles/kavita); this vhost is the only way in. The long timeout
+  # covers a large CBZ download to an iPad app; upgrade=websocket carries Kavita's SignalR hub.
+  ProxyPass / "http://127.0.0.1:5000/" timeout=600 upgrade=websocket
+  ProxyPassReverse / "http://127.0.0.1:5000/"
+  ProxyPreserveHost On
+</VirtualHost>

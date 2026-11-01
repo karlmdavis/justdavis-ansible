@@ -21,6 +21,9 @@
     - { path: "/var/fileshares/{{ domain }}/groups/media/music-videos", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
     - { path: "/var/fileshares/{{ domain }}/groups/media/music", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
     - { path: "/var/fileshares/{{ domain }}/groups/media/books", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    # Comics and prose are separate Kavita libraries with different scanner rules; see roles/kavita/README.md.
+    - { path: "/var/fileshares/{{ domain }}/groups/media/books/comics", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
+    - { path: "/var/fileshares/{{ domain }}/groups/media/books/ebooks", owner: 'root', group: 'media_managers', mode: 'u=rwxs,g=rwxs,o=rxst' }
   become: true
 
 - name: Create User Share Directories

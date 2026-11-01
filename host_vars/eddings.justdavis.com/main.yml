@@ -13,6 +13,9 @@ backup_includes:
   - /var/lib/postgresql/backups
   # Configuration for the arr suite containers (their media lives under /var/fileshares).
   - /opt/arr_suite/config
+  # Kavita's SQLite database (users, reading progress, age restrictions), covers and its own backups; the
+  # books it serves live under /var/fileshares.
+  - /opt/kavita/config
 
 backup_excludes:
   - /var/fileshares/justdavis.com/groups/media/movies

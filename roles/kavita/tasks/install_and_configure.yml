@@ -1,0 +1,97 @@
+---
+# Kavita: a self-hosted reader for comics (CBZ), EPUBs and PDFs, run as a single Docker container that scans
+# the shared books folder read-only. It exists because Jellyfin's book support stops at a basic web reader
+# with no iPad client; Kavita adds per-child accounts with age ratings and progress sync to native iPad
+# apps. See README.md for the library layout it expects and the first-run setup.
+
+- name: Create Base Directory
+  ansible.builtin.file:
+    path: "{{ kavita_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+- name: Create System User for Application
+  ansible.builtin.user:
+    name: "{{ kavita_user }}"
+    state: present
+    system: true
+    shell: /bin/false
+    home: "{{ kavita_base_dir }}"
+  become: true
+
+- name: Get System User Details
+  ansible.builtin.command:
+    cmd: "getent passwd {{ kavita_user }}"
+  register: kavita_passwd_entry
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
+  changed_when: false
+
+- name: Parse Out UID for System User
+  ansible.builtin.set_fact:
+    kavita_uid: "{{ kavita_passwd_entry.stdout.split(':')[2] }}"
+
+- name: Get Media Group Details
+  ansible.builtin.command:
+    cmd: getent group media_managers
+  register: media_managers_group_entry
+  # Pure read-only lookup; run it in check mode too, so the tasks that use its result still work.
+  check_mode: false
+  changed_when: false
+
+- name: Parse Out GID for Media Group
+  ansible.builtin.set_fact:
+    media_managers_gid: "{{ media_managers_group_entry.stdout.split(':')[2] }}"
+
+# The official image's entrypoint runs Kavita as whatever user started the container (its PUID/PGID code is
+# commented out upstream), so the container runs as this user via compose `user:` and the config directory
+# has to be writable by it up front. The database inside holds every user's auth keys, hence no access for
+# others.
+- name: Create Config Directory
+  ansible.builtin.file:
+    path: "{{ kavita_base_dir }}/config"
+    state: directory
+    owner: "{{ kavita_user }}"
+    group: media_managers
+    mode: 'u=rwx,g=rx,o='
+  become: true
+
+# The only task that notifies Restart Kavita; its result is registered so that the tests know whether this
+# run recreated the container.
+- name: Create Docker Compose File
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ kavita_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  register: kavita_compose_file
+  notify: Restart Kavita
+
+- name: Deploy Systemd Service for Kavita
+  ansible.builtin.template:
+    src: kavita.service.j2
+    dest: /etc/systemd/system/kavita.service
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify: Reload Systemd
+
+# Restart Kavita now rather than at the end of the play, so that after a version or configuration change
+# the role's tests check the new container instead of the one about to be replaced. This comes before the
+# start task below so that a stopped or newly installed service comes up only once.
+- name: Flush handlers to restart Kavita
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and Start Kavita Service
+  ansible.builtin.systemd:
+    name: kavita
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

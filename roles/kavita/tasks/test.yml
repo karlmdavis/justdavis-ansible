@@ -1,0 +1,214 @@
+---
+
+- name: Test - Verify Kavita Service is Running
+  ansible.builtin.systemd:
+    name: kavita
+  register: kavita_service_status
+  failed_when: kavita_service_status.status.ActiveState != "active"
+  become: true
+
+# The GET requests and docker commands in this file are read-only, so they run in check mode too; otherwise
+# the asserts that use their results have nothing to look at and error out.
+
+# Waits up to retries x delay (5 minutes at 60 x 5 s): the first start after a version change pulls the
+# image and runs database migrations before the API answers. /api/health is anonymous and returns "Ok".
+- name: Test - Check Kavita API Health
+  ansible.builtin.uri:
+    url: http://127.0.0.1:5000/api/health
+    method: GET
+    status_code: 200
+  register: kavita_health
+  check_mode: false
+  retries: 60
+  delay: 5
+  until: kavita_health.status == 200
+
+- name: Test - Inspect Kavita Container
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      # The assertions below key on field position; keep RestartCount last.
+      - >-
+        {{ '{{' }}.State.Health.Status{{ '}}' }} {{ '{{' }}.Config.Image{{ '}}' }}
+        {{ '{{' }}.RestartCount{{ '}}' }}
+      - kavita
+  register: kavita_container_state
+  changed_when: false
+  check_mode: false
+  become: true
+  # The image's HEALTHCHECK has a 30 s start period and a 30 s interval, so a container that just answered
+  # /api/health can still be "starting" here.
+  retries: 18
+  delay: 5
+  until: kavita_container_state.stdout is search('^healthy ')
+
+# Catches an upgrade that did not take effect: a previous run that rewrote docker-compose.yml but was
+# aborted before the handlers ran leaves the old container serving while this run sees no change. The
+# image reference is compared rather than the version Kavita reports, because the version endpoint needs a
+# login and Docker Hub tags carry fewer components than the release (0.9.1 is release v0.9.1.4). Skipped in
+# check mode, where a version bump that has not been applied yet would fail it for no actionable reason.
+- name: Test - Verify Kavita Runs the Pinned Image
+  ansible.builtin.assert:
+    that:
+      - kavita_container_state.stdout.split(' ')[1] == 'jvmilazz0/kavita:' ~ kavita_version
+    fail_msg: "Kavita container runs {{ kavita_container_state.stdout }}, but {{ kavita_version }} is pinned"
+  when: not ansible_check_mode
+
+# The restart count is the reliable signal for a crash loop (for example the container failing to write
+# its config directory as a non-root user). Every restart of the service recreates the container with a
+# count of zero, so the count is asserted whenever this run recreated it (and always on a fresh test
+# system). A no-change production run leaves it alone, so that a single historical crash does not fail
+# every later run.
+- name: Test - Verify the Container Has Not Restarted
+  ansible.builtin.assert:
+    that:
+      - kavita_container_state.stdout is search(' 0$')
+    fail_msg: "{{ kavita_container_state.stdout }}"
+  when:
+    - not ansible_check_mode
+    - is_test or (kavita_compose_file | default({})) is changed
+
+# End-to-end scan test, test environments only: it creates an admin account and a library, which must never
+# happen on the production server (Karl sets those up by hand, see README.md). It proves that the container
+# can read the read-only books mount, that the folder convention in the README is what the scanner expects,
+# and that the API routes used here still exist in the pinned version. Skipped in check mode as a whole:
+# the POSTs would otherwise really create the account and library while the file tasks did nothing.
+- name: Test - Kavita Scan (Test Environments Only)
+  when: is_test and not ansible_check_mode
+  block:
+    - name: Test - Create Test Series Directory
+      ansible.builtin.file:
+        path: "/var/fileshares/{{ domain }}/groups/media/books/comics/Kavita Test Series"
+        state: directory
+        owner: root
+        group: media_managers
+        mode: 'u=rwx,g=rwx,o=rx'
+      become: true
+
+    - name: Test - Generate Test CBZ
+      ansible.builtin.script:
+        cmd: 'make-test-cbz.py "{{ kavita_test_cbz }}" "Kavita Test Series" 1'
+        creates: "{{ kavita_test_cbz }}"
+        executable: /usr/bin/python3
+      vars:
+        kavita_test_cbz: >-
+          /var/fileshares/{{ domain }}/groups/media/books/comics/Kavita Test Series/Kavita Test Series v01.cbz
+      become: true
+
+    # Kavita's first-user endpoint creates the admin and refuses once one exists (400 with "denied" in the
+    # body), so a re-run of the tests against the same instance is fine. Any other 400 is a validation error
+    # in this payload and fails here rather than as a confusing 401 at login.
+    - name: Test - Register Test Admin
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/account/register
+        method: POST
+        body_format: json
+        body:
+          username: kavita-test-admin
+          # Test-only credential for a throwaway AWS instance; never used in production.
+          password: KavitaTest123
+          email: "kavita-test@{{ domain }}"
+        status_code: [200, 400]
+        return_content: true
+      register: kavita_register
+      changed_when: kavita_register.status == 200
+      failed_when: kavita_register.status == 400 and 'denied' not in (kavita_register.content | default(''))
+
+    - name: Test - Log In as Test Admin
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/account/login
+        method: POST
+        body_format: json
+        body:
+          username: kavita-test-admin
+          password: KavitaTest123
+        status_code: 200
+        return_content: true
+      register: kavita_login
+      no_log: true
+
+    - name: Test - List Libraries
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/library/libraries
+        method: GET
+        headers:
+          Authorization: "Bearer {{ kavita_login.json.token }}"
+        status_code: 200
+        return_content: true
+      register: kavita_libraries
+      no_log: true
+
+    # Type 1 is "Comic (Flexible)", the type the README prescribes for the comics folder. Every boolean in
+    # UpdateLibraryDto is [Required], hence the long body, and metadataProvider is validated as an enum with
+    # no zero member even when metadata matching is off: Comic (Flexible) accepts ComicBookRoundup (4) or
+    # Hardcover (2).
+    - name: Test - Create Comics Library
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/library/create
+        method: POST
+        headers:
+          Authorization: "Bearer {{ kavita_login.json.token }}"
+        body_format: json
+        body:
+          id: 0
+          name: Comics
+          type: 1
+          folders: ['/books/comics']
+          folderWatching: false
+          includeInDashboard: true
+          includeInSearch: true
+          manageCollections: true
+          manageReadingLists: true
+          allowScrobbling: false
+          allowMetadataMatching: false
+          enableMetadata: true
+          removePrefixForSortName: false
+          inheritWebLinksFromFirstChapter: false
+          metadataProvider: 4
+          fileGroupTypes: [1, 2, 3, 4]
+          excludePatterns: []
+        status_code: 200
+      no_log: true
+      when: kavita_libraries.json | selectattr('name', 'equalto', 'Comics') | list | length == 0
+
+    - name: Test - Re-list Libraries
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/library/libraries
+        method: GET
+        headers:
+          Authorization: "Bearer {{ kavita_login.json.token }}"
+        status_code: 200
+        return_content: true
+      register: kavita_libraries
+      no_log: true
+
+    - name: Test - Trigger Library Scan
+      ansible.builtin.uri:
+        url: >-
+          http://127.0.0.1:5000/api/library/scan?libraryId={{
+          (kavita_libraries.json | selectattr('name', 'equalto', 'Comics') | first).id }}&force=true
+        method: POST
+        headers:
+          Authorization: "Bearer {{ kavita_login.json.token }}"
+        status_code: 200
+      no_log: true
+      changed_when: true
+
+    # The scan is a background job; waits up to 5 minutes (30 x 10 s) for the series to appear.
+    - name: Test - Wait for the Test Series to Be Scanned
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/api/series/all-v2?pageNumber=1&pageSize=100
+        method: POST
+        headers:
+          Authorization: "Bearer {{ kavita_login.json.token }}"
+        body_format: json
+        body: {}
+        status_code: 200
+        return_content: true
+      register: kavita_series
+      no_log: true
+      retries: 30
+      delay: 10
+      until: kavita_series.json | selectattr('name', 'equalto', 'Kavita Test Series') | list | length == 1

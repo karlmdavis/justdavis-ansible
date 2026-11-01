@@ -1,0 +1,29 @@
+---
+##
+# Defines the Kavita container. One service, no database of its own (SQLite under config/).
+##
+
+name: kavita
+
+services:
+  kavita:
+    container_name: kavita
+    image: jvmilazz0/kavita:{{ kavita_version }}
+    # The official image has no PUID/PGID handling; this is what makes files under config/ belong to the
+    # kavita user, and what lets the container read the books folder through the media_managers group.
+    user: "{{ kavita_uid }}:{{ media_managers_gid }}"
+    environment:
+      # Timestamps in Kavita's logs and scheduled-task times; same zone as the arr suite.
+      - TZ=America/New_York
+    volumes:
+      - {{ kavita_base_dir }}/config:/kavita/config
+      # Read-only on purpose: Kavita keeps covers, metadata and its database under config/, so it has no
+      # business writing into the library, and a bug or a misclick in its UI cannot delete a book.
+      - /var/fileshares/{{ domain }}/groups/media/books:/books:ro
+    ports:
+      # Loopback only. Docker-published ports bypass UFW, so the bind address is the whole exposure model;
+      # the Apache vhost (kavita.intranet.{{ domain }}) is the only way in, and it terminates TLS, which
+      # the iPad apps require even over Tailscale.
+      - "127.0.0.1:5000:5000"
+    restart: unless-stopped
+    # The image ships a HEALTHCHECK against /api/health; the tests read its status.

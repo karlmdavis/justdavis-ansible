@@ -183,6 +183,21 @@ def test_mesh_point_and_router_metrics() -> None:
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
 
 
+def test_mesh_point_history_gauges_are_absent_until_the_event_has_happened() -> None:
+    kitchen_mp = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Kitchen")
+    fresh = replace(kitchen_mp, last_connected_age_seconds=None, last_disconnected_age_seconds=None)
+    snapshot = replace(
+        SNAPSHOT, mesh_points=tuple(fresh if mp is kitchen_mp else mp for mp in SNAPSHOT.mesh_points)
+    )
+    registry, _ = registry_with(snapshot)
+    kitchen = {"mac": "02:00:00:00:00:02", "name": "Kitchen"}
+    living_room = {"mac": "02:00:00:00:00:03", "name": "Living Room"}
+    assert registry.get_sample_value("amplifi_mesh_point_last_disconnected_age_seconds", kitchen) is None
+    assert registry.get_sample_value("amplifi_mesh_point_last_connected_age_seconds", kitchen) is None
+    assert registry.get_sample_value("amplifi_mesh_point_online", kitchen) == 1.0
+    assert registry.get_sample_value("amplifi_mesh_point_last_disconnected_age_seconds", living_room) == 105.0
+
+
 def test_daisy_chained_mesh_point_names_its_uplink_mesh_point() -> None:
     kitchen = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Kitchen")
     living_room = next(mp for mp in SNAPSHOT.mesh_points if mp.name == "Living Room")

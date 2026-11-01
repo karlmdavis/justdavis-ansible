@@ -34,11 +34,13 @@ class MeshPoint:
     uptime_seconds: int | None
     # The router's own counters of backhaul connections since it booted, and how long ago the last
     # connect and disconnect were. AmpliFi does not document the two counters' exact meanings; a
-    # mesh point that keeps re-joining the mesh moves both.
+    # mesh point that keeps re-joining the mesh moves both. The two ages are absent until the event
+    # has happened since the router booted: after the router reboot of 2026-10-30 the Living Room mesh
+    # point, connected once and never dropped, carried no `last_disconnected` for a day.
     connections_to: int
     connections_from: int
-    last_connected_age_seconds: int
-    last_disconnected_age_seconds: int
+    last_connected_age_seconds: int | None
+    last_disconnected_age_seconds: int | None
 
 
 @dataclass(frozen=True, slots=True)

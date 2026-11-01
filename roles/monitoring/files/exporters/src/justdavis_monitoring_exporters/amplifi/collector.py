@@ -179,12 +179,14 @@ class AmplifiCollector(Collector):
         )
         last_connected = GaugeMetricFamily(
             "amplifi_mesh_point_last_connected_age_seconds",
-            "Seconds since the mesh point last joined the mesh.",
+            "Seconds since the mesh point last joined the mesh; absent until it has done so since the "
+            "router booted.",
             labels=_MESH_POINT_LABELS,
         )
         last_disconnected = GaugeMetricFamily(
             "amplifi_mesh_point_last_disconnected_age_seconds",
-            "Seconds since the mesh point last dropped out of the mesh.",
+            "Seconds since the mesh point last dropped out of the mesh; absent until it has done so "
+            "since the router booted.",
             labels=_MESH_POINT_LABELS,
         )
         for mp in snapshot.mesh_points:
@@ -205,8 +207,10 @@ class AmplifiCollector(Collector):
                 uptime.add_metric(labels, float(mp.uptime_seconds))
             connections.add_metric([*labels, "to"], float(mp.connections_to))
             connections.add_metric([*labels, "from"], float(mp.connections_from))
-            last_connected.add_metric(labels, float(mp.last_connected_age_seconds))
-            last_disconnected.add_metric(labels, float(mp.last_disconnected_age_seconds))
+            if mp.last_connected_age_seconds is not None:
+                last_connected.add_metric(labels, float(mp.last_connected_age_seconds))
+            if mp.last_disconnected_age_seconds is not None:
+                last_disconnected.add_metric(labels, float(mp.last_disconnected_age_seconds))
         yield info
         yield online
         yield rssi

@@ -127,8 +127,7 @@ class AirplayScraper:
 
     def _fresh_addresses(self, now: float) -> dict[str, str]:
         """Tracked name -> address for every HomePod the inventory has a fresh address for. A HomePod
-        without one is simply not queried by unicast (its gauge is absent), which is the fail-safe:
-        before 2026-10-30 the addresses came from a file that froze when its writer failed."""
+        without one is simply not queried by unicast (its gauge is absent): that is the fail-safe."""
         inventory = AddressInventory.load(self._inventory_dir, problems=self._problems)
         addresses: dict[str, str] = {}
         for client in self._settings.tracked_clients:

@@ -184,7 +184,7 @@ def _parse_wan_port(element: object, router_mac: Mac) -> WanPort:
 
 def _parse_directory(element: object) -> dict[Mac, DirectoryEntry]:
     """The device directory, entry by entry: an entry that is not a mapping, or a field of the wrong
-    type, costs that entry alone (this element was unparsed until 2026-10-31 and is a secondary source),
+    type, costs that entry alone (this element is a secondary source of addresses),
     but the element itself must be a mapping."""
     directory: dict[Mac, DirectoryEntry] = {}
     for mac_text, entry_value in as_dict(element, "[2]").items():

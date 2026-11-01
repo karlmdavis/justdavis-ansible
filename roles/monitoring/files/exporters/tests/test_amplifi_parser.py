@@ -232,7 +232,7 @@ def test_parses_the_device_directory_and_wired_ports(info_async_bytes: bytes) ->
 
 
 def test_directory_is_read_leniently_entry_by_entry(info_async_bytes: bytes) -> None:
-    # The directory is a secondary source of addresses and was unparsed until 2026-10-31, so one odd
+    # The directory is a secondary source of addresses, so one odd
     # entry must not cost the whole poll the way an odd mesh point does.
     data = json.loads(info_async_bytes)
     data[2]["02:00:00:00:00:40"] = "not a mapping"

@@ -123,7 +123,7 @@ def _parse_mesh_points(node: Mapping[str, object], ctx: str) -> list[MeshPoint]:
                     ),
                     # Both ages are missing until the event has happened since the router booted
                     # (seen 2026-10-30: a mesh point that never dropped after a router reboot had no
-                    # `last_disconnected`, and requiring it failed every scrape for a day).
+                    # `last_disconnected`).
                     last_connected_age_seconds=_optional_int(mp, "last_connected", mp_ctx),
                     last_disconnected_age_seconds=_optional_int(mp, "last_disconnected", mp_ctx),
                 )

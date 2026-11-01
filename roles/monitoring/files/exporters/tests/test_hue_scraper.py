@@ -73,7 +73,7 @@ def make(tmp_path: Path, http: HttpClient) -> tuple[HueScraper, CollectorRegistr
 
 
 def test_bridge_id_is_the_mac_with_fffe_in_the_middle() -> None:
-    assert bridge_id_for(Mac("ec:b5:fa:10:96:3b")) == "ecb5fafffe10963b"
+    assert bridge_id_for(Mac("02:00:00:00:00:30")) == "020000fffe000030"
 
 
 def test_successful_poll_publishes_and_closes_the_connection(tmp_path: Path) -> None:

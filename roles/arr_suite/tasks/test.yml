@@ -17,9 +17,11 @@
     url: http://127.0.0.1:8787/bindery/api/v1/health
     method: GET
     status_code: 200
+  register: bindery_health
   check_mode: false
   retries: 60
   delay: 5
+  until: bindery_health.status == 200
 
 - name: Test - Inspect Bindery Container
   ansible.builtin.command:

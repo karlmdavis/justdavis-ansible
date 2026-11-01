@@ -27,7 +27,7 @@ Written for 10.11.6 to 12.4 on eddings (2026-10-31), but the shape applies to an
 read the release post for the target version; 12.0's is at
 <https://jellyfin.org/posts/jellyfin-release-12.0/>.
 
-Facts that matter on eddings (checked 2026-10-31):
+Facts that matter on eddings (checked 2026-10-31, re-checked 2026-11-01):
 
 - `/var/lib/jellyfin` (about 4 GB), `/etc/jellyfin` and `/var/cache/jellyfin` all live on the root ext4
   volume, not on ZFS, so the backup is a tarball rather than a snapshot.
@@ -39,6 +39,8 @@ Facts that matter on eddings (checked 2026-10-31):
 - 12.x's `jellyfin` metapackage depends on `jellyfin-ffmpeg8`, which conflicts with and replaces
   `jellyfin-ffmpeg7`. Installing the metapackage handles the swap; installing `jellyfin-server` by name
   would not.
+- `jellyfin-ffmpeg7` 7.1.3-3-noble was installed before the upgrade. The repository still publishes every
+  10.x build and every ffmpeg7 build, so the rollback below can pin them.
 - While eddings is the Tailscale exit node, its DNS name times out from the LAN; SSH to the Tailscale IP
   instead.
 
@@ -53,8 +55,18 @@ Facts that matter on eddings (checked 2026-10-31):
 
    Direct upgrades to 12.x are supported from 10.10.7 and 10.11.x only. Going straight to 12.4 is better than
    stopping at 12.0: 12.1 fixed the pre-migration backup and 12.2 fixed a slow migration step.
-2. In the web UI (Dashboard, Users), check that no two usernames differ only by capitalisation; the migration
-   refuses them.
+2. Check that no two usernames differ only by capitalisation; the migration refuses them. Either look at
+   Dashboard, Users in the web UI, or read them from the database (eddings has no `sqlite3` binary, but
+   Python's module works and the `mode=ro` URI keeps it read-only):
+
+   ```bash
+   sudo python3 - <<'PY'
+   import sqlite3
+   con = sqlite3.connect("file:/var/lib/jellyfin/data/jellyfin.db?mode=ro", uri=True)
+   print(sorted(r[0] for r in con.execute("select Username from Users")))
+   PY
+   ```
+
 3. Pick a quiet time. The first start after the upgrade runs the migration with no progress output; a small
    plugin-free database takes seconds to a few minutes.
 
@@ -104,6 +116,8 @@ restoring the automatic copy under `data/SQLiteBackups/<timestamp>` and starting
 5. Play something that forces a transcode and watch `sudo intel_gpu_top`; the Core Ultra 5 235 is Jellyfin's
    "Gen 12.7 (MTL/ARL)" Intel class and `jellyfin-ffmpeg8` bundles the drivers.
 6. Set `jellyfin_min_version: '12.4'` in `host_vars/eddings.justdavis.com/main.yml` and run the role's tests.
+   For the 12.4 upgrade this is already set in the PR that introduced the variable; merge and deploy that PR
+   after the upgrade, not before, or the production run fails on this assert.
 
 ### Rollback
 
@@ -115,7 +129,8 @@ sudo systemctl mask jellyfin
 sudo mv /var/lib/jellyfin /var/lib/jellyfin.failed-12
 sudo mv /etc/jellyfin /etc/jellyfin.failed-12
 sudo tar -C / -xzf /root/jellyfin-pre-12-<date>.tgz
-# The previous packages stay published in the repository; pin them explicitly.
+# The previous packages stay published in the repository; pin them explicitly. 7.1.4-3 is the newest ffmpeg7
+# build; the 7.1.3-3 that eddings ran before the upgrade is also still available.
 sudo apt install jellyfin=10.11.6+ubu2404 jellyfin-server=10.11.6+ubu2404 \
     jellyfin-web=10.11.6+ubu2404 jellyfin-ffmpeg7=7.1.4-3-noble
 sudo systemctl unmask jellyfin

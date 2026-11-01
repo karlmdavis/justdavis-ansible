@@ -28,7 +28,7 @@ reading the files or a later consumer. Addresses are IPv4 only: every consumer (
 AirPlay unicast socket, blackbox) speaks IPv4 on this LAN, and an IPv6 address would break them.
 
 Identity. Consumers ask by MAC, because that is how tracked devices are configured. mDNS announcements
-of Apple devices carry no MAC (2026-10-31: the AirPlay `deviceid` is a separate identifier, not the
+of Apple devices carry no MAC (the AirPlay `deviceid` is a separate identifier, not the
 WiFi MAC; only the Hue bridge's `bridgeid` encodes one) but do carry the hostname, which is the DHCP
 hostname the router's directory pairs with the MAC. So an observation without a MAC is attributed at
 load time to the MAC that any observation within retention pairs with the same hostname, and left

@@ -3,7 +3,7 @@
 # (roles/monitoring/tasks/test.yml).
 #   A: fresh address, ping loss 1, port probe 0 -> HomePodUnreachable and HomePodAirPlayPortDown.
 #   B: stale address (fresh 0), same probe values -> nothing: the probes may be aimed at an address the
-#      HomePod no longer has (2026-10-30), so they are not believed.
+#      HomePod no longer has, so they are not believed.
 #   C: expect_online device with no fresh address -> TrackedDeviceAddressUnknown after 15 minutes; the
 #      same for a tablet (expect_online 0) -> nothing.
 #   D: the mdns source last written 1000 s before now -> DeviceAddressSourceStale; the router source

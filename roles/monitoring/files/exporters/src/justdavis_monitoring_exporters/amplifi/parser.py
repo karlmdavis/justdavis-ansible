@@ -22,7 +22,7 @@ September 2026. The response is a JSON array of six elements:
 2. Device directory: `{mac: {host_name?, description?, ip?, connection, lease_validity?, icon_id,
    ...}}`: every device the router holds a lease or a wired port for, wireless or wired (`connection`
    is "wireless" or "ethernet"). Read leniently, entry by entry, as the second source of device
-   addresses (2026-10-31: 39 entries, 6 of them wired, every one with an address).
+   addresses (every entry carried an address when checked, 2026-10-31).
 3. Wired port map: `{ap_mac: {client_mac: port}}`: the clients on the router's (or a mesh point's)
    Ethernet ports.
 4. Ethernet ports: `{router_mac: {"eth-0": {link, link_speed?, rx_bitrate?, tx_bitrate?}, ...}}`; eth-0

@@ -151,7 +151,7 @@ def test_sightings_identify_the_bridge_by_mac_and_apple_devices_by_hostname() ->
     )
     assert bridge.extra == {"service": "_hue._tcp", "identifier": "020000fffe000030"}
     speaker = by_address["192.0.2.110"]
-    # The AirPlay deviceid is NOT the WiFi MAC (2026-10-31), so the device is known by hostname only,
+    # The AirPlay deviceid is NOT the WiFi MAC, so the device is known by hostname only,
     # and the `_airplay` instance (not the `_raop` one) supplies the name.
     assert (speaker.mac, speaker.hostname, speaker.name) == (None, "speaker-a", "Speaker A")
     assert speaker.extra == {"service": "_airplay._tcp", "identifier": "AA:BB:CC:DD:EE:01"}

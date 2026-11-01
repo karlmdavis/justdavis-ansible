@@ -198,9 +198,8 @@ groups:
       # each also requires that the HomePod's address is fresh. By construction a HomePod with no fresh
       # address has no probe target and no series here, but the probe series outlive a withdrawn target
       # by a scrape or two, and if the LAN discovery exporter itself froze they would outlive it for
-      # good: on 2026-10-30 a HomePod was reported gone for a day because its probes followed an
-      # address it no longer had. With the guard, that failure makes these rules silent while
-      # LanDiscoveryFailing speaks.
+      # good, reporting a HomePod gone because its probes follow an address it no longer has. With the
+      # guard, that failure makes these rules silent while LanDiscoveryFailing speaks.
       - alert: HomePodUnreachable
         expr: >-
           (ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind="homepod"}) == 1

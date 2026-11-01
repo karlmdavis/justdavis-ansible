@@ -10,7 +10,7 @@ hostname the router's directory pairs with the MAC: the AirPlay TXT `deviceid` a
 prefix look like MACs but are a separate identifier (2026-10-31: none of the nine HomePods' matched its
 WiFi MAC), so they travel in `extra` and identify nothing.
 
-What the timing means (2026-10-31): devices announce at start and on change, and a passive browser
+What the timing means: devices announce at start and on change, and a passive browser
 re-queries only PTR records near their expiry, so a quiet device's A record ages in the cache until
 something asks for it; this source is therefore opportunistic, and the neighbour table is the one that
 carries the day for a device nothing has asked about. zeroconf's record timestamps are monotonic

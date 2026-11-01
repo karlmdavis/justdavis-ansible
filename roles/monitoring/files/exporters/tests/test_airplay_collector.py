@@ -322,7 +322,7 @@ def test_scraper_reads_fresh_addresses_from_the_device_inventory(tmp_path: Path)
 
 def test_a_stale_address_is_not_queried_by_unicast(tmp_path: Path) -> None:
     # The fail-safe: no source has seen the device's address within the window, so nothing is sent to
-    # an address that may now belong to another device (2026-10-30: two HomePods had swapped).
+    # an address that may now belong to another device.
     write_inventory(tmp_path, "02:00:00:00:00:10", "192.0.2.110", age_seconds=600)
     resolver = FakeResolver(set(), unicast_resolvable={"Speaker A"})
     registry, collector, errors = build_registry()

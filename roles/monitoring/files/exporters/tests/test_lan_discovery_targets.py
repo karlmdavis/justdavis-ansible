@@ -136,7 +136,7 @@ def test_the_router_listed_as_a_static_target_is_described_once_as_static(tmp_pa
 
 def test_airplay_target_labels_are_sanitised_like_every_other_label(tmp_path: Path) -> None:
     # Otherwise `on (name)` between the port probe and device_address_fresh would never match a name
-    # with a curly apostrophe (one HomePod had one until 2026-09-23).
+    # with a curly apostrophe, which a Bonjour name can carry.
     curly = (tracked("02:00:00:00:00:10", "Parents\u2019 Room", "homepod"),)
     infos = target_infos((), inventory(tmp_path), curly, now=NOW, max_age=MAX_AGE)
     (entry,) = json.loads(render_airplay_targets(infos))

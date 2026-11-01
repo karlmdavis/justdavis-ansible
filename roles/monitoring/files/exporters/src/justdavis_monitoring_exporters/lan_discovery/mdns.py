@@ -5,7 +5,7 @@ instance's SRV record names a host whose A record is the address. A `ServiceBrow
 flowing into zeroconf's cache; this module reads the cache each poll and turns every (device, address)
 it finds into a sighting timed by the A record's arrival. The device is identified by its MAC where
 the records carry one (`_hue._tcp` TXT `bridgeid` is the MAC with `fffe` inserted in the middle:
-`ecb5fafffe10963b` is `ec:b5:fa:10:96:3b`) and otherwise by the SRV hostname, which is the DHCP
+`020000fffe000030` is `02:00:00:00:00:30`) and otherwise by the SRV hostname, which is the DHCP
 hostname the router's directory pairs with the MAC: the AirPlay TXT `deviceid` and the `_raop` instance
 prefix look like MACs but are a separate identifier (2026-10-31: none of the nine HomePods' matched its
 WiFi MAC), so they travel in `extra` and identify nothing.

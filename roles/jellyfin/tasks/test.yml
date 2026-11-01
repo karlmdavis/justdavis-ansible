@@ -19,9 +19,11 @@
     url: http://127.0.0.1:8096/health
     method: GET
     status_code: 200
+  register: jellyfin_health
   check_mode: false
   retries: 30
   delay: 10
+  until: jellyfin_health.status == 200
 
 - name: Test - Get Jellyfin Public System Info
   ansible.builtin.uri:

@@ -9,8 +9,10 @@ configured by hand in the web UI; nothing under `/etc/jellyfin` or `/var/lib/jel
 - Adds the Jellyfin APT repository and installs the `jellyfin` metapackage with `state: present`.
 - Allows port 8096 from `network_home_private_cidr` and `network_tailscale_cidr` in UFW. Jellyfin is not
   proxied through Apache (GitHub issue #35).
-- Tests that the service is active, that `/health` answers, and (optionally) that the running version is at
-  least `jellyfin_min_version`.
+- Installs a daily timer that writes a consistent copy of the SQLite database for the offsite backup (see
+  "Backups").
+- Tests that the service is active, that `/health` answers, that the database copy can be made, and
+  (optionally) that the running version is at least `jellyfin_min_version`.
 - Does **not** upgrade Jellyfin. Majors run a one-way database migration on first start, with no downgrade
   path short of a restore, so upgrades are the manual procedure below. Unattended-upgrades does not touch
   third-party repositories either (see the base role's `50unattended-upgrades.j2`).
@@ -20,6 +22,39 @@ configured by hand in the web UI; nothing under `/etc/jellyfin` or `/var/lib/jel
 - `jellyfin_min_version` (default empty): when set, e.g. `'12.4'`, the tests assert the server reports at
   least that version. Set it in `host_vars` in the same change as a manual upgrade, never ahead of it;
   the tests run in production too, and a value ahead of the installed version fails every run.
+
+## Backups
+
+Everything the family would miss after a rebuild (users, libraries, watched status, resume points,
+hand-corrected matches) is in one SQLite database, `/var/lib/jellyfin/data/jellyfin.db`, which runs in WAL
+mode. Jellyfin's documentation only allows copying it with the server stopped, so instead
+`jellyfin-db-dump.timer` runs `/usr/local/bin/jellyfin-db-dump.py` daily at 02:00 (an hour before the offsite
+backup), which uses SQLite's online backup API to write a consistent snapshot to
+`/var/backups/jellyfin/jellyfin.db`, checks its integrity and replaces the previous copy atomically. A failed
+run mails root like the other timers.
+
+`backup_includes` on eddings then covers `/etc/jellyfin` (server, network and encoding settings),
+`/var/lib/jellyfin/root` (library definitions), `/var/lib/jellyfin/plugins` (plugin settings),
+`/var/lib/jellyfin/data` (subtitles, playlists, scheduled-task triggers, the server id) and
+`/var/backups/jellyfin`, with the live `jellyfin.db*` files excluded. Not backed up: `metadata/` (about 4 GB
+of artwork that a library scan re-fetches or re-extracts), `transcodes/` and caches. The NFO and
+"save artwork into media folders" savers are off on every library, so nothing Jellyfin owns lives in the
+media shares.
+
+### Restoring
+
+```bash
+sudo systemctl stop jellyfin
+# Restore /etc/jellyfin, /var/lib/jellyfin/{root,plugins,data} and /var/backups/jellyfin from restic (see the
+# offsite_backups README), then put the consistent copy in place of whatever live database came back:
+sudo rm -f /var/lib/jellyfin/data/jellyfin.db /var/lib/jellyfin/data/jellyfin.db-wal /var/lib/jellyfin/data/jellyfin.db-shm
+sudo install -o jellyfin -g jellyfin -m u=rw,g=r,o=r /var/backups/jellyfin/jellyfin.db /var/lib/jellyfin/data/jellyfin.db
+sudo chown -R jellyfin:jellyfin /etc/jellyfin /var/lib/jellyfin
+sudo systemctl start jellyfin
+```
+
+Then run a full library scan to rebuild `metadata/`. If the restored database is older than the installed
+Jellyfin, the first start migrates it (see below), so restore onto the same version when possible.
 
 ## Manual upgrade procedure (major versions)
 

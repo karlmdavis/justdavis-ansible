@@ -1,0 +1,10 @@
+[Unit]
+Description=Consistent copy of the Jellyfin database for the offsite backup
+OnFailure=status-email-root@%n.service
+After=jellyfin.service
+
+[Service]
+Type=oneshot
+User=jellyfin
+Group=jellyfin
+ExecStart=/usr/local/bin/jellyfin-db-dump.py /var/lib/jellyfin/data/jellyfin.db /var/backups/jellyfin/jellyfin.db

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run jellyfin-db-dump.service daily, before the offsite backup.
+
+[Timer]
+# The offsite backup starts at 03:00 (plus up to 30 minutes); this leaves the copy fresh for it.
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

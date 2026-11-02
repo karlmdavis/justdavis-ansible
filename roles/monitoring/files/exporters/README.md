@@ -1,19 +1,23 @@
 # Monitoring Exporters
 
-The three custom Prometheus exporters used by the `monitoring` role, packaged as one small Python
+The four custom Prometheus exporters used by the `monitoring` role, packaged as one small Python
 project that builds into one Docker image.
 
 ## What is here
 
 - `amplifi-exporter` reads the AmpliFi router's web UI: which mesh point and band every client is on,
-  its signal quality and link rates, mesh point backhaul health, and WAN throughput. It also rewrites
-  the ping and AirPlay probe target files whenever a tracked device's address changes.
+  its signal quality and link rates, mesh point backhaul health, and WAN throughput. It also records
+  the router's view of every device's address (WiFi and wired) in the device address inventory.
 - `gateway-exporter` reads the Comcast Business gateway's status page: uptime, whether the Internet
   connection is active, and the downstream DOCSIS channels' SNR, power, and codeword error counters.
 - `airplay-exporter` actively resolves each HomePod's AirPlay mDNS services from the LAN side, both by
-  multicast and by a unicast query to the HomePod's address (read back from the target file the AmpliFi
-  exporter writes), and passively records their announcements. From the unicast answer it also reads
-  what each HomePod says it is doing: whether audio is playing, and which group it is in.
+  multicast and by a unicast query to the HomePod's address (the freshest one in the device address
+  inventory), and passively records their announcements. From the unicast answer it also reads what
+  each HomePod says it is doing: whether audio is playing, and which group it is in.
+- `lan-discovery-exporter` watches the LAN passively (mDNS announcements and the host's neighbour table
+  over netlink), records both into the device address inventory (`common/device_addresses.py`), and
+  renders the ping and AirPlay probe target files from whatever addresses are fresh across every
+  source, dropping a device none has seen lately.
 
 Each exporter is a `[project.scripts]` entry point in `pyproject.toml`; the shared runtime (settings,
 HTTP client, scrape loop, metrics server, snapshot handling) lives in `src/.../common/`. Parsers are

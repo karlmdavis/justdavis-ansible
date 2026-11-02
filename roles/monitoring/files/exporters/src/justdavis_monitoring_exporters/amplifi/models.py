@@ -35,8 +35,8 @@ class MeshPoint:
     # The router's own counters of backhaul connections since it booted, and how long ago the last
     # connect and disconnect were. AmpliFi does not document the two counters' exact meanings; a
     # mesh point that keeps re-joining the mesh moves both. The two ages are absent until the event
-    # has happened since the router booted: after the router reboot of 2026-10-30 the Living Room mesh
-    # point, connected once and never dropped, carried no `last_disconnected` for a day.
+    # has happened since the router booted (seen 2026-10-30: a mesh point connected once since the
+    # reboot and never dropped carried no `last_disconnected`).
     connections_to: int
     connections_from: int
     last_connected_age_seconds: int | None
@@ -71,6 +71,21 @@ class WifiClient:
 
 
 @dataclass(frozen=True, slots=True)
+class DirectoryEntry:
+    """One device in the router's directory (element 2): every device it holds a DHCP lease or a wired
+    port for, wireless or not, so this is where a wired device's address comes from."""
+
+    mac: Mac
+    ip: str | None
+    hostname: str | None
+    # "wireless" or "ethernet", as the router spells it.
+    connection: str | None
+    # Seconds of DHCP lease left; -1 for a lease the router treats as permanent (2026-10-31: the
+    # wired devices and the devices with a reserved address).
+    lease_validity: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class WanPort:
     link: bool
     link_speed_mbps: int | None
@@ -85,3 +100,6 @@ class AmplifiSnapshot:
     clients: tuple[WifiClient, ...]
     wan_port: WanPort
     bonjour: Mapping[Mac, frozenset[str]]
+    directory: Mapping[Mac, DirectoryEntry]
+    # The clients the router (or a mesh point) lists on its own Ethernet ports (element 3).
+    wired: frozenset[Mac]

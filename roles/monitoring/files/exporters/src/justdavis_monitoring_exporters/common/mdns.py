@@ -14,6 +14,11 @@ AIRPLAY_SERVICES: tuple[AirplayService, ...] = get_args(AirplayService.__value__
 
 def mdns_type(service: AirplayService) -> str:
     """The fully qualified service type zeroconf uses: `"_airplay._tcp"` -> `"_airplay._tcp.local."`."""
+    return service_type(service)
+
+
+def service_type(service: str) -> str:
+    """The same for any short service type (`"_hue._tcp"` -> `"_hue._tcp.local."`)."""
     return f"{service}.local."
 
 

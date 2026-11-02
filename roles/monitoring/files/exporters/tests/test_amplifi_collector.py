@@ -8,7 +8,6 @@ from prometheus_client import CollectorRegistry, generate_latest
 from justdavis_monitoring_exporters.amplifi.collector import AmplifiCollector, ByteCounterKey
 from justdavis_monitoring_exporters.amplifi.models import AmplifiSnapshot, WanPort
 from justdavis_monitoring_exporters.amplifi.parser import parse_info_async
-from justdavis_monitoring_exporters.amplifi.targets import TargetInfo
 from justdavis_monitoring_exporters.common.counters import ClientByteTotals
 from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
@@ -31,7 +30,6 @@ def registry_with(
     statuses.set(status or ScrapeStatus.initial())
     byte_totals: ClientByteTotals[ByteCounterKey, Mac] = ClientByteTotals(forget_after_polls=2)
     collector = AmplifiCollector(statuses, TRACKED, byte_totals)
-    collector.set_targets((TargetInfo(ip="1.1.1.1", name="1.1.1.1", kind="static"),))
     if snapshot is not None:
         collector.publish(snapshot)
     registry = CollectorRegistry()
@@ -270,17 +268,6 @@ def test_airplay_advertised_from_router_view_for_tracked_homepods() -> None:
             {"mac": "02:00:00:00:00:11", "name": "Speaker B", "kind": "homepod", "service": "_airplay._tcp"},
         )
         == 0.0
-    )
-
-
-def test_target_info_is_exported_from_the_targets_holder() -> None:
-    registry, _ = registry_with(SNAPSHOT)
-    assert (
-        registry.get_sample_value(
-            "monitoring_target_info",
-            {"ip": "1.1.1.1", "name": "1.1.1.1", "kind": "static", "airplay_name": ""},
-        )
-        == 1.0
     )
 
 

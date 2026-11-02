@@ -19,8 +19,12 @@ September 2026. The response is a JSON array of six elements:
    Inactive, ...}}}}}`. Band is "2.4 GHz" or "5 GHz"; network type is "User network", "Guest network"
    or "Internal network" (mesh backhaul, which lacks Address/HostName/Mode). The same client MAC can
    appear under more than one access point while the router still holds a stale association.
-2. Device directory: `{mac: {host_name?, description?, ip?, connection, icon_id, ...}}` (not used).
-3. Wired port map: `{router_mac: {client_mac: port}}` (not used).
+2. Device directory: `{mac: {host_name?, description?, ip?, connection, lease_validity?, icon_id,
+   ...}}`: every device the router holds a lease or a wired port for, wireless or wired (`connection`
+   is "wireless" or "ethernet"). Read leniently, entry by entry, as the second source of device
+   addresses (every entry carried an address when checked, 2026-10-31).
+3. Wired port map: `{ap_mac: {client_mac: port}}`: the clients on the router's (or a mesh point's)
+   Ethernet ports.
 4. Ethernet ports: `{router_mac: {"eth-0": {link, link_speed?, rx_bitrate?, tx_bitrate?}, ...}}`; eth-0
    is the WAN port.
 5. Bonjour/device fingerprints: `{mac: {bonjour?: {ip, services: [...]}, device: {...}}}`.
@@ -30,10 +34,12 @@ configuration. This module is pure: stdlib only, no I/O, and it never returns pa
 """
 
 import json
+import logging
 from collections.abc import Mapping
 
 from justdavis_monitoring_exporters.amplifi.models import (
     AmplifiSnapshot,
+    DirectoryEntry,
     MeshPoint,
     Router,
     WanPort,
@@ -42,6 +48,8 @@ from justdavis_monitoring_exporters.amplifi.models import (
 from justdavis_monitoring_exporters.common.errors import ParseError
 from justdavis_monitoring_exporters.common.jsonutil import as_bool, as_dict, as_int, as_list, as_str, get
 from justdavis_monitoring_exporters.common.settings import Mac, canonical_mac
+
+log = logging.getLogger(__name__)
 
 _EXPECTED_ELEMENTS = 6
 _WAN_PORT = "eth-0"
@@ -115,7 +123,7 @@ def _parse_mesh_points(node: Mapping[str, object], ctx: str) -> list[MeshPoint]:
                     ),
                     # Both ages are missing until the event has happened since the router booted
                     # (seen 2026-10-30: a mesh point that never dropped after a router reboot had no
-                    # `last_disconnected`, and requiring it failed every scrape for a day).
+                    # `last_disconnected`).
                     last_connected_age_seconds=_optional_int(mp, "last_connected", mp_ctx),
                     last_disconnected_age_seconds=_optional_int(mp, "last_disconnected", mp_ctx),
                 )
@@ -174,6 +182,39 @@ def _parse_wan_port(element: object, router_mac: Mac) -> WanPort:
     )
 
 
+def _parse_directory(element: object) -> dict[Mac, DirectoryEntry]:
+    """The device directory, entry by entry: an entry that is not a mapping, or a field of the wrong
+    type, costs that entry alone (this element is a secondary source of addresses),
+    but the element itself must be a mapping."""
+    directory: dict[Mac, DirectoryEntry] = {}
+    for mac_text, entry_value in as_dict(element, "[2]").items():
+        ctx = f"[2].{mac_text}"
+        mac = canonical_mac(mac_text)
+        try:
+            entry = as_dict(entry_value, ctx)
+            directory[mac] = DirectoryEntry(
+                mac=mac,
+                ip=_optional_str(entry, "ip", ctx),
+                hostname=_optional_str(entry, "host_name", ctx),
+                connection=_optional_str(entry, "connection", ctx),
+                lease_validity=_optional_int(entry, "lease_validity", ctx),
+            )
+        except ParseError as exc:
+            log.debug("skipping directory entry: %s", exc)
+    return directory
+
+
+def _parse_wired(element: object) -> frozenset[Mac]:
+    """The MACs on any access point's Ethernet ports; a port map that is not a mapping is skipped."""
+    wired: set[Mac] = set()
+    for ap_mac, ports_value in as_dict(element, "[3]").items():
+        if isinstance(ports_value, Mapping):
+            wired.update(canonical_mac(client_mac) for client_mac in ports_value)
+        else:
+            log.debug("skipping wired port map of %s: not a mapping", ap_mac)
+    return frozenset(wired)
+
+
 def _parse_bonjour(element: object) -> dict[Mac, frozenset[str]]:
     """Return, per MAC, the set of advertised service types (e.g. "_airplay._tcp.local")."""
     bonjour: dict[Mac, frozenset[str]] = {}
@@ -208,4 +249,6 @@ def parse_info_async(body: bytes | str) -> AmplifiSnapshot:
         clients=_parse_clients(elements[1]),
         wan_port=_parse_wan_port(elements[4], router.mac),
         bonjour=_parse_bonjour(elements[5]),
+        directory=_parse_directory(elements[2]),
+        wired=_parse_wired(elements[3]),
     )

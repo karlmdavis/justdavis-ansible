@@ -16,7 +16,12 @@ from typing import Literal, NewType, cast, get_args
 from justdavis_monitoring_exporters.common.errors import ExporterError
 from justdavis_monitoring_exporters.common.jsonutil import as_dict, as_list, as_str
 
-type ClientKind = Literal["homepod", "appletv", "ipad", "phone", "laptop", "other"]
+type ClientKind = Literal["homepod", "appletv", "ipad", "phone", "laptop", "other", "other_infra"]
+# The kinds that are expected on the LAN at all times: HomePods, the Apple TV, and `other_infra`,
+# the kind for always-on devices such as the Hue bridge. Phones, tablets and laptops sleep and rotate
+# their MAC addresses, and `other` is for anything that may be switched off without it being an
+# incident.
+ALWAYS_ON_KINDS: frozenset[str] = frozenset({"homepod", "appletv", "other_infra"})
 
 # A MAC address in canonical form (lowercase, colon-separated), so that router-reported and
 # configured addresses join by plain equality; produced only by `canonical_mac`/`normalise_mac`.
@@ -57,6 +62,12 @@ class TrackedClient:
             raise SettingsError(f"TrackedClient.mac: {self.mac!r} is not a canonical MAC address")
         if not self.name:
             raise SettingsError("TrackedClient.name: must not be empty")
+
+    @property
+    def expect_online(self) -> bool:
+        """Whether the device is expected on the LAN at all times, so that no source seeing its address
+        is worth an alert; follows from the kind (see `ALWAYS_ON_KINDS`)."""
+        return self.kind in ALWAYS_ON_KINDS
 
 
 def _kind(value: str, ctx: str) -> ClientKind:

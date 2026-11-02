@@ -1,5 +1,6 @@
 """Tests for the AmpliFi scraper glue: snapshot publication, error attribution, and target files."""
 
+import time
 from pathlib import Path
 
 import pytest
@@ -12,8 +13,9 @@ from justdavis_monitoring_exporters.amplifi.main import (
     AmplifiSettings,
     build_registry,
 )
-from justdavis_monitoring_exporters.amplifi.targets import PingConfig
+from justdavis_monitoring_exporters.common.device_addresses import DEVICE_ADDRESSES_DIR, AddressInventory
 from justdavis_monitoring_exporters.common.errors import LoginError, ParseError
+from justdavis_monitoring_exporters.common.settings import Mac
 from tests.fakes import FailingHttpClient, FakeHttpClient, response
 from tests.helpers import tracked
 
@@ -31,9 +33,7 @@ def settings(tmp_path: Path) -> AmplifiSettings:
         listen_addr="127.0.0.1",
         interval_seconds=30,
         tracked_clients=TRACKED,
-        static_ping_targets=("1.1.1.1",),
         shared_dir=tmp_path,
-        ping=PingConfig(interval_seconds=1, timeout_seconds=2, history_size=60),
     )
 
 
@@ -58,29 +58,15 @@ def make(
     return AmplifiScraper(settings(tmp_path), client, collector, errors), collector, registry
 
 
-def test_successful_poll_publishes_snapshot_and_writes_target_files(tmp_path: Path) -> None:
+def test_successful_poll_publishes_snapshot_and_records_sightings(tmp_path: Path) -> None:
     scraper, _collector, registry = make(tmp_path)
     scraper()
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
-    assert (
-        registry.get_sample_value(
-            "monitoring_target_info",
-            {"ip": "192.0.2.110", "name": "Speaker A", "kind": "homepod", "airplay_name": "Speaker A's Room"},
-        )
-        == 1.0
-    )
-    assert (tmp_path / "ping-targets.yml").read_text().endswith("  - 192.0.2.110\n")
-    assert '"192.0.2.110:7000"' in (tmp_path / "airplay-targets.json").read_text()
-    assert registry.get_sample_value("amplifi_target_files_ok") == 1.0
-
-
-def test_unchanged_poll_does_not_rewrite_target_files(tmp_path: Path) -> None:
-    scraper, _collector, _registry = make(tmp_path)
-    scraper()
-    # write_if_changed replaces the file, so an unchanged inode means no rewrite happened.
-    before = (tmp_path / "ping-targets.yml").stat().st_ino
-    scraper()
-    assert (tmp_path / "ping-targets.yml").stat().st_ino == before
+    inventory = AddressInventory.load(tmp_path / DEVICE_ADDRESSES_DIR)
+    seen = inventory.latest(Mac("02:00:00:00:00:10"), now=time.time(), max_age=60)
+    assert seen is not None and (seen.source, seen.address) == ("router", "192.0.2.110")
+    assert inventory.role(Mac("02:00:00:00:00:01")) == "router"
+    assert registry.get_sample_value("amplifi_address_source_ok") == 1.0
 
 
 def test_login_failure_clears_snapshot_and_counts_login_stage(tmp_path: Path) -> None:
@@ -103,20 +89,12 @@ def test_parse_failure_clears_snapshot_and_counts_parse_stage(tmp_path: Path) ->
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "parse"}) == 1.0
 
 
-def test_target_file_write_failure_is_reported_without_failing_the_poll(tmp_path: Path) -> None:
+def test_inventory_write_failure_is_reported_without_failing_the_poll(tmp_path: Path) -> None:
     scraper, _collector, registry = make(tmp_path / "missing")
     scraper()
     assert registry.get_sample_value("amplifi_router_uptime_seconds") == 33652.0
-    assert registry.get_sample_value("amplifi_target_files_ok") == 0.0
+    assert registry.get_sample_value("amplifi_address_source_ok") == 0.0
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "write"}) == 1.0
-
-
-def test_seed_only_creates_missing_target_files(tmp_path: Path) -> None:
-    scraper, _collector, _registry = make(tmp_path)
-    (tmp_path / "ping-targets.yml").write_text("ping:\n  interval: 1s\ntargets:\n  - 192.0.2.99\n")
-    scraper.seed_targets()
-    assert "192.0.2.99" in (tmp_path / "ping-targets.yml").read_text()
-    assert (tmp_path / "airplay-targets.json").read_text() == "[]\n"
 
 
 def test_errors_counter_is_served_from_the_same_registry_as_the_collector() -> None:
@@ -137,10 +115,10 @@ def test_unreachable_router_clears_snapshot_and_counts_fetch_stage(tmp_path: Pat
     assert registry.get_sample_value("amplifi_scrape_errors_total", {"stage": "login"}) == 0.0
 
 
-def test_target_files_ok_recovers_once_the_directory_is_writable(tmp_path: Path) -> None:
+def test_address_source_ok_recovers_once_the_directory_is_writable(tmp_path: Path) -> None:
     scraper, _collector, registry = make(tmp_path / "missing")
     scraper()
-    assert registry.get_sample_value("amplifi_target_files_ok") == 0.0
+    assert registry.get_sample_value("amplifi_address_source_ok") == 0.0
     (tmp_path / "missing").mkdir()
     scraper()
-    assert registry.get_sample_value("amplifi_target_files_ok") == 1.0
+    assert registry.get_sample_value("amplifi_address_source_ok") == 1.0

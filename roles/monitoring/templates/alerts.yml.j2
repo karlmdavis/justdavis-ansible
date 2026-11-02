@@ -69,6 +69,20 @@ groups:
         annotations:
           summary: "The AirPlay mDNS probe is not running (check MONITORING_LAN_IP and host networking)"
 
+      # lan_discovery_up is 0 when the exporter could not load the device address inventory or could
+      # not write the probe target files; a single address source failing does not clear it (that is
+      # DeviceAddressSourceStale's business). While this fires the target files are frozen, so the
+      # HomePod rules that depend on addresses go quiet rather than following stale ones.
+      - alert: LanDiscoveryFailing
+        expr: lan_discovery_up == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The LAN discovery exporter cannot render the probe targets from the device address
+            inventory; the ping and AirPlay target files are frozen until it recovers
+
       # The notification path itself: a rotated Slack token or a deleted Discord webhook would
       # otherwise turn every alert into a silent one. Two receivers means a failure of one is still
       # deliverable through the other.
@@ -169,6 +183,9 @@ groups:
     rules:
       # The ping and AirPlay probes drop a HomePod within one poll of it leaving the WiFi, so the
       # rules below cannot see that case; this one can.
+      # This is the router's view alone, so it is blind while the AmpliFi scrape is down (the series
+      # is cleared, and AmpliFiScrapeFailing says so); a HomePod gone from every address source is
+      # TrackedDeviceAddressUnknown's business.
       - alert: HomePodNotOnWifi
         expr: amplifi_tracked_client_associated{kind="homepod"} == 0
         for: 5m
@@ -177,9 +194,16 @@ groups:
         annotations:
           summary: "HomePod {{ L }} $labels.name {{ R }} is not associated with any access point"
 
+      # The two rules below rest on probes aimed at addresses from the device address inventory, so
+      # each also requires that the HomePod's address is fresh. By construction a HomePod with no fresh
+      # address has no probe target and no series here, but the probe series outlive a withdrawn target
+      # by a scrape or two, and if the LAN discovery exporter itself froze they would outlive it for
+      # good, reporting a HomePod gone because its probes follow an address it no longer has. With the
+      # guard, that failure makes these rules silent while LanDiscoveryFailing speaks.
       - alert: HomePodUnreachable
         expr: >-
           (ping_loss_ratio * on (ip) group_left (name, kind) monitoring_target_info{kind="homepod"}) == 1
+          and on (name) device_address_fresh == 1
         for: 5m
         labels:
           severity: warning
@@ -187,7 +211,7 @@ groups:
           summary: "HomePod {{ L }} $labels.name {{ R }} ({{ L }} $labels.ip {{ R }}) is not answering ping"
 
       - alert: HomePodAirPlayPortDown
-        expr: probe_success{job="airplay_tcp"} == 0
+        expr: probe_success{job="airplay_tcp"} == 0 and on (name) device_address_fresh == 1
         for: 5m
         labels:
           severity: warning
@@ -202,7 +226,9 @@ groups:
       # wired LAN, the worst case for the multicast path to a 5 GHz client, which the devices that
       # actually send AirPlay are not on. The gauge is still recorded and charted. The cost is a
       # HomePod that fails multicast while its address is unknown, so that unicast cannot be tried:
-      # nothing here reports it, and if it is off the network `HomePodNotOnWifi` does.
+      # nothing here reports it, and if it is off the network `HomePodNotOnWifi` does. No freshness
+      # guard is needed: the unicast gauge exists only for a HomePod whose address the inventory calls
+      # fresh (and its `name` is the AirPlay name, which device_address_fresh does not carry).
       - alert: HomePodAirPlayServiceGone
         expr: >-
           airplay_service_unicast_resolved{service="_airplay._tcp"} == 0
@@ -278,17 +304,43 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "The AmpliFi exporter cannot read the router"
+          summary: >-
+            The AmpliFi exporter cannot read the router: the WiFi association, signal and mesh series are
+            gone and HomePodNotOnWifi is blind until it recovers; device addresses still come from mDNS
+            and the neighbour table
 
-      # The exporter keeps polling when it cannot rewrite the shared target files, but the ping and
-      # AirPlay probes then keep following stale HomePod addresses.
-      - alert: AmpliFiTargetFilesNotWritable
-        expr: amplifi_target_files_ok == 0
-        for: 10m
+  # The device address inventory (common/device_addresses.py in the exporters): where the probes learn
+  # each tracked device's address, and what to say when they cannot.
+  - name: addresses
+    rules:
+      # No source (router, mDNS, neighbour table) has seen the device's address within the freshness
+      # window, so it is not being probed at all. Only for the kinds expected online at all times
+      # (homepod, appletv, other_infra; the exporter sets the label from the kind): phones, tablets
+      # and laptops sleep and rotate their addresses, and a device someone switched off is not an
+      # incident.
+      - alert: TrackedDeviceAddressUnknown
+        expr: device_address_fresh{expect_online="1"} == 0
+        for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "The AmpliFi exporter cannot write the ping/AirPlay target files in /shared"
+          summary: >-
+            {{ L }} $labels.kind {{ R }} {{ L }} $labels.name {{ R }} has had no address from any source
+            (router, mDNS, neighbour table) for the freshness window, so nothing is probing it
+
+      # A producer that has stopped writing its file. The router source is left out: when it stops,
+      # AmpliFiScrapeFailing already says so, and two notifications for one cause is noise. A source the
+      # exporter is not running (no LAN subnet configured) never writes, which is not staleness.
+      - alert: DeviceAddressSourceStale
+        expr: >-
+          (time() - device_address_source_last_write_timestamp_seconds{source=~"mdns|arp"} > 900)
+          and on (source) device_address_source_enabled == 1
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The {{ L }} $labels.source {{ R }} source of the device address inventory has not been
+            written for 15 minutes
 
   - name: gateway
     rules:

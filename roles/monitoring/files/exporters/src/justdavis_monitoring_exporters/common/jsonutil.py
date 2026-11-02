@@ -27,6 +27,13 @@ def as_str(value: object, ctx: str) -> str:
     raise ParseError(f"{ctx}: expected string, got {type(value).__name__}")
 
 
+def as_float(value: object, ctx: str) -> float:
+    """A JSON number (int or float, not bool) as a float."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ParseError(f"{ctx}: expected a number")
+    return float(value)
+
+
 def as_int(value: object, ctx: str) -> int:
     if isinstance(value, int) and not isinstance(value, bool):
         return value

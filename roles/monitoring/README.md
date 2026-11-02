@@ -23,12 +23,17 @@ unit:
 - **node_exporter** records eddings' own CPU, memory, and WAN/LAN interface counters.
 - **amplifi_exporter** (custom) reads the AmpliFi router's web UI: which mesh point and band every
   client is on, its signal quality and link rates, mesh point backhaul health, and WAN throughput. It
-  also keeps the ping and AirPlay probe target lists in sync with DHCP.
+  also records the router's view of every device's address in the device address inventory.
 - **gateway_exporter** (custom) reads the Comcast Business gateway's status page: uptime, whether the
   Internet connection is active, and the downstream DOCSIS channels' SNR, power, and codeword error
   counters.
 - **airplay_exporter** (custom) actively resolves each HomePod's AirPlay mDNS services from the LAN
-  side every poll, and passively browses announcements.
+  side every poll, and passively browses announcements; its unicast queries go to the addresses the
+  device address inventory calls fresh.
+- **lan_discovery_exporter** (custom) watches the LAN passively (mDNS announcements and the host's
+  neighbour table), keeps the device address inventory with them, and renders the ping and AirPlay
+  probe target files from whatever addresses are fresh, so the probes follow DHCP without depending on
+  any one source.
 
 The custom exporters are a small typed Python package in `files/exporters/` (see below).
 
@@ -92,8 +97,9 @@ down a column is the diagnosis; the last column is the rule that says so.
 | Failure | What isolates it | Alert |
 |---|---|---|
 | HomePod has left the WiFi | `amplifi_tracked_client_associated` is 0 (the ping and AirPlay probes drop it at the same moment, so only this gauge can see it). | `HomePodNotOnWifi` |
-| HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1. `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
-| HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
+| HomePod is on the WiFi but not reachable | Associated, but `ping_loss_ratio` for its address is 1 (and that address is fresh, see below). `amplifi_client_signal_quality`, band, and mesh point say whether the radio link is the reason. | `HomePodUnreachable` |
+| HomePod is reachable but AirPlay is wedged | Ping is fine, but the TCP probe of port 7000 (`probe_success`) fails, at a fresh address. Restarting the HomePod fixes this one. | `HomePodAirPlayPortDown` |
+| How the probes know each device's address | The device address inventory: three sources each record what they see (the router's client table and wired directory, mDNS announcements, the host's neighbour table), and the probes use the freshest observation under three minutes old, preferring the neighbour table (the device itself answering for the address), then mDNS, then the router. `device_address_fresh` is 1 for a tracked device being probed, `device_address_age_seconds{source}` says how long since any source saw it. A device no source has seen for three minutes is not probed at all: its ping, port and unicast series end rather than following an address it may no longer have. | `TrackedDeviceAddressUnknown`, for the kinds expected online at all times. |
 | HomePod answers on port 7000 but the multicast path has lost it | Port open and a unicast mDNS query to the HomePod's own address answers (`airplay_service_unicast_resolved` is 1), but the multicast query from the wired LAN (`airplay_service_resolved`) fails. Seen 2026-09-24 on 5 GHz clients of every access point, never on 2.4 GHz; the HomePod recovers on its own next announcement, and a phone may still list it from its cache. `amplifi_client_airplay_advertised` gives the router's view for comparison. | None: recorded and charted. It was an alert until 2026-09-28, and fired most of the time for HomePods that could be played to. |
 | HomePod's AirPlay service is down | Neither the multicast nor the unicast mDNS query answers (both gauges 0), so this is the device, not the network path. | `HomePodAirPlayServiceGone` |
 | HomePod is on a distant mesh point, the wrong band, or the wrong SSID | `amplifi_client_info{ap_name,band,network}` history on the WiFi dashboard. Since 2026-10-03 the HomePods live on a 2.4 GHz-only SSID (the router reports it as `network="Device specific network"`; the main SSID is `"User network"`), because HomePods on 5 GHz kept dropping out of the multicast path described above. A HomePod back on 5 GHz or on the main SSID means someone moved it. | None yet: recorded first, rule later. |
@@ -110,21 +116,25 @@ down a column is the diagnosis; the last column is the rule that says so.
 | Something rebooted (or was power cycled) | Uptime under ten minutes for the router, a mesh point, or the gateway; correlate with the rows above. | `AmpliFiRebooted`, `MeshPointRebooted`, `GatewayRebooted` |
 | The WAN link is saturated | `amplifi_wan_*_bits_per_second` and `node_network_*_bytes_total{device="br-wan"}` against the latency panels. | None: dashboard only. |
 | Prometheus cannot reach an exporter | `up` is 0 for the job. | `CollectorDown` |
-| An exporter runs but cannot read its device | `<name>_up` is 0 and `<name>_scrape_errors_total{stage}` names the step (login, fetch, tls, parse, write, resolve). | `AmpliFiScrapeFailing`, `GatewayScrapeFailing`, `AirPlayProbeFailing` |
-| The router is read but the probe targets cannot be updated | `amplifi_target_files_ok` is 0; probes keep following stale addresses. | `AmpliFiTargetFilesNotWritable` |
+| An exporter runs but cannot read its device | `<name>_up` is 0 and `<name>_scrape_errors_total{stage}` names the step (login, fetch, tls, parse, write, resolve, read, arp). | `AmpliFiScrapeFailing`, `GatewayScrapeFailing`, `AirPlayProbeFailing`, `LanDiscoveryFailing` |
+| One source of device addresses has stopped | `device_address_source_last_write_timestamp_seconds{source}` stops advancing; the other sources carry on, so nothing else changes until a device moves. The router source's failure is already `AmpliFiScrapeFailing`, so only the two sources inside the LAN discovery exporter alert here. | `DeviceAddressSourceStale` |
 | The WAN probe itself has gone missing | `absent()` of the anchor's ping series, without which the three WAN rules would be silent. | `WanProbeMissing` |
 | Alerts are not being delivered | Alertmanager's failed-notification counter, or Prometheus seeing no Alertmanager. | `AlertmanagerNotificationsFailing`, `PrometheusAlertmanagerUnreachable` |
 | The offsite backup is not happening | `offsite_backups_*` gauges from the `offsite_backups` role. | `OffsiteBackupStale`, `OffsiteBackupFailed`, `OffsiteBackupMetricsMissing` |
 
-### Why three custom exporters
+### Why four custom exporters
 
 No existing Prometheus exporter fits any of the three devices; the exporters' README
-(`files/exporters/README.md`) records what was found and why it was not usable.
+(`files/exporters/README.md`) records what was found and why it was not usable. The fourth, the LAN
+discovery exporter, exists because the probes' addresses used to come from the router scrape alone,
+and on 2026-10-30 that scrape failed for a day while the HomePods' addresses moved: the probes watched
+the wrong devices and said so with confidence. It keeps the device address inventory from sources that
+fail independently and renders the probe targets from it, dropping a device no source has seen lately.
 
 ### Networking
 
-Services that need the host's network stack (`node_exporter`, `ping_exporter`, `airplay_exporter`)
-run with host networking but bind their metrics endpoints to the gateway address of a dedicated,
+Services that need the host's network stack (`node_exporter`, `ping_exporter`, `airplay_exporter`,
+`lan_discovery_exporter`) run with host networking but bind their metrics endpoints to the gateway address of a dedicated,
 fixed-subnet Docker bridge network; a ufw rule admits only that subnet. Everything else lives on the
 bridge and publishes on `127.0.0.1` only. This mirrors how the Immich network reaches PostgreSQL, and
 keeps the parsers of untrusted router/gateway output off the host's loopback (which Postfix trusts).
@@ -144,6 +154,10 @@ fits". It is deliberately not backed up.
   AWS test environment receives dummy values.
 - Containers run as the unprivileged `monitoring` user with read-only root filesystems and dropped
   capabilities (`ping_exporter` keeps `NET_RAW`; `node_exporter` uses its image's `nobody` user).
+- The LAN discovery exporter receives no credentials: it reads multicast DNS and the kernel's
+  neighbour table (an unprivileged netlink dump) and writes only under `/opt/monitoring/shared`. The
+  inventory files there list every LAN device's addresses and hostnames, which is why the directory is
+  service-owned and not world readable, like the TSDB that holds the same history.
 - The AmpliFi password is the router's only admin credential; compromise of
   `/opt/monitoring/amplifi-credentials.env` equals control of the LAN. Each device scraper receives
   only its own device's credentials file, and the host-network AirPlay probe receives none. The
@@ -186,8 +200,12 @@ vault_monitoring_tracked_clients:
     airplay_name: Kitchen
 ```
 
-`kind` is one of `homepod`, `appletv`, `ipad`, `phone`, `laptop`, or `other`. Only `homepod` entries
-get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never in loss alerts.
+`kind` is one of `homepod`, `appletv`, `ipad`, `phone`, `laptop`, `other`, or `other_infra`. Only
+`homepod` entries get AirPlay probes and HomePod alerts; phones and iPads sleep, so they are never in
+loss alerts. `homepod`, `appletv` and `other_infra` devices are expected on the LAN at all times, so no
+source knowing their address for three minutes is alerted on (`TrackedDeviceAddressUnknown`); use
+`other_infra` for an always-on device that is none of the named kinds (the Hue bridge) and `other` for
+anything that may be switched off or that rotates its address.
 
 ## Adding or Changing a Tracked Device
 
@@ -215,9 +233,10 @@ codewords a second, and a first estimate (1% is the field rule of thumb for when
 worst 15 minutes of the first five days was 0.26% with nothing noticed); the
 gateway reporting its Internet connection inactive for 2 minutes; HomePods off the WiFi, not answering
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
-can no longer be read for its playback state; a mesh point offline or missing
-from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series
-going missing; the offsite backup
+can no longer be read for its playback state; a tracked device expected online at all times whose address
+no source has seen for three minutes, and an address source that stops writing; a mesh point offline or
+missing from the topology; router, mesh point, or gateway reboots; collectors that stop working; the WAN
+probe series going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which
@@ -251,6 +270,27 @@ and sit at 2^32-1 for hours when unavailable. The first version read those resta
 credited a phone with 10 GB in a day (2026-09-24); `common/counters.py` documents the observed behaviour
 and the rules now applied. The `amplifi_client_{rx,tx}_link_bits_per_second` gauges are the negotiated
 PHY link rates, not throughput.
+
+The device address inventory (`common/device_addresses.py`) is how the probes learn each tracked
+device's address. Three producers each write their own file under `/opt/monitoring/shared/device-addresses/`
+and never read another's: the AmpliFi exporter writes the router's view (WiFi associations and the wired
+device directory), the LAN discovery exporter writes what mDNS announces and what the kernel's neighbour
+table holds. Each file keeps every (device, address) pair the producer has seen with first- and
+last-seen times, bounded to eight addresses per device and seven days. Consumers (the LAN discovery
+exporter for the target files, the AirPlay exporter for its unicast queries) collapse at time of use:
+the freshest observation within three minutes, preferring the neighbour table, then mDNS, then the
+router, and nothing at all when no source is fresh. mDNS knows Apple devices by hostname only (the
+AirPlay `deviceid` is not the WiFi MAC), so those observations are attributed to a
+MAC through the hostname the router's directory pairs with it; the Hue bridge's `bridgeid` encodes its
+MAC directly. The neighbour table is the source that stays fresh on its own, because ping_exporter's
+one ping a second keeps every probed device's entry confirmed; a device no source has seen lately gets
+one mDNS request and one datagram to each address it has had, never a sweep of the subnet (2.4 GHz
+airtime is the scarce resource here). The host's `arp_accept` sysctl is set so a device announcing a
+new lease lands in the table without being asked. Measured with the exporter running (2026-11-02, one
+minute on the LAN bridge): about 60 ARP frames a minute on the whole LAN, 23 of them broadcast; eddings
+itself sent about 30, of which 27 were unicast (the kernel re-validating its ping targets' entries) and
+3 broadcast, none attributable to the exporter. A sweep of the /24 every poll would have added about
+600 broadcasts a minute.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.
@@ -303,9 +343,14 @@ the stack restarts cleanly during a WAN outage.
 - The passive mDNS browser can lag a device's disappearance by up to the record TTL; the active
   resolve is the signal alerts use. The `_raop._tcp` instance name carries a device-id prefix that is
   learned from passive discovery, so its resolved gauge stays 0 until the HomePod has announced once.
-- The ping and AirPlay target files keep their last contents across exporter restarts, so a HomePod
-  that moved while the stack was down is probed at its old address until the first successful poll.
-  The AirPlay exporter's unicast queries read the same file, so they follow the same lag.
+- A tracked device no source has seen for three minutes is not probed at all: its ping, port and
+  unicast series end, `device_address_fresh` reads 0, and it comes back once any source sees it again.
+  The ping and AirPlay target files keep their last contents across a stack restart, so a device that
+  moved while the stack was down is probed at its old address until the first poll replaces them.
+- The mDNS source is opportunistic: devices announce at start and on change, and a passive browser
+  only re-queries the service pointers, so a quiet device's address record ages in the cache (the
+  AirPlay exporter's own queries keep the HomePods' fresh as a side effect). The neighbour table is the
+  source to rely on, and a device on 5 GHz that the wired multicast path has lost shows up there alone.
 - The mDNS probes originate on the router's wired LAN port (eddings), which is the worst case for the
   multicast path to 5 GHz clients: a phone on the WiFi can list a HomePod the multicast gauge shows as
   lost. The unicast gauge tells that case from a HomePod whose AirPlay service is actually down.
@@ -326,6 +371,9 @@ the stack restarts cleanly during a WAN outage.
 sudo systemctl status monitoring
 sudo docker compose -f /opt/monitoring/docker-compose.yml logs --tail=100 amplifi_exporter
 curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"job"|"health"'
+# The device address inventory: which source last wrote, and which tracked devices have a fresh address.
+sudo ls -l /opt/monitoring/shared/device-addresses/
+curl -s http://172.28.0.1:9804/metrics | grep -E '^device_address_(fresh|source)'
 ```
 
 ### Diagnostic Scripts

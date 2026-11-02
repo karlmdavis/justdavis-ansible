@@ -15,10 +15,10 @@ from prometheus_client import CollectorRegistry, Counter
 from justdavis_monitoring_exporters.airplay.collector import AirplayCollector
 from justdavis_monitoring_exporters.airplay.models import ServiceKey, ServiceObservation
 from justdavis_monitoring_exporters.airplay.resolver import Resolver, ZeroconfResolver, poll
-from justdavis_monitoring_exporters.airplay.targets import AddressBook
-from justdavis_monitoring_exporters.amplifi.targets import AIRPLAY_TARGETS_FILE
+from justdavis_monitoring_exporters.common.device_addresses import DEVICE_ADDRESSES_DIR, AddressInventory
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
 from justdavis_monitoring_exporters.common.metrics import count_error, error_counter
+from justdavis_monitoring_exporters.common.problem_log import ProblemLog
 from justdavis_monitoring_exporters.common.server import (
     configure_logging,
     load_settings,
@@ -48,8 +48,10 @@ class AirplaySettings:
     interval_seconds: int
     resolve_timeout_ms: int
     tracked_clients: tuple[TrackedClient, ...]
-    # Where the AmpliFi exporter writes the AirPlay target file this exporter reads addresses from.
+    # Where the device address inventory lives (shared_dir/device-addresses), and how old an address
+    # may be and still be queried by unicast; the same window the LAN discovery exporter uses.
     shared_dir: Path
+    max_age_seconds: int
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AirplaySettings":
@@ -61,6 +63,7 @@ class AirplaySettings:
             resolve_timeout_ms=env_int(env, "MONITORING_AIRPLAY_RESOLVE_TIMEOUT_MS", 3000, minimum=100),
             tracked_clients=parse_tracked_clients(env.get("MONITORING_TRACKED_CLIENTS", "")),
             shared_dir=Path(env_str(env, "MONITORING_SHARED_DIR", "/shared")),
+            max_age_seconds=env_int(env, "MONITORING_DEVICE_ADDRESS_MAX_AGE", 180, minimum=1),
         )
 
 
@@ -97,17 +100,19 @@ class AirplayScraper:
         self._errors = errors
         self._last_seen: dict[ServiceKey, float] = {}
         self._unreadable: dict[ServiceKey, str] = {}
-        self._addresses = AddressBook(settings.shared_dir / AIRPLAY_TARGETS_FILE)
+        self._inventory_dir = settings.shared_dir / DEVICE_ADDRESSES_DIR
+        self._problems = ProblemLog(log)
 
     def __call__(self) -> None:
-        addresses = self._addresses.read()
+        now = time.time()
         try:
+            addresses = self._fresh_addresses(now)
             snapshot = poll(
                 self._resolver,
                 self._settings.tracked_clients,
                 addresses=addresses,
                 timeout_ms=self._settings.resolve_timeout_ms,
-                now=time.time(),
+                now=now,
                 last_seen=self._last_seen,
             )
         except Exception:
@@ -119,6 +124,19 @@ class AirplayScraper:
                 self._last_seen[key] = seen.last_seen
             self._log_readability(key, seen)
         self._collector.publish(snapshot)
+
+    def _fresh_addresses(self, now: float) -> dict[str, str]:
+        """Tracked name -> address for every HomePod the inventory has a fresh address for. A HomePod
+        without one is simply not queried by unicast (its gauge is absent): that is the fail-safe."""
+        inventory = AddressInventory.load(self._inventory_dir, problems=self._problems)
+        addresses: dict[str, str] = {}
+        for client in self._settings.tracked_clients:
+            if client.kind != "homepod":
+                continue
+            latest = inventory.latest(client.mac, now=now, max_age=self._settings.max_age_seconds)
+            if latest is not None:
+                addresses[client.name] = latest.address
+        return addresses
 
     def _log_readability(self, key: ServiceKey, seen: ServiceObservation) -> None:
         """A poll with no answer changes nothing: it says nothing about the record."""

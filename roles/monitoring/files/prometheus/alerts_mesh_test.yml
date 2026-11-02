@@ -1,0 +1,77 @@
+# promtool unit test for the mesh point backhaul rules. The role's smoke tests run it against the
+# alert rules rendered with the device groups (roles/monitoring/tasks/test.yml).
+#   A: backhaul on 2.4 GHz throughout -> MeshPointBackhaulOn24GHz after an hour, not before.
+#   B: backhaul on 5 GHz throughout -> nothing.
+#   C: mean round trip 30 ms throughout -> MeshPointBackhaulSlow after 30 minutes of a 30-minute
+#      average, not before; the same round trip on a HomePod's address -> nothing (not a mesh point).
+#   D: five re-joins inside an hour -> MeshPointBackhaulFlapping; two -> nothing.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'amplifi_mesh_point_info{name="A", mac="02:00:00:00:00:f1", backhaul_band="2.4 GHz", level="2", uplink="Router", platform="AFi-P-HD"}'
+        values: '1x70'
+      - series: 'amplifi_mesh_point_info{name="B", mac="02:00:00:00:00:f2", backhaul_band="5 GHz", level="2", uplink="Router", platform="AFi-P-HD"}'
+        values: '1x70'
+      - series: 'ping_rtt_mean_seconds{ip="192.0.2.11"}'
+        values: '0.03x70'
+      - series: 'monitoring_target_info{ip="192.0.2.11", name="A", kind="mesh_point", airplay_name="A"}'
+        values: '1x70'
+      - series: 'ping_rtt_mean_seconds{ip="192.0.2.110"}'
+        values: '0.03x70'
+      - series: 'monitoring_target_info{ip="192.0.2.110", name="Speaker-A", kind="homepod", airplay_name="Speaker A"}'
+        values: '1x70'
+      # Re-join counters: A climbs by five in the first hour, B by two.
+      - series: 'amplifi_mesh_point_connections_total{name="A", mac="02:00:00:00:00:f1", direction="to"}'
+        values: '10 10 11 11 12 12 13 13 14 14 15x60'
+      - series: 'amplifi_mesh_point_connections_total{name="B", mac="02:00:00:00:00:f2", direction="to"}'
+        values: '10 10 11 11 12x66'
+    alert_rule_test:
+      - eval_time: 59m
+        alertname: MeshPointBackhaulOn24GHz
+        exp_alerts: []
+      - eval_time: 61m
+        alertname: MeshPointBackhaulOn24GHz
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: A
+              mac: "02:00:00:00:00:f1"
+              backhaul_band: 2.4 GHz
+              level: "2"
+              uplink: Router
+              platform: AFi-P-HD
+            exp_annotations:
+              summary: >-
+                Mesh point A has had a 2.4 GHz backhaul for an hour: slow for everything behind it and a
+                load on the router's 2.4 GHz radio; restarting the mesh point from the AmpliFi app makes
+                it pick its backhaul again
+      - eval_time: 29m
+        alertname: MeshPointBackhaulSlow
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: MeshPointBackhaulSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: A
+              kind: mesh_point
+              ip: 192.0.2.11
+            exp_annotations:
+              summary: >-
+                Mesh point A has answered ping in 30ms on average for an hour, against about 2 ms when its
+                backhaul is healthy
+      - eval_time: 30m
+        alertname: MeshPointBackhaulFlapping
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: A
+              mac: "02:00:00:00:00:f1"
+              direction: to
+            exp_annotations:
+              summary: Mesh point A re-joined the mesh 5 times in the last hour

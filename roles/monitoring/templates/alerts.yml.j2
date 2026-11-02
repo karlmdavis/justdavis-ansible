@@ -50,6 +50,16 @@
 {% set reboot_uptime_seconds = 600 %}
 {# The offsite backup runs nightly; 36 hours tolerates one missed or overlong run before alerting. #}
 {% set backup_max_age_seconds = 129600 %}
+{# Mesh point backhaul. The thresholds were chosen by replaying the rules over the 40 days of data to
+   2026-11-01, which held one bad episode: the Kitchen mesh point's backhaul fell from 5 GHz to 2.4 GHz on
+   2026-10-16 and stayed there until a restart on 11-01, taking its mean round trip from 2 ms to 40-85 ms a
+   day, every client behind it and on the router's 2.4 GHz radio with it, and nobody noticed for 16 days.
+   Mean round trip above 20 ms over 30 minutes: never two windows in a row before the episode, sustained
+   from 10-21. Three or more re-joins in an hour: only on 10-28 and 10-30, and single hours on three other
+   days; above one in an hour fires on scattered single hours all through September. A 2.4 GHz backhaul
+   for an hour: only the episode and the mesh's first day. #}
+{% set mesh_point_rtt_mean_seconds = 0.02 %}
+{% set mesh_point_rejoins_per_hour = 3 %}
 groups:
   - name: collectors
     rules:
@@ -297,6 +307,49 @@ groups:
           summary: >-
             Mesh point {{ L }} $labels.name {{ R }} is no longer in the router's topology at all,
             online or offline
+
+      # The backhaul. A 2.4 GHz backhaul is slow and shares the router's 2.4 GHz radio with the HomePods,
+      # so a mesh point on one degrades the whole 2.4 GHz band (2026-10-16 to 11-01, see the README);
+      # restarting the mesh point from the AmpliFi app made it rejoin on 5 GHz. The round-trip rule
+      # catches a backhaul that is slow for any other reason, including a daisy chain through a bad
+      # link, and lagged the band change by five days in the one episode; the re-join rule catches a
+      # backhaul that keeps dropping. Daisy-chaining (level 3) by itself is not alerted on: the Kitchen
+      # mesh point hung off the Living Room one on 5 GHz from 2026-09-29 to 10-02 at 2-4 ms.
+      - alert: MeshPointBackhaulOn24GHz
+        expr: amplifi_mesh_point_info{backhaul_band="2.4 GHz"} == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Mesh point {{ L }} $labels.name {{ R }} has had a 2.4 GHz backhaul for an hour: slow for
+            everything behind it and a load on the router's 2.4 GHz radio; restarting the mesh point
+            from the AmpliFi app makes it pick its backhaul again
+
+      - alert: MeshPointBackhaulSlow
+        expr: >-
+          (avg_over_time(ping_rtt_mean_seconds[30m])
+            * on (ip) group_left (name, kind) monitoring_target_info{kind="mesh_point"})
+          > {{ mesh_point_rtt_mean_seconds }}
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Mesh point {{ L }} $labels.name {{ R }} has answered ping in
+            {{ L }} $value | humanizeDuration {{ R }} on average for an hour, against about 2 ms when its
+            backhaul is healthy
+
+      - alert: MeshPointBackhaulFlapping
+        expr: >-
+          increase(amplifi_mesh_point_connections_total{direction="to"}[1h])
+          > {{ mesh_point_rejoins_per_hour }}
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Mesh point {{ L }} $labels.name {{ R }} re-joined the mesh
+            {{ L }} $value | printf "%.0f" {{ R }} times in the last hour
 
       - alert: AmpliFiScrapeFailing
         expr: amplifi_up == 0

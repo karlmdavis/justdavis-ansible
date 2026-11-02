@@ -9,7 +9,8 @@ card payment, and snapshot retention that gives a rollback window for accidental
 
 - **What is backed up** comes from the existing per-host `backup_includes` and `backup_excludes`
   variables in `host_vars/`. On eddings that is photos, the file shares, mail, home directories,
-  websites, the PostgreSQL dumps, and the arr suite configuration; movies and TV shows are excluded.
+  websites, the PostgreSQL dumps, the Jellyfin configuration and database copy, and the arr suite
+  configuration; movies and TV shows are excluded.
 - **Where it goes**: one B2 bucket, one repository per host (`b2:<bucket>:<hostname>`). In the AWS tests
   the repository is a local directory, so tests need no credentials.
 - **How**: three systemd timers, all with `[Install]` sections so they survive reboots.

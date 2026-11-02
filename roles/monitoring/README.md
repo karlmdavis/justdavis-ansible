@@ -286,7 +286,11 @@ MAC directly. The neighbour table is the source that stays fresh on its own, bec
 one ping a second keeps every probed device's entry confirmed; a device no source has seen lately gets
 one mDNS request and one datagram to each address it has had, never a sweep of the subnet (2.4 GHz
 airtime is the scarce resource here). The host's `arp_accept` sysctl is set so a device announcing a
-new lease lands in the table without being asked.
+new lease lands in the table without being asked. Measured with the exporter running (2026-11-02, one
+minute on the LAN bridge): about 60 ARP frames a minute on the whole LAN, 23 of them broadcast; eddings
+itself sent about 30, of which 27 were unicast (the kernel re-validating its ping targets' entries) and
+3 broadcast, none attributable to the exporter. A sweep of the /24 every poll would have added about
+600 broadcasts a minute.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
 the stack restarts cleanly during a WAN outage.

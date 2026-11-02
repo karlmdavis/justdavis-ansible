@@ -48,6 +48,7 @@ monitoring_amplifi_exporter_port: 9801
 monitoring_gateway_exporter_port: 9802
 monitoring_airplay_exporter_port: 9803
 monitoring_lan_discovery_exporter_port: 9804
+monitoring_hue_exporter_port: 9805
 
 # The Comcast gateway, whose TLS certificate the role fetches at deploy time and whose status page the
 # gateway exporter reads.

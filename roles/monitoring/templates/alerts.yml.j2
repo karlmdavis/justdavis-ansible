@@ -55,8 +55,9 @@
    2026-10-16 and stayed there until a restart on 11-01, taking its mean round trip from 2 ms to 40-85 ms a
    day, every client behind it and on the router's 2.4 GHz radio with it, and nobody noticed for 16 days.
    Mean round trip above 20 ms over 30 minutes: never two windows in a row before the episode, sustained
-   from 10-21. Three or more re-joins in an hour: only on 10-28 and 10-30, and single hours on three other
-   days; above one in an hour fires on scattered single hours all through September. A 2.4 GHz backhaul
+   from 10-21. Three or more re-joins in an hour (`increase` extrapolates to the window's edges, so the
+   value reads above three once three have happened): only on 10-28 to 10-30, and single hours on two
+   other days; above one in an hour fires on scattered single hours all through September. A 2.4 GHz backhaul
    for an hour: only the episode and the mesh's first day. #}
 {% set mesh_point_rtt_mean_seconds = 0.02 %}
 {% set mesh_point_rejoins_per_hour = 3 %}

@@ -1,0 +1,26 @@
+# promtool unit test for the Hue bridge rule. The role's smoke tests run it against the alert rules
+# rendered with the device groups (roles/monitoring/tasks/test.yml).
+#   hue_up 1 for 5 minutes, then 0: HueScrapeFailing fires after 10 minutes of 0, not before.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'hue_up'
+        values: '1x10 0x30'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: HueScrapeFailing
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: HueScrapeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: >-
+                The Hue exporter cannot read the bridge; hue_scrape_errors_total{stage} says whether it is
+                the address, the key, the certificate, the connection or the response

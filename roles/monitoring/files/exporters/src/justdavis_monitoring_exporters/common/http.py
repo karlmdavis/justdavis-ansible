@@ -7,6 +7,7 @@ statuses raise `HttpStatusError` so an outage is reported as such rather than as
 `HttpClient` protocol lets tests drive the device clients with scripted responses.
 """
 
+import ssl
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast
@@ -153,6 +154,33 @@ class FingerprintAdapter(HTTPAdapter):
         super().init_poolmanager(*args, **kwargs)  # type: ignore[arg-type]
 
 
+class PrivateCaAdapter(HTTPAdapter):
+    """HTTPS adapter for a device whose certificate chains to a private CA and names the device in its
+    common name only, with no subjectAltName (the Hue bridge: Signify's `root-bridge` CA, CN = bridge
+    id, verified 2026-10-31). The chain is verified against `ca_file` and the name against
+    `server_name`. Both Python's `check_hostname` and urllib3's default matching refuse a certificate
+    without SAN entries, so the context is told to fall back to the common name, which urllib3 honours
+    (`hostname_checks_common_name`).
+    """
+
+    def __init__(self, ca_file: str, server_name: str) -> None:
+        # Must be set before super().__init__(), which calls init_poolmanager().
+        self.ca_file = ca_file
+        self.server_name = server_name
+        super().__init__()
+
+    def init_poolmanager(self, *args: object, **kwargs: object) -> None:
+        context = ssl.create_default_context(cafile=self.ca_file)
+        # urllib3 does the name check itself (against `assert_hostname`), and only it can be told to
+        # accept the common name; Python's own check must be off for that to run.
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.hostname_checks_common_name = True
+        kwargs["ssl_context"] = context
+        kwargs["assert_hostname"] = self.server_name
+        super().init_poolmanager(*args, **kwargs)  # type: ignore[arg-type]
+
+
 def lan_session() -> requests.Session:
     """A `requests.Session` for a device on the LAN: never consults HTTP_PROXY, HTTPS_PROXY, and friends,
     which would send the device's traffic (and credentials) off the LAN through a proxy's own pool."""
@@ -165,4 +193,13 @@ def pinned_session(fingerprint_sha256: str) -> requests.Session:
     """A LAN session whose HTTPS connections must present the pinned certificate."""
     session = lan_session()
     session.mount("https://", FingerprintAdapter(fingerprint_sha256))
+    return session
+
+
+def private_ca_session(ca_file: str, server_name: str) -> requests.Session:
+    """A LAN session whose HTTPS peer must present a certificate that chains to `ca_file` and is named
+    `server_name` (pass the same `ca_file` as the client's `verify`, so requests does not load the
+    public roots into the context as well)."""
+    session = lan_session()
+    session.mount("https://", PrivateCaAdapter(ca_file, server_name))
     return session

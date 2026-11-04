@@ -48,13 +48,26 @@
     arr_suite_timezone: America/New_York
     arr_suite_root_dir: /opt/arr_suite
 
+# The linuxserver images chown their own /config as root when they start, so their config directories can
+# be left to Docker. Bindery's image is distroless and runs as the arr_suite user from the first
+# instruction, so its directory has to exist and be writable before the container starts; Docker would
+# otherwise create it owned by root and Bindery would fail to open its database.
+- name: Create Bindery Config Directory
+  ansible.builtin.file:
+    path: "{{ arr_suite_root_dir }}/config/bindery-config"
+    state: directory
+    owner: arr_suite
+    group: media_managers
+    mode: 'u=rwx,g=rx,o='
+  become: true
+
 - name: Create Docker Compose File
   ansible.builtin.template:
     src: 'docker-compose.yml.j2'
     dest: "/opt/arr_suite/docker-compose.yml"
     owner: root
     group: root
-    mode: 'u=rw=,g=r,o=r'
+    mode: 'u=rw,g=r,o=r'
   become: true
   notify: Restart arr_suite
 
@@ -64,7 +77,7 @@
     dest: "/etc/systemd/system/arr_suite.service"
     owner: root
     group: root
-    mode: 'u=rw=,g=r,o=r'
+    mode: 'u=rw,g=r,o=r'
   become: true
   notify: Reload Systemd
 

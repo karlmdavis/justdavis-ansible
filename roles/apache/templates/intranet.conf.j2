@@ -70,4 +70,12 @@
     ProxyPassReverse "http://127.0.0.1:9696/prowlarr"
     ProxyPreserveHost On
   </Location>
+
+  <Location /bindery>
+    ProxyPass "http://127.0.0.1:8787/bindery"
+    ProxyPassReverse "http://127.0.0.1:8787/bindery"
+    ProxyPreserveHost On
+    # Bindery builds the links it hands out from the forwarded scheme (mod_proxy does not send this one).
+    RequestHeader set X-Forwarded-Proto "https"
+  </Location>
 </VirtualHost>

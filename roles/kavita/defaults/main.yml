@@ -1,0 +1,18 @@
+---
+# Defaults for the kavita role. Only values that are shared between files or that pin a version live here;
+# single-use settings are written where they are used, with their reasoning alongside.
+
+# Docker Hub tag of jvmilazz0/kavita to run. The project tags images by the first three version components
+# (0.9.1 was pushed for release v0.9.1.4), so the server reports a longer version than the tag; the tests
+# compare the running container's image reference, not the reported version. Bump deliberately: Kavita
+# shipped a CVSS 9.3 pre-auth fix in 0.9.0.2 (2026-05) and ten more security fixes in 0.9.1.0 (2026-08),
+# so staying current matters, but each bump should be a reviewed change.
+kavita_version: '0.9.1'
+
+# Installation directory: docker-compose.yml plus config/, which holds Kavita's SQLite database (users,
+# reading progress, age restrictions), covers and its own backups. The config directory is in eddings'
+# backup_includes.
+kavita_base_dir: /opt/kavita
+
+# System user the container runs as (via compose `user:`); the official image has no PUID/PGID handling.
+kavita_user: kavita

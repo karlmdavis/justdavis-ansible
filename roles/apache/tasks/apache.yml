@@ -128,6 +128,7 @@
     - intranet-qbittorrent.conf
     - intranet-immich.conf
     - intranet-grafana.conf
+    - intranet-kavita.conf
   become: true
   notify:
     - apache-reload
@@ -143,6 +144,7 @@
     - intranet-qbittorrent.conf
     - intranet-immich.conf
     - intranet-grafana.conf
+    - intranet-kavita.conf
   become: true
   notify:
     - apache-reload

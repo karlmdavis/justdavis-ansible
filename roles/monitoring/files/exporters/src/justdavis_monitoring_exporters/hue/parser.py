@@ -4,9 +4,12 @@
   every resource in one list, each with `id`, `type` and an `owner` (`{rid, rtype}`) pointing at the
   device it belongs to. Read here: `device` (identity, `product_data`, `metadata.name`, `services`),
   `light` (`on.on`, `dimming.brightness` 0-100), `zigbee_connectivity` (`status`, `mac_address`),
-  `device_power` (`power_state.battery_level`), `temperature`, `light_level` and `motion` (each with a
-  `*_report` sub-object, preferred over the older top-level fields), and `room` (`children` naming the
-  devices in it). Everything else (scenes, zones, buttons, entertainment) is skipped.
+  `device_power` (`power_state.battery_level` and `battery_state`), `temperature`, `light_level` and
+  `motion` (each with a `*_report` sub-object, preferred over the older top-level fields), and `room`
+  (`children` naming the devices in it). Everything else (scenes, zones, buttons, entertainment) is
+  skipped. The CLIP v2 reference itself sits behind the Hue developer portal's login; the field names
+  and enumerations here were checked (2026-11-08) against aiohue's models, the public transcription of
+  that reference maintained for Home Assistant.
 * `GET /api/<key>/config` (v1): `zigbeechannel`, `UTC` (the bridge's clock, `YYYY-MM-DDTHH:MM:SS`,
   UTC), `internetservices` (`internet`, `remoteaccess`, `time`, `swupdate`: "connected" or
   "disconnected"), `swupdate2.bridge.lastinstall`, and the public identity fields. With a key the bridge
@@ -139,12 +142,16 @@ def parse_resources(
             _optional_str(resource, "mac_address", ctx),
         )
     battery: dict[str, float] = {}
+    battery_state: dict[str, str] = {}
     for resource, ctx in by_type.get("device_power", []):
         power = _optional_dict(resource, "power_state", ctx)
-        if power is not None and power.get("battery_level") is not None:
-            battery[_owner_id(resource, ctx)] = (
-                as_float(power["battery_level"], f"{ctx}.power_state.battery_level") / 100
-            )
+        if power is None:
+            continue
+        owner = _owner_id(resource, ctx)
+        if power.get("battery_level") is not None:
+            battery[owner] = as_float(power["battery_level"], f"{ctx}.power_state.battery_level") / 100
+        if power.get("battery_state") is not None:
+            battery_state[owner] = as_str(power["battery_state"], f"{ctx}.power_state.battery_state")
     rooms: dict[str, str] = {}
     for resource, ctx in by_type.get("room", []):
         name = as_str(
@@ -194,6 +201,7 @@ def parse_resources(
                 zigbee_status=status,
                 zigbee_mac=mac,
                 battery_ratio=battery.get(device_id),
+                battery_state=battery_state.get(device_id),
             )
         )
     lights: list[HueLight] = []

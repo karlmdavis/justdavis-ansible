@@ -27,6 +27,10 @@ ZIGBEE_STATUSES: tuple[str, ...] = (
 )
 
 
+# The bridge's battery judgements as the CLIP v2 reference lists them, plus "unknown".
+BATTERY_STATES: tuple[str, ...] = ("normal", "low", "critical", "unknown")
+
+
 @dataclass(frozen=True, slots=True)
 class PublishedHue:
     snapshot: HueSnapshot
@@ -113,6 +117,12 @@ def _device_families(snapshot: HueSnapshot) -> Iterator[Metric]:
     battery = GaugeMetricFamily(
         "hue_device_battery_ratio", "Battery charge of a battery-powered device, 0 to 1.", labels=_DEVICE
     )
+    battery_state = GaugeMetricFamily(
+        "hue_device_battery_state",
+        "One series per battery-powered device and the bridge's own judgement of its battery (normal, "
+        "low, critical, unknown); exactly one of them is 1.",
+        labels=[*_DEVICE, "state"],
+    )
     for device in snapshot.devices:
         labels = [device.device_id, sanitise_label(device.name)]
         info.add_metric(
@@ -130,9 +140,14 @@ def _device_families(snapshot: HueSnapshot) -> Iterator[Metric]:
                 zigbee.add_metric([*labels, status], float(status == current))
         if device.battery_ratio is not None:
             battery.add_metric(labels, device.battery_ratio)
+        if device.battery_ratio is not None or device.battery_state is not None:
+            current = device.battery_state if device.battery_state in BATTERY_STATES else "unknown"
+            for state in BATTERY_STATES:
+                battery_state.add_metric([*labels, state], float(state == current))
     yield info
     yield zigbee
     yield battery
+    yield battery_state
 
 
 def _light_families(snapshot: HueSnapshot) -> Iterator[Metric]:

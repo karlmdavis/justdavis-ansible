@@ -7,7 +7,7 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.common.snapshot import ScrapeStatus, SnapshotHolder
-from justdavis_monitoring_exporters.hue.collector import ZIGBEE_STATUSES, HueCollector
+from justdavis_monitoring_exporters.hue.collector import BATTERY_STATES, ZIGBEE_STATUSES, HueCollector
 from justdavis_monitoring_exporters.hue.models import HueSnapshot
 from justdavis_monitoring_exporters.hue.parser import parse_config, parse_resources
 
@@ -96,6 +96,11 @@ def test_zigbee_connectivity_is_one_hot_over_every_status_with_unknown_for_a_new
     )
     assert registry.get_sample_value("hue_device_battery_ratio", DIMMER_A) == pytest.approx(0.12)
     assert registry.get_sample_value("hue_device_battery_ratio", LAMP_B) is None
+    for state in BATTERY_STATES:
+        assert registry.get_sample_value("hue_device_battery_state", {**DIMMER_A, "state": state}) == float(
+            state == "low"
+        )
+        assert registry.get_sample_value("hue_device_battery_state", {**LAMP_B, "state": state}) is None
 
 
 def test_lights_and_sensors() -> None:

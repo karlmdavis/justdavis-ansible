@@ -36,10 +36,11 @@ def test_parses_devices_with_zigbee_status_battery_and_room() -> None:
         "connected",
         "02:00:00:00:00:00:00:31",
     )
-    assert lamp_a.battery_ratio is None
+    assert (lamp_a.battery_ratio, lamp_a.battery_state) == (None, None)
     assert by_id[LAMP_B].zigbee_status == "disconnected"
     assert by_id[LAMP_B].room == ""
     assert by_id[SENSOR_A].battery_ratio == pytest.approx(0.86)
+    assert (by_id[SENSOR_A].battery_state, by_id[DIMMER_A].battery_state) == ("normal", "low")
     assert by_id[DIMMER_A].zigbee_status == "some_future_state"
     bridge = by_id["00000000-0000-4000-8000-000000000010"]
     assert (bridge.zigbee_status, bridge.zigbee_mac) == (None, None)

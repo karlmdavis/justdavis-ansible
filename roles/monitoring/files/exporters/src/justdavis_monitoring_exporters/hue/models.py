@@ -39,6 +39,9 @@ class HueDevice:
     zigbee_mac: str | None
     # Battery charge as a ratio 0..1 for battery-powered devices, else None.
     battery_ratio: float | None
+    # The bridge's own judgement of the battery: normal, low or critical (or a value this code has not
+    # seen); None for a device without a battery or when the bridge does not report it.
+    battery_state: str | None
 
 
 @dataclass(frozen=True, slots=True)

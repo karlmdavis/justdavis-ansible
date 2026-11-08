@@ -187,7 +187,9 @@ fits". It is deliberately not backed up.
   service-owned and not world readable, like the TSDB that holds the same history.
 - The Hue bridge's application key (`/opt/monitoring/hue-credentials.env`, root-only, handed to the Hue
   scraper alone) grants full control of the lights. It is only ever sent over TLS whose chain is
-  verified against Signify's published root certificate (`files/exporters/src/.../hue/huebridge_cacert.pem`)
+  verified against Signify's published root certificate (`files/exporters/src/.../hue/huebridge_cacert.pem`,
+  a public certificate copied from Hue's developer documentation and kept in the repository so the
+  chain can be verified without a deploy-time fetch; the module that loads it records its fingerprint)
   and whose common name must be the bridge id, so a device merely holding the bridge's address never
   sees it; the exporter keeps the key out of every log line and exception. The bridge is identified by
   its MAC, which is a household device identifier and so lives in the vault with the tracked clients.

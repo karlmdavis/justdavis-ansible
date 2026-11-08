@@ -60,8 +60,11 @@ from justdavis_monitoring_exporters.hue.parser import parse_config, parse_resour
 log = logging.getLogger(__name__)
 
 _BACKOFF_CAP_SECONDS = 300
-# Signify's root CA for bridge certificates, from Hue's developer documentation ("Using HTTPS");
-# verified 2026-10-31 to sign this bridge's certificate.
+# Signify's root CA for bridge certificates (`C=NL, O=Philips Hue, CN=root-bridge`, valid 2017 to 2038,
+# SHA-256 F0:BD:8E:65:09:E8:2F:77:4D:63:BC:00:9D:53:88:C9:69:FE:3D:CF:7D:6D:54:1D:63:51:B7:2B:89:8D:8A:CF),
+# copied from Hue's developer documentation ("Using HTTPS"). A public certificate, not a secret: holding
+# it grants nothing, and shipping it is what lets the chain be verified without fetching anything at
+# deploy time. Verified 2026-10-31 to sign this bridge's certificate.
 ROOT_CA_FILE = Path(__file__).with_name("huebridge_cacert.pem")
 
 

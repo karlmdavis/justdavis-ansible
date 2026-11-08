@@ -14,13 +14,15 @@ from justdavis_monitoring_exporters.hue.parser import INTERNET_SERVICES
 
 _DEVICE = ["device_id", "name"]
 _LIGHT = ["light_id", "device_id", "name"]
-# The bridge's Zigbee link states (2026-10-31), plus "unknown" for a value this code has not seen, so
-# an unfamiliar state is visible rather than read as "not connected".
+# The bridge's Zigbee link states as the CLIP v2 reference lists them (checked 2026-11-08 against
+# aiohue's transcription of it), plus "unknown" for a value this code has not seen, so an unfamiliar
+# state is visible rather than read as "not connected".
 ZIGBEE_STATUSES: tuple[str, ...] = (
     "connected",
     "disconnected",
     "connectivity_issue",
     "unidirectional_incoming",
+    "pending_discovery",
     "unknown",
 )
 
@@ -104,8 +106,8 @@ def _device_families(snapshot: HueSnapshot) -> Iterator[Metric]:
     zigbee = GaugeMetricFamily(
         "hue_zigbee_connectivity",
         "One series per device and Zigbee link status (connected, disconnected, connectivity_issue, "
-        "unidirectional_incoming, unknown); exactly one of them is 1. A lamp switched off at the wall "
-        "reads disconnected.",
+        "unidirectional_incoming, pending_discovery, unknown); exactly one of them is 1. A lamp "
+        "switched off at the wall reads disconnected.",
         labels=[*_DEVICE, "status"],
     )
     battery = GaugeMetricFamily(

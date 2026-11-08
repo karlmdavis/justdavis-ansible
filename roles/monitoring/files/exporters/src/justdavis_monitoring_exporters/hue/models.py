@@ -33,7 +33,8 @@ class HueDevice:
     # The room the device is in, or "" (zones are ignored: a device can be in several).
     room: str
     # The Zigbee link's status as the bridge reports it (connected, disconnected, connectivity_issue,
-    # unidirectional_incoming, or a value this code has not seen); None for the bridge itself.
+    # unidirectional_incoming, pending_discovery, or a value this code has not seen); None for the
+    # bridge itself.
     zigbee_status: str | None
     zigbee_mac: str | None
     # Battery charge as a ratio 0..1 for battery-powered devices, else None.

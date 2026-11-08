@@ -62,6 +62,15 @@ def test_bridge_families() -> None:
 
 
 def test_zigbee_connectivity_is_one_hot_over_every_status_with_unknown_for_a_new_one() -> None:
+    # The reference's five states and the catch-all.
+    assert ZIGBEE_STATUSES == (
+        "connected",
+        "disconnected",
+        "connectivity_issue",
+        "unidirectional_incoming",
+        "pending_discovery",
+        "unknown",
+    )
     registry = registry_with(SNAPSHOT)
     for status in ZIGBEE_STATUSES:
         assert registry.get_sample_value("hue_zigbee_connectivity", {**LAMP_B, "status": status}) == float(

@@ -63,9 +63,9 @@
 # Runs the dump once rather than waiting for the timer. The script checks the copy's integrity itself and
 # exits non-zero otherwise, so a successful run is the assertion. Skipped in check mode (it writes a file).
 - name: Test - Run the Jellyfin Database Dump Once
-  ansible.builtin.command:
-    cmd: systemctl start jellyfin-db-dump.service
-  changed_when: true
+  ansible.builtin.systemd:
+    name: jellyfin-db-dump.service
+    state: started
   become: true
   when: not ansible_check_mode
 

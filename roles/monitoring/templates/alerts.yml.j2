@@ -419,16 +419,21 @@ groups:
     rules:
       # Status flag bit 0 set: the accessory says no controller is paired with it. That is a reset
       # accessory, or one dropped from the Home, and nothing else shows it. Only while its announcement
-      # is current: a stale record of a reset accessory that has since been re-paired is not news.
+      # is current (a stale record of a reset accessory that has since been re-paired is not news), and
+      # only if it was paired within the week: an accessory that advertises HomeKit but was never added
+      # to the Home (the first deploy found three cameras like that) is a choice, not an incident.
       - alert: HomeKitAccessoryUnpaired
-        expr: homekit_accessory_paired == 0 and on (accessory) homekit_accessory_present == 1
+        expr: >-
+          homekit_accessory_paired == 0
+          and on (accessory) homekit_accessory_present == 1
+          and on (accessory) max_over_time(homekit_accessory_paired[7d]) == 1
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: >-
-            HomeKit accessory {{ L }} $labels.accessory {{ R }} reports it is not paired with any
-            controller: it was reset, or dropped from the Home
+            HomeKit accessory {{ L }} $labels.accessory {{ R }} was paired this week and now reports
+            no controller is paired with it: it was reset, or dropped from the Home
 
   - name: gateway
     rules:

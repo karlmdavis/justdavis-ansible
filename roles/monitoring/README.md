@@ -131,7 +131,7 @@ down a column is the diagnosis; the last column is the rule that says so.
 | The Hue bridge is unreachable, or its address moved | `hue_up` is 0 and `hue_scrape_errors_total{stage}` says why: `address` (no source of the device address inventory has seen it), `tls` (not the bridge's certificate), `login` (the key was rejected), `fetch`, `parse`. `hue_bridge_address_info` records the address it was reached at over time. | `HueScrapeFailing` |
 | The bridge installed software, or changed Zigbee channel | `hue_bridge_last_software_install_timestamp_seconds` and `hue_bridge_zigbee_channel` (the Hue dashboard draws both as annotations; the bridge is unresponsive for a few minutes during an install). | None: annotations. |
 | The bridge's cloud link is down | `hue_bridge_internet_connected{service}` for internet, remote access, time and software updates; matters for out-of-home control and updates, not for HomeKit or the Hue app on the LAN. | None: recorded. |
-| A HomeKit accessory was reset or dropped from the Home | `homekit_accessory_paired` is 0 while `homekit_accessory_present` is 1: the accessory's own announcement says no controller is paired with it. | `HomeKitAccessoryUnpaired` |
+| A HomeKit accessory was reset or dropped from the Home | `homekit_accessory_paired` is 0 while `homekit_accessory_present` is 1: the accessory's own announcement says no controller is paired with it. Only an accessory that was paired within the week alerts: one that advertises HomeKit but was never added to the Home (three cameras, on the first deploy) is a choice. | `HomeKitAccessoryUnpaired` |
 | Which HomeKit accessories are on the LAN, and since when | `homekit_accessory_info`, `homekit_accessory_present`, `homekit_accessory_last_seen_timestamp_seconds`, `homekit_accessory_config_number`, from their `_hap._tcp` announcements, read passively (so a disappearance shows only once the record's 75-minute TTL runs out). This is the view a HomeKit home hub has of every accessory, Hue or not. | None: recorded until a recurrence of the 2026-10-31 "no response" says what to alert on. |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `increase(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds` (absent for a mesh point that has not dropped out since the router booted, as seen after the 2026-10-30 reboot); the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul, and the last days of October 15-37 times a day on one. | `MeshPointBackhaulFlapping` (three or more re-joins in an hour: the extrapolated `increase` reads above three). |
@@ -273,10 +273,11 @@ gateway reporting its Internet connection inactive for 2 minutes; HomePods off t
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
 can no longer be read for its playback state; a tracked device expected online at all times whose address
 no source has seen for three minutes, and an address source that stops writing; the Hue exporter unable
-to read the bridge for ten minutes; a HomeKit accessory announcing that no controller is paired with it; a
-mesh point offline or missing from the topology, on a 2.4 GHz backhaul for an hour, answering ping slowly
-for an hour, or re-joining the mesh three or more times in an hour; router, mesh point, or gateway
-reboots; collectors that stop working; the WAN probe series going missing; the offsite backup
+to read the bridge for ten minutes; a HomeKit accessory that was paired this week announcing that no
+controller is paired with it; a mesh point offline or missing from the topology, on a 2.4 GHz backhaul
+for an hour, answering ping slowly for an hour, or re-joining the mesh three or more times in an hour;
+router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series going missing;
+the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which

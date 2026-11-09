@@ -1,0 +1,44 @@
+# promtool unit test for the HomeKit accessory rule. The role's smoke tests run it against the alert
+# rules rendered with the device groups (roles/monitoring/tasks/test.yml).
+#   A: paired, then unpaired and present -> HomeKitAccessoryUnpaired 10 minutes after it unpaired.
+#   B: unpaired but no longer present (a stale record) -> nothing.
+#   C: paired -> nothing.
+#   D: never paired (a device that advertises HomeKit but was never added to the Home) -> nothing.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'homekit_accessory_paired{accessory="A"}'
+        values: '1x10 0x40'
+      - series: 'homekit_accessory_present{accessory="A"}'
+        values: '1x50'
+      - series: 'homekit_accessory_paired{accessory="B"}'
+        values: '1x10 0x40'
+      - series: 'homekit_accessory_present{accessory="B"}'
+        values: '1x10 0x40'
+      - series: 'homekit_accessory_paired{accessory="C"}'
+        values: '1x50'
+      - series: 'homekit_accessory_present{accessory="C"}'
+        values: '1x50'
+      - series: 'homekit_accessory_paired{accessory="D"}'
+        values: '0x50'
+      - series: 'homekit_accessory_present{accessory="D"}'
+        values: '1x50'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: HomeKitAccessoryUnpaired
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: HomeKitAccessoryUnpaired
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              accessory: A
+            exp_annotations:
+              summary: >-
+                HomeKit accessory A was paired this week and now reports no controller is paired with it:
+                it was reset, or dropped from the Home

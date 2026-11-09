@@ -182,6 +182,9 @@ before the next attempt.
 - The systemd unit is active.
 - `GET /health` returns 200, waiting up to five minutes for a starting (or migrating) server.
 - `GET /System/Info/Public` returns a version, and that version is at least `jellyfin_min_version` when set.
+- `jellyfin-db-dump.timer` is active.
+- `jellyfin-db-dump.service` runs once and succeeds (the script's own integrity check is the assertion), and
+  the copy it writes exists and is not empty. These two are skipped in check mode.
 
 The AWS test instance installs whatever version the repository currently serves, so the harness exercises the
 newest release before eddings does.

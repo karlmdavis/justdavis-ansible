@@ -52,3 +52,27 @@
       Jellyfin is running {{ jellyfin_public_info.json.Version }},
       but at least {{ jellyfin_min_version }} is expected
   when: jellyfin_min_version | length > 0
+
+- name: Test - Verify Jellyfin Database Dump Timer is Active
+  ansible.builtin.systemd:
+    name: jellyfin-db-dump.timer
+  register: jellyfin_db_dump_timer
+  failed_when: jellyfin_db_dump_timer.status.ActiveState != "active"
+  become: true
+
+# Runs the dump once rather than waiting for the timer. The script checks the copy's integrity itself and
+# exits non-zero otherwise, so a successful run is the assertion. Skipped in check mode (it writes a file).
+- name: Test - Run the Jellyfin Database Dump Once
+  ansible.builtin.systemd:
+    name: jellyfin-db-dump.service
+    state: started
+  become: true
+  when: not ansible_check_mode
+
+- name: Test - Verify the Jellyfin Database Dump Exists
+  ansible.builtin.stat:
+    path: /var/backups/jellyfin/jellyfin.db
+  register: jellyfin_db_dump
+  failed_when: not jellyfin_db_dump.stat.exists or jellyfin_db_dump.stat.size == 0
+  become: true
+  when: not ansible_check_mode

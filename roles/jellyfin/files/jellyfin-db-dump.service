@@ -1,0 +1,14 @@
+[Unit]
+Description=Consistent copy of the Jellyfin database for the offsite backup
+OnFailure=status-email-root@%n.service
+After=jellyfin.service
+
+[Service]
+Type=oneshot
+# SQLite's backup API retries for as long as another writer holds the database, and a oneshot has no start
+# timeout by default. A copy of this size takes seconds; anything longer is stuck and should fail (and mail
+# root) rather than hang, or block the Ansible run that tests it.
+TimeoutStartSec=15min
+User=jellyfin
+Group=jellyfin
+ExecStart=/usr/local/bin/jellyfin-db-dump.py /var/lib/jellyfin/data/jellyfin.db /var/backups/jellyfin/jellyfin.db

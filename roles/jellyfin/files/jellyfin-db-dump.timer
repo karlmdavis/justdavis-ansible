@@ -2,7 +2,8 @@
 Description=Run jellyfin-db-dump.service daily, before the offsite backup.
 
 [Timer]
-# The offsite backup starts at 03:00 (plus up to 30 minutes); this leaves the copy fresh for it.
+# Host time, which is UTC on eddings (late evening in the Eastern US). The offsite backup starts at 03:00 UTC
+# (plus up to 30 minutes); this leaves the copy fresh for it.
 OnCalendar=*-*-* 02:00:00
 Persistent=true
 

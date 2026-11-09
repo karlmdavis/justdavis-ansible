@@ -28,8 +28,8 @@ configured by hand in the web UI; nothing under `/etc/jellyfin` or `/var/lib/jel
 Everything the family would miss after a rebuild (users, libraries, watched status, resume points,
 hand-corrected matches) is in one SQLite database, `/var/lib/jellyfin/data/jellyfin.db`, which runs in WAL
 mode. Jellyfin's documentation only allows copying it with the server stopped, so instead
-`jellyfin-db-dump.timer` runs `/usr/local/bin/jellyfin-db-dump.py` daily at 02:00 (an hour before the offsite
-backup), which uses SQLite's online backup API to write a consistent snapshot to
+`jellyfin-db-dump.timer` runs `/usr/local/bin/jellyfin-db-dump.py` daily at 02:00 UTC (eddings keeps UTC;
+that is late evening in the Eastern US and an hour before the offsite backup), which uses SQLite's online backup API to write a consistent snapshot to
 `/var/backups/jellyfin/jellyfin.db`, checks its integrity and replaces the previous copy atomically. A failed
 run mails root like the other timers.
 

@@ -48,10 +48,13 @@ media shares.
 ```bash
 sudo systemctl stop jellyfin
 # Restore /etc/jellyfin, /var/lib/jellyfin/{root,plugins,data} and /var/backups/jellyfin from restic (see the
-# offsite_backups README), then put the consistent copy in place of whatever live database came back:
+# offsite_backups README). The live database is not in the backup, so the one the fresh install created is
+# still in place; replace it with the consistent copy:
 sudo rm -f /var/lib/jellyfin/data/jellyfin.db /var/lib/jellyfin/data/jellyfin.db-wal /var/lib/jellyfin/data/jellyfin.db-shm
 sudo install -o jellyfin -g jellyfin -m u=rw,g=r,o=r /var/backups/jellyfin/jellyfin.db /var/lib/jellyfin/data/jellyfin.db
-sudo chown -R jellyfin:jellyfin /etc/jellyfin /var/lib/jellyfin
+# restic run as root restores ownership. Should anything need fixing by hand, the originals on eddings
+# (2026-11-08) are: /etc/jellyfin itself and /etc/jellyfin/logging.json jellyfin:adm; every other file there
+# and everything under /var/lib/jellyfin jellyfin:jellyfin.
 sudo systemctl start jellyfin
 ```
 

@@ -36,8 +36,10 @@ run mails root like the other timers.
 `backup_includes` on eddings then covers `/etc/jellyfin` (server, network and encoding settings),
 `/var/lib/jellyfin/root` (library definitions), `/var/lib/jellyfin/plugins` (plugin settings),
 `/var/lib/jellyfin/data` (subtitles, playlists, scheduled-task triggers, the server id) and
-`/var/backups/jellyfin`, with the live `jellyfin.db*` files excluded. Not backed up: `metadata/` (about 4 GB
-of artwork that a library scan re-fetches or re-extracts), `transcodes/` and caches. The NFO and
+`/var/backups/jellyfin`. Excluded from `data/`: the live `jellyfin.db*` files, `trickplay/` (scrubbing
+previews, many GB once enabled), `SQLiteBackups/` (the migrator's pre-upgrade copies) and `backups/` (zips
+from the dashboard's own backup feature). Not backed up at all: `metadata/` (about 4 GB of artwork that a
+library scan re-fetches or re-extracts), `transcodes/` and caches. The NFO and
 "save artwork into media folders" savers are off on every library, so nothing Jellyfin owns lives in the
 media shares.
 

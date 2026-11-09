@@ -18,8 +18,9 @@ backup_includes:
   # Configuration for the arr suite containers (their media lives under /var/fileshares).
   - /opt/arr_suite/config
   # Jellyfin: configuration, library definitions, plugin settings, and the data directory minus the live
-  # database (excluded below); the consistent daily copy of the database lives in /var/backups/jellyfin.
-  # Not included: metadata/ (4 GB of re-fetchable artwork) and transcodes/ (scratch). See roles/jellyfin.
+  # database and its regenerable subdirectories (both excluded below); the consistent daily copy of the
+  # database lives in /var/backups/jellyfin. Not included: metadata/ (4 GB of re-fetchable artwork) and
+  # transcodes/ (scratch). See roles/jellyfin.
   - /etc/jellyfin
   - /var/lib/jellyfin/root
   - /var/lib/jellyfin/plugins
@@ -34,3 +35,9 @@ backup_excludes:
   # The live Jellyfin database (and its -wal/-shm files) is not safe to copy while the server runs; the
   # jellyfin-db-dump timer writes a consistent copy to /var/backups/jellyfin instead.
   - /var/lib/jellyfin/data/jellyfin.db*
+  # Regenerable or redundant parts of the data directory: trickplay/ (scrubbing previews, many GB once
+  # enabled), SQLiteBackups/ (the copies the migrator takes before an upgrade) and backups/ (zips from the
+  # built-in backup feature in the dashboard). Subtitles, playlists and scheduled-task triggers stay in.
+  - /var/lib/jellyfin/data/trickplay
+  - /var/lib/jellyfin/data/SQLiteBackups
+  - /var/lib/jellyfin/data/backups

@@ -33,7 +33,8 @@ backup_excludes:
   - /var/fileshares/justdavis.com/groups/media/music-videos
   - /var/fileshares/justdavis.com/groups/sysadmin/archives
   # The live Jellyfin database (and its -wal/-shm files) is not safe to copy while the server runs; the
-  # jellyfin-db-dump timer writes a consistent copy to /var/backups/jellyfin instead.
+  # jellyfin-db-dump timer writes a consistent copy to /var/backups/jellyfin instead. The pattern also skips
+  # any hand-made jellyfin.db.bak left beside the live file, so keep such copies elsewhere if they matter.
   - /var/lib/jellyfin/data/jellyfin.db*
   # Regenerable or redundant parts of the data directory: trickplay/ (scrubbing previews, many GB once
   # enabled), SQLiteBackups/ (the copies the migrator takes before an upgrade) and backups/ (zips from the

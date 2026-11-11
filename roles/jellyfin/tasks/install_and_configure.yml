@@ -29,6 +29,13 @@
         }
       become: true
 
+# Installs the `jellyfin` metapackage, deliberately unpinned and never upgraded here:
+# - The metapackage (not `jellyfin-server`) is what depends on the matching `jellyfin-ffmpegN` package, so
+#   installing it is what swaps ffmpeg when a major release moves to a new one (12.x: ffmpeg7 -> ffmpeg8).
+# - `state: present` leaves an installed version alone. Jellyfin majors run a one-way database migration
+#   on first start (no downgrade without a restore), so upgrades are a deliberate manual step; the
+#   procedure is in README.md. Unattended-upgrades does not touch this repository either (see the base
+#   role's 50unattended-upgrades.j2).
 - name: Add Jellyfin APT Package
   ansible.builtin.package:
     name:
@@ -65,4 +72,4 @@
   become: true
   loop:
     - "{{ network_home_private_cidr }}"
-    - '100.64.0.0/10'
+    - "{{ network_tailscale_cidr }}"

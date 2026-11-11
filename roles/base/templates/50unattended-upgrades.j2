@@ -1,4 +1,10 @@
-// Automatically upgrade packages from these (origin:archive) pairs
+// Automatically upgrade packages from these (origin:archive) pairs.
+//
+// Only Ubuntu's own security and updates archives are listed, on purpose. Third-party repositories
+// (Jellyfin, Docker, PostgreSQL, Tailscale) only move when someone runs `apt upgrade` by hand. Jellyfin is
+// the clearest reason: its majors run a one-way database migration on first start, and its repository puts
+// every major and its `unstable` component under one origin, so there is no way to allow "bugfix releases
+// only". See roles/jellyfin/README.md for the manual upgrade procedure.
 Unattended-Upgrade::Allowed-Origins {
 	"${distro_id}:${distro_codename}-security";
 	"${distro_id}:${distro_codename}-updates";

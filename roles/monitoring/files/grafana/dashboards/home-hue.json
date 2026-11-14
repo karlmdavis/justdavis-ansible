@@ -570,38 +570,14 @@
       }
     },
     {
-      "id": 16,
-      "type": "text",
-      "title": "Why HomeKit accessories are on a Hue dashboard",
-      "gridPos": {
-        "h": 5,
-        "w": 24,
-        "x": 0,
-        "y": 31
-      },
-      "options": {
-        "mode": "markdown",
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "Siri and the Home app reach the Hue lights through HomeKit: a request goes to the home hub (an Apple TV or HomePod), which talks to the bridge as a HomeKit accessory. So when \"the lights stopped responding\", the question is as often the hub or the network as the bridge, and the HomeKit accessories table below is the only record of that side. Read it alongside the Hue panels above: was the bridge (`Philips Hue HomeKit`) still present and paired at the time; were the hub candidates (the HomePod sensors here are the HomePods themselves, named in the Device column) present; did other accessories drop off at the same moment, which points at the network rather than the bridge; and did the bridge's address change just before (the `homekit_accessory_address_info` series). Presence is read passively from the accessories' own mDNS announcements, so a disappearance shows up to 75 minutes late and a return shows as soon as the accessory announces."
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      }
-    },
-    {
       "id": 13,
       "type": "timeseries",
       "title": "Battery",
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 7,
+        "w": 24,
         "x": 0,
-        "y": 36
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -624,14 +600,38 @@
       }
     },
     {
+      "id": 16,
+      "type": "text",
+      "title": "Why HomeKit accessories are on a Hue dashboard",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "options": {
+        "mode": "markdown",
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Siri and the Home app reach the Hue lights through HomeKit: a request goes to the home hub (an Apple TV or HomePod), which talks to the bridge as a HomeKit accessory. So when \"the lights stopped responding\", the question is as often the hub or the network as the bridge, and the HomeKit accessories table below is the only record of that side. Read it alongside the Hue panels above: was the bridge (`Philips Hue HomeKit`) still present and paired at the time; were the hub candidates (the HomePod sensors here are the HomePods themselves, named in the Device column) present; did other accessories drop off at the same moment, which points at the network rather than the bridge; and did the bridge's address change just before (the `homekit_accessory_address_info` series). Presence is read passively from the accessories' own mDNS announcements, so a disappearance shows up to 75 minutes late and a return shows as soon as the accessory announces."
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
       "id": 14,
       "type": "table",
       "title": "HomeKit accessories on the LAN (presence from their mDNS announcements; Device is the address inventory's name for the device at that address: a tracked client, else the router's name, which the AmpliFi app can set)",
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 36
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 44
       },
       "datasource": {
         "type": "prometheus",
@@ -723,7 +723,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 53
       },
       "panels": [
         {
@@ -734,7 +734,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 45
+            "y": 54
           },
           "datasource": {
             "type": "prometheus",
@@ -765,7 +765,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 45
+            "y": 54
           },
           "datasource": {
             "type": "prometheus",
@@ -802,7 +802,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 45
+            "y": 54
           },
           "datasource": {
             "type": "prometheus",

@@ -570,127 +570,6 @@
       }
     },
     {
-      "id": 10,
-      "type": "timeseries",
-      "title": "Sensor temperature",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 31
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "hue_sensor_temperature_celsius",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "celsius"
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Sensor light level (lux, log scale)",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 31
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "hue_sensor_light_level_lux",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "lux",
-          "custom": {
-            "scaleDistribution": {
-              "type": "log",
-              "log": 10
-            }
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 12,
-      "type": "state-timeline",
-      "title": "Motion",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 31
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "hue_sensor_motion",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "options": {
-        "mergeValues": true,
-        "showValue": "never",
-        "rowHeight": 0.8,
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Still",
-                  "color": "dark-blue",
-                  "index": 0
-                },
-                "1": {
-                  "text": "Motion",
-                  "color": "orange",
-                  "index": 1
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 13,
       "type": "timeseries",
       "title": "Battery",
@@ -698,7 +577,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -723,12 +602,12 @@
     {
       "id": 14,
       "type": "table",
-      "title": "HomeKit accessories on the LAN (from their mDNS announcements; presence lags a disappearance by up to 75 minutes)",
+      "title": "HomeKit accessories on the LAN (from their mDNS announcements; presence lags a disappearance by up to 75 minutes; Device is the tracked client's or the router's name for the address)",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -737,7 +616,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (accessory, model, category) (homekit_accessory_info) * on (accessory) group_left () homekit_accessory_present",
+          "expr": "max by (accessory, device, model, category) (homekit_accessory_info) * on (accessory) group_left () homekit_accessory_present",
           "format": "table",
           "instant": true
         },
@@ -763,13 +642,15 @@
             },
             "indexByName": {
               "accessory": 0,
-              "model": 1,
-              "category": 2,
-              "Value #A": 3,
-              "Value #B": 4
+              "device": 1,
+              "model": 2,
+              "category": 3,
+              "Value #A": 4,
+              "Value #B": 5
             },
             "renameByName": {
               "accessory": "Accessory",
+              "device": "Device (from the address inventory)",
               "model": "Model",
               "category": "Category",
               "Value #A": "Present",
@@ -808,6 +689,150 @@
         },
         "overrides": []
       }
+    },
+    {
+      "type": "row",
+      "id": 15,
+      "collapsed": true,
+      "title": "Hue sensors (temperature, light level, motion): none in the house yet, so these show no data until a Hue motion sensor is added",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "panels": [
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "Sensor temperature",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 40
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hue_sensor_temperature_celsius",
+              "legendFormat": "{{name}}",
+              "format": "time_series",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "Sensor light level (lux, log scale)",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 40
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hue_sensor_light_level_lux",
+              "legendFormat": "{{name}}",
+              "format": "time_series",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "lux",
+              "custom": {
+                "scaleDistribution": {
+                  "type": "log",
+                  "log": 10
+                }
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 12,
+          "type": "state-timeline",
+          "title": "Motion",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 40
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hue_sensor_motion",
+              "legendFormat": "{{name}}",
+              "format": "time_series",
+              "range": true,
+              "instant": false
+            }
+          ],
+          "options": {
+            "mergeValues": true,
+            "showValue": "never",
+            "rowHeight": 0.8,
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "Still",
+                      "color": "dark-blue",
+                      "index": 0
+                    },
+                    "1": {
+                      "text": "Motion",
+                      "color": "orange",
+                      "index": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          }
+        }
+      ]
     }
   ]
 }

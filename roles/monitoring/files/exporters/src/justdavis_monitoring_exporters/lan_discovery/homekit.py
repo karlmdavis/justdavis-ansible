@@ -13,7 +13,7 @@ and the set is capped, so a guest's gadget cannot flood the label space.
 """
 
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 
 from prometheus_client.core import GaugeMetricFamily, InfoMetricFamily, Metric
@@ -26,6 +26,43 @@ from justdavis_monitoring_exporters.lan_discovery.mdns import HAP_TYPE, CachedIn
 log = logging.getLogger(__name__)
 RETENTION_SECONDS = 48 * 3600
 MAX_ACCESSORIES = 64
+# HAP accessory categories (`ci`), as the HomeKit Accessory Protocol specification numbers them; an
+# unlisted code is exported as the number.
+CATEGORY_NAMES: dict[str, str] = {
+    "1": "other",
+    "2": "bridge",
+    "3": "fan",
+    "4": "garage_door_opener",
+    "5": "lightbulb",
+    "6": "door_lock",
+    "7": "outlet",
+    "8": "switch",
+    "9": "thermostat",
+    "10": "sensor",
+    "11": "security_system",
+    "12": "door",
+    "13": "window",
+    "14": "window_covering",
+    "15": "programmable_switch",
+    "16": "range_extender",
+    "17": "ip_camera",
+    "18": "video_doorbell",
+    "19": "air_purifier",
+    "20": "heater",
+    "21": "air_conditioner",
+    "22": "humidifier",
+    "23": "dehumidifier",
+    "26": "speaker",
+    "28": "sprinkler",
+    "29": "faucet",
+    "30": "shower_head",
+    "32": "television",
+    "33": "target_controller",
+}
+# Given an announced address, the name the device address inventory has for the device there (a tracked
+# client's name, or the router's name for it, which is whatever it was called in the AmpliFi app); ""
+# when nothing is known.
+DeviceNamer = Callable[[str], str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +79,10 @@ class HapAccessory:
     addresses: tuple[str, ...]
     # Still in the cache (its record has not expired) at the last refresh.
     present: bool
+    # What the device address inventory calls the device at the announced address, or "". The
+    # announcement's own instance name is often a factory label ("HomePodSensor 13867 CF07"), while the
+    # inventory knows the tracked client's name, or the router's, which the AmpliFi app can set.
+    device: str = ""
 
 
 def _int_or_none(value: str | None) -> int | None:
@@ -51,12 +92,18 @@ def _int_or_none(value: str | None) -> int | None:
         return None
 
 
-def accessory_from_instance(cached: CachedInstance, *, present: bool) -> HapAccessory | None:
+def accessory_from_instance(
+    cached: CachedInstance, *, present: bool, device_for_address: DeviceNamer | None = None
+) -> HapAccessory | None:
     """The accessory an `_hap._tcp` instance describes; None when it has no TXT record yet."""
     if cached.txt_seen_at is None:
         return None
     txt = cached.txt
     status_flags = _int_or_none(txt.get("sf"))
+    addresses = tuple(address for address, _ in cached.addresses)
+    device = ""
+    if device_for_address is not None:
+        device = next((name for name in map(device_for_address, addresses) if name), "")
     return HapAccessory(
         instance=cached.instance,
         identity=txt.get("id", ""),
@@ -65,8 +112,9 @@ def accessory_from_instance(cached: CachedInstance, *, present: bool) -> HapAcce
         paired=None if status_flags is None else not status_flags & 1,
         config_number=_int_or_none(txt.get("c#")),
         last_seen=cached.txt_seen_at,
-        addresses=tuple(address for address, _ in cached.addresses),
+        addresses=addresses,
         present=present,
+        device=device,
     )
 
 
@@ -83,12 +131,18 @@ class HomekitTracker:
         self.snapshots: SnapshotHolder[tuple[HapAccessory, ...]] = SnapshotHolder()
         self._warned_cap = False
 
-    def refresh(self, instances: Iterable[CachedInstance], *, now: float) -> tuple[HapAccessory, ...]:
+    def refresh(
+        self,
+        instances: Iterable[CachedInstance],
+        *,
+        now: float,
+        device_for_address: DeviceNamer | None = None,
+    ) -> tuple[HapAccessory, ...]:
         seen: set[str] = set()
         for cached in instances:
             if cached.service != HAP_TYPE:
                 continue
-            accessory = accessory_from_instance(cached, present=True)
+            accessory = accessory_from_instance(cached, present=True, device_for_address=device_for_address)
             if accessory is None:
                 continue
             seen.add(accessory.instance)
@@ -131,6 +185,7 @@ def _with_present(accessory: HapAccessory, present: bool) -> HapAccessory:
         last_seen=accessory.last_seen,
         addresses=accessory.addresses,
         present=present,
+        device=accessory.device,
     )
 
 
@@ -150,8 +205,10 @@ class HomekitCollector(Collector):
             return
         info = InfoMetricFamily(
             "homekit_accessory",
-            "A HomeKit accessory announced on the LAN: its pairing identity, model and category "
-            "(from the last announcement heard).",
+            "A HomeKit accessory announced on the LAN: its pairing identity, model and category (from "
+            "the last announcement heard), and `device`, what the device address inventory calls the "
+            "device at the announced address (a tracked client's name, or the router's name for it, "
+            "which the AmpliFi app can set), or empty.",
             labels=_LABELS,
         )
         present = GaugeMetricFamily(
@@ -187,7 +244,8 @@ class HomekitCollector(Collector):
                 {
                     "id": sanitise_label(accessory.identity),
                     "model": sanitise_label(accessory.model),
-                    "category": sanitise_label(accessory.category),
+                    "category": CATEGORY_NAMES.get(accessory.category, sanitise_label(accessory.category)),
+                    "device": sanitise_label(accessory.device),
                 },
             )
             present.add_metric(labels, float(accessory.present))

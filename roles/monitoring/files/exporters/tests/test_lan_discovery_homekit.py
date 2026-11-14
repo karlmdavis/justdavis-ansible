@@ -34,6 +34,7 @@ def test_accessory_fields_come_from_the_txt_record() -> None:
     )
     assert accessory is not None
     assert (accessory.identity, accessory.model, accessory.category) == ("02:00:00:00:00:40", "Model A", "5")
+    assert accessory.device == ""
     assert (accessory.paired, accessory.config_number, accessory.last_seen, accessory.addresses) == (
         True,
         149,
@@ -46,6 +47,24 @@ def test_accessory_fields_come_from_the_txt_record() -> None:
     assert bare is not None and bare.paired is None
     without_txt = CachedInstance("_hap._tcp", "D", f"D.{HAP}", None, {}, (), None)
     assert accessory_from_instance(without_txt, present=True) is None
+
+
+def test_accessory_is_named_after_the_device_the_inventory_has_at_its_address() -> None:
+    names = {"192.0.2.50": "Speaker-A"}
+
+    def device_for_address(address: str) -> str:
+        return names.get(address, "")
+
+    named = accessory_from_instance(
+        hap("HomePodSensor 12345 ABCD", {"ci": "10"}), present=True, device_for_address=device_for_address
+    )
+    unnamed = accessory_from_instance(
+        hap("Plug 1234", {"ci": "7"}, address="192.0.2.99"),
+        present=True,
+        device_for_address=device_for_address,
+    )
+    assert named is not None and named.device == "Speaker-A"
+    assert unnamed is not None and unnamed.device == ""
 
 
 def test_tracker_keeps_a_vanished_accessory_as_not_present_until_retention_ends(
@@ -90,7 +109,8 @@ def test_collector_labels_the_accessory_never_the_instance() -> None:
     a = {"accessory": "Accessory 'A"}
     assert (
         registry.get_sample_value(
-            "homekit_accessory_info", {**a, "id": "02:00:00:00:00:40", "model": "Model A", "category": "5"}
+            "homekit_accessory_info",
+            {**a, "id": "02:00:00:00:00:40", "model": "Model A", "category": "lightbulb", "device": ""},
         )
         == 1.0
     )

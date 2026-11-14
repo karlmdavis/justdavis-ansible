@@ -228,14 +228,28 @@ class LanDiscoveryScraper:
             raise
         self._collector.set_target_files_ok(True)
         self._nudge_stale_devices(inventory, states, instances)
-        self._refresh_homekit(now)
+        self._refresh_homekit(now, inventory)
 
-    def _refresh_homekit(self, now: float) -> None:
-        """HomeKit accessory presence rides on the same browser; a fault here is counted, not fatal."""
+    def _refresh_homekit(self, now: float, inventory: AddressInventory) -> None:
+        """HomeKit accessory presence rides on the same browser; a fault here is counted, not fatal. Each
+        accessory is named after the device the inventory has at its announced address: the tracked
+        client's name when it is one, else whatever the router calls it."""
         if self._homekit is None or self._mdns is None:
             return
         try:
-            self._homekit.refresh(self._mdns.hap_instances(now=now), now=now)
+            max_age = self._settings.max_age_seconds
+            by_address = inventory.fresh_addresses(now=now, max_age=max_age)
+            tracked = {client.mac: client.name for client in self._settings.tracked_clients}
+
+            def device_for_address(address: str) -> str:
+                mac = by_address.get(address)
+                if mac is None:
+                    return ""
+                return tracked.get(mac) or inventory.name(mac)
+
+            self._homekit.refresh(
+                self._mdns.hap_instances(now=now), now=now, device_for_address=device_for_address
+            )
         except Exception:
             self._fail("resolve", "could not read the HomeKit announcements")
 

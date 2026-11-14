@@ -3,15 +3,21 @@
 The key is a credential: it travels as the `hue-application-key` header on CLIP v2 requests (set on the
 session, so this module never sees it leave) and, for the one v1 request this exporter still needs, in
 the URL path. Everything `requests` raises carries the URL in its message, and so does the shared
-client's `HttpStatusError`, so every failure is re-raised here as a sanitised exception `from None`,
-with the stage the exporter should count it under.
+client's `HttpStatusError`, so every failure is replaced here by a sanitised exception, raised after
+the handler has ended so that the original is not even kept as its context, with the stage the exporter
+should count it under.
 """
 
 import ssl
 
 import requests
 
-from justdavis_monitoring_exporters.common.errors import ExporterError, HttpStatusError, LoginError
+from justdavis_monitoring_exporters.common.errors import (
+    ExporterError,
+    HttpStatusError,
+    LoginError,
+    ResponseTooLarge,
+)
 from justdavis_monitoring_exporters.common.http import HttpClient
 from justdavis_monitoring_exporters.common.metrics import ErrorStage
 
@@ -71,7 +77,7 @@ class HueClient:
         return self._get(_RESOURCES_PATH, redacted=_RESOURCES_PATH)
 
     def fetch_config(self) -> bytes:
-        """The v1 configuration (Zigbee channel, clock, cloud links, last software install)."""
+        """The v1 configuration (Zigbee channel, cloud links, last software install)."""
         return self._get(_CONFIG_PATH.format(key=self._key), redacted=_CONFIG_PATH_REDACTED)
 
     def close_connections(self) -> None:
@@ -80,17 +86,25 @@ class HueClient:
     def _get(self, path: str, *, redacted: str) -> bytes:
         try:
             return self._http.get(path).body
-        except requests.exceptions.SSLError as exc:
-            if _is_certificate_problem(exc):
-                raise FetchError(
-                    "tls", f"the certificate of the bridge at {redacted} is not the bridge's"
-                ) from None
-            raise FetchError("fetch", "TLS connection failure") from None
-        except (requests.RequestException, OSError) as exc:
-            raise FetchError("fetch", f"request failed: {type(exc).__name__}") from None
-        except HttpStatusError as exc:
-            if exc.status in (401, 403):
-                raise LoginError("the bridge rejected the application key") from None
-            if exc.status == 429:
-                raise FetchError("fetch", "the bridge is throttling requests") from None
-            raise FetchError("fetch", f"HTTP {exc.status} from {redacted}") from None
+        except Exception as exc:
+            failure = _sanitised(exc, redacted)
+        # Raised out here, not in the handler: the original (whose message may hold the key) is then
+        # neither the cause nor the context of what propagates.
+        raise failure
+
+
+def _sanitised(exc: Exception, redacted: str) -> ExporterError:
+    """The exception to raise in place of `exc`: what failed and at which request, never the URL."""
+    if isinstance(exc, requests.exceptions.SSLError):
+        if _is_certificate_problem(exc):
+            return FetchError("tls", f"the certificate presented for {redacted} is not the bridge's")
+        return FetchError("fetch", f"TLS connection failure during {redacted}")
+    if isinstance(exc, HttpStatusError):
+        if exc.status in (401, 403):
+            return LoginError("the bridge rejected the application key")
+        if exc.status == 429:
+            return FetchError("fetch", f"the bridge is throttling requests ({redacted})")
+        return FetchError("fetch", f"HTTP {exc.status} from {redacted}")
+    if isinstance(exc, ResponseTooLarge):
+        return FetchError("fetch", f"the response to {redacted} exceeded the size cap")
+    return FetchError("fetch", f"request to {redacted} failed: {type(exc).__name__}")

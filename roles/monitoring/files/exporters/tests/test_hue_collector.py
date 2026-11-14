@@ -38,7 +38,7 @@ def test_bridge_families() -> None:
         registry.get_sample_value(
             "hue_bridge_info",
             {
-                "bridge_id": "020000FFFE000030",
+                "bridge_id": "020000fffe000030",
                 "model": "BSB002",
                 "swversion": "1978545030",
                 "apiversion": "1.78.0",
@@ -48,7 +48,7 @@ def test_bridge_families() -> None:
     )
     assert (
         registry.get_sample_value(
-            "hue_bridge_address_info", {"bridge_id": "020000FFFE000030", "address": "192.0.2.21"}
+            "hue_bridge_address_info", {"bridge_id": "020000fffe000030", "address": "192.0.2.21"}
         )
         == 1.0
     )
@@ -139,3 +139,26 @@ def test_a_raw_light_level_of_zero_is_zero_lux() -> None:
     dark = replace(SNAPSHOT, sensors=tuple(replace(s, light_level_raw=0) for s in SNAPSHOT.sensors))
     registry = registry_with(dark)
     assert registry.get_sample_value("hue_sensor_light_level_lux", SENSOR_A) == 0.0
+
+
+def test_unfamiliar_or_missing_states_show_as_unknown_and_the_named_ones_as_themselves() -> None:
+    from dataclasses import replace
+
+    lamp, dimmer = (
+        next(d for d in DEVICES if d.device_id == labels["device_id"]) for labels in (LAMP_B, DIMMER_A)
+    )
+    devices = (
+        replace(lamp, zigbee_status="pending_discovery"),
+        # A battery level with no state reported, and a state this code has not seen.
+        replace(dimmer, battery_state=None),
+        replace(lamp, device_id="x", name="X", battery_ratio=0.5, battery_state="swollen"),
+    )
+    registry = registry_with(HueSnapshot(SNAPSHOT.bridge, devices, (), ()))
+
+    def lit(metric: str, labels: dict[str, str], label: str, states: tuple[str, ...]) -> list[str]:
+        return [s for s in states if registry.get_sample_value(metric, {**labels, label: s}) == 1.0]
+
+    assert lit("hue_zigbee_connectivity", LAMP_B, "status", ZIGBEE_STATUSES) == ["pending_discovery"]
+    assert lit("hue_device_battery_state", DIMMER_A, "state", BATTERY_STATES) == ["unknown"]
+    x = {"device_id": "x", "name": "X"}
+    assert lit("hue_device_battery_state", x, "state", BATTERY_STATES) == ["unknown"]

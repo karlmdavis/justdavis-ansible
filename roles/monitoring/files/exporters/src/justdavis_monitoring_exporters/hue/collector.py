@@ -92,7 +92,7 @@ def _bridge_families(published: PublishedHue) -> Iterator[Metric]:
         labels=["service"],
     )
     for service in INTERNET_SERVICES:
-        services.add_metric([service], float(bridge.internet_services.get(service, False)))
+        services.add_metric([service], float(bridge.internet_services[service]))
     yield services
     if bridge.last_install is not None:
         yield GaugeMetricFamily(

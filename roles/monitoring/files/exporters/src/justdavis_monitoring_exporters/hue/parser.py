@@ -3,21 +3,23 @@
 * `GET /clip/v2/resource` (CLIP v2, header `hue-application-key`): `{"errors": [...], "data": [...]}`,
   every resource in one list, each with `id`, `type` and an `owner` (`{rid, rtype}`) pointing at the
   device it belongs to. Read here: `device` (identity, `product_data`, `metadata.name`, `services`),
-  `light` (`on.on`, `dimming.brightness` 0-100), `zigbee_connectivity` (`status`, `mac_address`),
+  `light` (`on.on`, `dimming.brightness` 0-100), `zigbee_connectivity` (`status`),
   `device_power` (`power_state.battery_level` and `battery_state`), `temperature`, `light_level` and
   `motion` (each with a `*_report` sub-object, preferred over the older top-level fields), and `room`
   (`children` naming the devices in it). Everything else (scenes, zones, buttons, entertainment) is
   skipped. The CLIP v2 reference itself sits behind the Hue developer portal's login; the field names
   and enumerations here were checked (2026-11-08) against aiohue's models, the public transcription of
   that reference maintained for Home Assistant.
-* `GET /api/<key>/config` (v1): `zigbeechannel`, `UTC` (the bridge's clock, `YYYY-MM-DDTHH:MM:SS`,
-  UTC), `internetservices` (`internet`, `remoteaccess`, `time`, `swupdate`: "connected" or
-  "disconnected"), `swupdate2.bridge.lastinstall`, and the public identity fields. With a key the bridge
+* `GET /api/<key>/config` (v1): `zigbeechannel`, `internetservices` (`internet`, `remoteaccess`,
+  `time`, `swupdate`: "connected" or "disconnected"), `swupdate2.bridge.lastinstall`
+  (`YYYY-MM-DDTHH:MM:SS`, UTC), and the public identity fields. With a key the bridge
   does not know it answers 200 with the PUBLIC subset of the same object (no `zigbeechannel`), so a
   rejected key is told from the shape, not the status; the v2 call runs first and does answer 403.
 
 Values from the bridge never appear in error messages (names could be anything); the JSON path does.
-This module is pure and never returns partial results.
+This module is pure and never returns partial results: a block this exporter reads that has gone
+missing, or a resource owned by no known device, is a parse error rather than a series that quietly
+ends, because a renamed field after a bridge update must not read as "nothing is wrong".
 """
 
 import json
@@ -39,11 +41,6 @@ from justdavis_monitoring_exporters.hue.models import BridgeConfig, HueDevice, H
 INTERNET_SERVICES: tuple[str, ...] = ("internet", "remoteaccess", "time", "swupdate")
 # A rejected key gets the public configuration back: this field is in the full one only.
 _AUTHENTICATED_ONLY_FIELD = "zigbeechannel"
-
-
-def _optional_str(mapping: Mapping[str, object], key: str, ctx: str) -> str | None:
-    value = mapping.get(key)
-    return None if value is None else as_str(value, f"{ctx}.{key}")
 
 
 def _optional_dict(mapping: Mapping[str, object], key: str, ctx: str) -> Mapping[str, object] | None:
@@ -71,9 +68,10 @@ def parse_config(body: bytes | str) -> BridgeConfig:
     config = as_dict(decoded, "config")
     if _AUTHENTICATED_ONLY_FIELD not in config:
         raise LoginError("the bridge did not accept the application key (public configuration returned)")
-    services_raw = as_dict(config.get("internetservices", {}), "config.internetservices")
+    services_raw = as_dict(get(config, "internetservices", "config"), "config.internetservices")
     services = {
-        name: as_str(services_raw.get(name, ""), f"config.internetservices.{name}") == "connected"
+        name: as_str(get(services_raw, name, "config.internetservices"), f"config.internetservices.{name}")
+        == "connected"
         for name in INTERNET_SERVICES
     }
     last_install: float | None = None
@@ -83,14 +81,14 @@ def parse_config(body: bytes | str) -> BridgeConfig:
         if bridge_update is not None and "lastinstall" in bridge_update:
             last_install = _timestamp(bridge_update["lastinstall"], "config.swupdate2.bridge.lastinstall")
     return BridgeConfig(
-        bridge_id=as_str(get(config, "bridgeid", "config"), "config.bridgeid"),
+        # Lowercase, as the certificate's common name and the configured id spell it.
+        bridge_id=as_str(get(config, "bridgeid", "config"), "config.bridgeid").lower(),
         model=as_str(get(config, "modelid", "config"), "config.modelid"),
         swversion=as_str(get(config, "swversion", "config"), "config.swversion"),
         apiversion=as_str(get(config, "apiversion", "config"), "config.apiversion"),
         zigbee_channel=as_int(
             get(config, _AUTHENTICATED_ONLY_FIELD, "config"), f"config.{_AUTHENTICATED_ONLY_FIELD}"
         ),
-        utc=_timestamp(config["UTC"], "config.UTC") if "UTC" in config else None,
         internet_services=services,
         last_install=last_install,
     )
@@ -103,11 +101,12 @@ def _owner_id(resource: Mapping[str, object], ctx: str) -> str:
 
 def _reported(resource: Mapping[str, object], section: str, field: str, ctx: str) -> object | None:
     """`<section>.<field>_report.<field>` when present (the current API), else `<section>.<field>`; None
-    when the bridge marks the reading invalid (`<field>_valid` false) or the sensor disabled."""
+    when the bridge marks the reading invalid (`<field>_valid` false), the sensor is disabled, or it has
+    no reading yet. The section itself must be there."""
     if resource.get("enabled") is False:
         return None
-    block = _optional_dict(resource, section, ctx)
-    if block is None or block.get(f"{field}_valid") is False:
+    block = as_dict(get(resource, section, ctx), f"{ctx}.{section}")
+    if block.get(f"{field}_valid") is False:
         return None
     report = _optional_dict(block, f"{field}_report", f"{ctx}.{section}")
     if report is not None and field in report:
@@ -135,19 +134,26 @@ def parse_resources(
         resource = as_dict(value, ctx)
         by_type.setdefault(as_str(get(resource, "type", ctx), f"{ctx}.type"), []).append((resource, ctx))
 
-    zigbee: dict[str, tuple[str, str | None]] = {}
+    device_ids = {
+        as_str(get(resource, "id", ctx), f"{ctx}.id") for resource, ctx in by_type.get("device", [])
+    }
+
+    def owner_of(resource: Mapping[str, object], ctx: str) -> str:
+        """The owning device's id, which must be a device in this list: readings that no longer join to
+        a device would otherwise vanish without a word."""
+        owner = _owner_id(resource, ctx)
+        if owner not in device_ids:
+            raise ParseError(f"{ctx}.owner.rid: not a device in the resource list")
+        return owner
+
+    zigbee: dict[str, str] = {}
     for resource, ctx in by_type.get("zigbee_connectivity", []):
-        zigbee[_owner_id(resource, ctx)] = (
-            as_str(get(resource, "status", ctx), f"{ctx}.status"),
-            _optional_str(resource, "mac_address", ctx),
-        )
+        zigbee[owner_of(resource, ctx)] = as_str(get(resource, "status", ctx), f"{ctx}.status")
     battery: dict[str, float] = {}
     battery_state: dict[str, str] = {}
     for resource, ctx in by_type.get("device_power", []):
-        power = _optional_dict(resource, "power_state", ctx)
-        if power is None:
-            continue
-        owner = _owner_id(resource, ctx)
+        power = as_dict(get(resource, "power_state", ctx), f"{ctx}.power_state")
+        owner = owner_of(resource, ctx)
         if power.get("battery_level") is not None:
             battery[owner] = as_float(power["battery_level"], f"{ctx}.power_state.battery_level") / 100
         if power.get("battery_state") is not None:
@@ -167,17 +173,17 @@ def parse_resources(
     for resource, ctx in by_type.get("temperature", []):
         value = _reported(resource, "temperature", "temperature", ctx)
         if value is not None:
-            temperature[_owner_id(resource, ctx)] = as_float(value, f"{ctx}.temperature.temperature")
+            temperature[owner_of(resource, ctx)] = as_float(value, f"{ctx}.temperature.temperature")
     light_level: dict[str, int] = {}
     for resource, ctx in by_type.get("light_level", []):
         value = _reported(resource, "light", "light_level", ctx)
         if value is not None:
-            light_level[_owner_id(resource, ctx)] = as_int(value, f"{ctx}.light.light_level")
+            light_level[owner_of(resource, ctx)] = as_int(value, f"{ctx}.light.light_level")
     motion: dict[str, bool] = {}
     for resource, ctx in by_type.get("motion", []):
         value = _reported(resource, "motion", "motion", ctx)
         if value is not None:
-            motion[_owner_id(resource, ctx)] = as_bool(value, f"{ctx}.motion.motion")
+            motion[owner_of(resource, ctx)] = as_bool(value, f"{ctx}.motion.motion")
 
     devices: list[HueDevice] = []
     names: dict[str, str] = {}
@@ -187,7 +193,6 @@ def parse_resources(
         metadata = as_dict(get(resource, "metadata", ctx), f"{ctx}.metadata")
         name = as_str(get(metadata, "name", f"{ctx}.metadata"), f"{ctx}.metadata.name")
         names[device_id] = name
-        status, mac = zigbee.get(device_id, (None, None))
         devices.append(
             HueDevice(
                 device_id=device_id,
@@ -198,15 +203,14 @@ def parse_resources(
                     product.get("software_version", ""), f"{ctx}.product_data.software_version"
                 ),
                 room=rooms.get(device_id, ""),
-                zigbee_status=status,
-                zigbee_mac=mac,
+                zigbee_status=zigbee.get(device_id),
                 battery_ratio=battery.get(device_id),
                 battery_state=battery_state.get(device_id),
             )
         )
     lights: list[HueLight] = []
     for resource, ctx in by_type.get("light", []):
-        owner = _owner_id(resource, ctx)
+        owner = owner_of(resource, ctx)
         on = as_dict(get(resource, "on", ctx), f"{ctx}.on")
         dimming = _optional_dict(resource, "dimming", ctx)
         brightness = None

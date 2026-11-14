@@ -1,13 +1,21 @@
 """Tests for the Hue scraper glue: the inventory lookup, both fetches, error attribution."""
 
+import ssl
 import time
 from pathlib import Path
 
 import pytest
+import requests
+import urllib3
 from prometheus_client import CollectorRegistry
 
 from justdavis_monitoring_exporters.common.device_addresses import DEVICE_ADDRESSES_DIR, Sighting, SourceStore
-from justdavis_monitoring_exporters.common.errors import HttpStatusError, LoginError, ParseError
+from justdavis_monitoring_exporters.common.errors import (
+    HttpStatusError,
+    LoginError,
+    ParseError,
+    ResponseTooLarge,
+)
 from justdavis_monitoring_exporters.common.http import HttpClient
 from justdavis_monitoring_exporters.common.settings import Mac
 from justdavis_monitoring_exporters.hue.client import FetchError
@@ -84,7 +92,7 @@ def test_successful_poll_publishes_and_closes_the_connection(tmp_path: Path) -> 
     assert registry.get_sample_value("hue_bridge_zigbee_channel") == 25.0
     assert (
         registry.get_sample_value(
-            "hue_bridge_address_info", {"bridge_id": "020000FFFE000030", "address": "192.0.2.21"}
+            "hue_bridge_address_info", {"bridge_id": "020000fffe000030", "address": "192.0.2.21"}
         )
         == 1.0
     )
@@ -98,28 +106,56 @@ def test_successful_poll_publishes_and_closes_the_connection(tmp_path: Path) -> 
     assert addresses == ["192.0.2.21", "192.0.2.22"]
 
 
+def published(registry: CollectorRegistry) -> bool:
+    return registry.get_sample_value("hue_bridge_zigbee_channel") is not None
+
+
+def errors(registry: CollectorRegistry) -> dict[str, float]:
+    stages = ("address", "login", "fetch", "tls", "parse")
+    counts = {s: registry.get_sample_value("hue_scrape_errors_total", {"stage": s}) or 0.0 for s in stages}
+    return {stage: count for stage, count in counts.items() if count}
+
+
 def test_no_fresh_address_fails_the_poll_under_the_address_stage_without_a_request(tmp_path: Path) -> None:
-    inventory_with_bridge(tmp_path, age_seconds=600)
+    inventory_with_bridge(tmp_path)
     http = http_with()
     scraper, registry, addresses = make(tmp_path, http)
+    scraper()
+    assert published(registry)
+    calls = len(http.calls)
+    # The inventory loses the bridge: what was published must go, and nothing is asked of any address.
+    (tmp_path / DEVICE_ADDRESSES_DIR / "mdns.json").unlink()
+    inventory_with_bridge(tmp_path, age_seconds=600)
     with pytest.raises(NoFreshAddress):
         scraper()
-    assert registry.get_sample_value("hue_scrape_errors_total", {"stage": "address"}) == 1.0
-    assert registry.get_sample_value("hue_bridge_zigbee_channel") is None
-    assert (addresses, http.calls) == ([], [])
+    assert errors(registry) == {"address": 1.0}
+    assert not published(registry)
+    assert (addresses, len(http.calls)) == (["192.0.2.21"], calls)
 
 
-def test_rejected_key_counts_login_whether_by_status_or_by_shape(tmp_path: Path) -> None:
+def test_a_key_rejected_by_status_counts_login_and_clears_the_snapshot(tmp_path: Path) -> None:
     inventory_with_bridge(tmp_path)
-    scraper, registry, _ = make(tmp_path, http_with(config=PUBLIC_CONFIG))
-    with pytest.raises(LoginError):
-        scraper()
     http = FailingHttpClient(http_with().script, error=HttpStatusError(403, "/clip/v2/resource"))
-    http.arm()
     scraper, registry, _ = make(tmp_path, http)
+    scraper()
+    http.arm()
     with pytest.raises(LoginError):
         scraper()
-    assert registry.get_sample_value("hue_scrape_errors_total", {"stage": "login"}) == 1.0
+    assert errors(registry) == {"login": 1.0}
+    assert not published(registry)
+
+
+def test_a_key_rejected_by_shape_counts_login_and_clears_the_snapshot(tmp_path: Path) -> None:
+    # The v1 API answers 200 with the public configuration for a key it does not know.
+    inventory_with_bridge(tmp_path)
+    http = http_with()
+    http.script[("GET", f"/api/{KEY}/config")] = [response(200, CONFIG), response(200, PUBLIC_CONFIG)]
+    scraper, registry, _ = make(tmp_path, http)
+    scraper()
+    with pytest.raises(LoginError):
+        scraper()
+    assert errors(registry) == {"login": 1.0}
+    assert not published(registry)
 
 
 def test_fetch_failures_count_their_stage_and_clear_the_snapshot(tmp_path: Path) -> None:
@@ -130,18 +166,74 @@ def test_fetch_failures_count_their_stage_and_clear_the_snapshot(tmp_path: Path)
     http.arm()
     with pytest.raises(FetchError):
         scraper()
-    assert registry.get_sample_value("hue_bridge_zigbee_channel") is None
-    assert registry.get_sample_value("hue_scrape_errors_total", {"stage": "fetch"}) == 1.0
+    assert errors(registry) == {"fetch": 1.0}
+    assert not published(registry)
+    # The connection is closed after a failed poll too, so the next one verifies the certificate anew.
+    assert http.connection_closes == 2
 
 
-def test_parse_failure_and_a_different_bridge_count_parse(tmp_path: Path) -> None:
+def test_a_certificate_that_is_not_the_bridges_counts_tls_and_clears_the_snapshot(tmp_path: Path) -> None:
     inventory_with_bridge(tmp_path)
-    scraper, registry, _ = make(tmp_path, http_with(resources=b"not json"))
+    wrong_certificate = requests.exceptions.SSLError(
+        urllib3.exceptions.SSLError(ssl.SSLCertVerificationError("certificate verify failed"))
+    )
+    http = FailingHttpClient(http_with().script, error=wrong_certificate)
+    scraper, registry, _ = make(tmp_path, http)
+    scraper()
+    http.arm()
+    with pytest.raises(FetchError):
+        scraper()
+    assert errors(registry) == {"tls": 1.0}
+    assert not published(registry)
+
+
+def test_an_oversized_response_counts_fetch(tmp_path: Path) -> None:
+    inventory_with_bridge(tmp_path)
+    http = FailingHttpClient(http_with().script, error=ResponseTooLarge("too big"))
+    scraper, registry, _ = make(tmp_path, http)
+    http.arm()
+    with pytest.raises(FetchError):
+        scraper()
+    assert errors(registry) == {"fetch": 1.0}
+
+
+def test_a_parse_failure_counts_parse_and_clears_the_snapshot(tmp_path: Path) -> None:
+    inventory_with_bridge(tmp_path)
+    http = http_with()
+    http.script[("GET", "/clip/v2/resource")] = [response(200, RESOURCES), response(200, b"not json")]
+    scraper, registry, _ = make(tmp_path, http)
+    scraper()
     with pytest.raises(ParseError):
         scraper()
-    assert registry.get_sample_value("hue_scrape_errors_total", {"stage": "parse"}) == 1.0
+    assert errors(registry) == {"parse": 1.0}
+    assert not published(registry)
+
+
+def test_a_different_bridge_at_the_address_is_not_published(tmp_path: Path) -> None:
+    inventory_with_bridge(tmp_path)
     other = CONFIG.replace(b'"020000FFFE000030"', b'"020000FFFE000099"')
-    scraper, registry, _ = make(tmp_path, http_with(config=other))
+    assert other != CONFIG
+    http = http_with()
+    http.script[("GET", f"/api/{KEY}/config")] = [response(200, CONFIG), response(200, other)]
+    scraper, registry, _ = make(tmp_path, http)
+    scraper()
     with pytest.raises(ParseError, match="not the configured bridge"):
         scraper()
-    assert registry.get_sample_value("hue_scrape_errors_total", {"stage": "parse"}) == 1.0
+    assert errors(registry) == {"parse": 1.0}
+    assert not published(registry)
+    assert registry.get_sample_value("hue_bridge_info", {"bridge_id": "020000fffe000099"}) is None
+
+
+def test_production_client_verifies_against_the_shipped_root_and_sends_the_key_as_a_header() -> None:
+    from justdavis_monitoring_exporters.common.http import PrivateCaAdapter
+    from justdavis_monitoring_exporters.hue.main import ROOT_CA_FILE, production_http
+
+    client = production_http(BRIDGE)("192.0.2.21")
+    session = client._session  # type: ignore[attr-defined]
+    assert session.headers["hue-application-key"] == KEY
+    assert session.trust_env is False
+    adapter = session.get_adapter("https://192.0.2.21/")
+    assert isinstance(adapter, PrivateCaAdapter)
+    assert (adapter.ca_file, adapter.server_name) == (str(ROOT_CA_FILE), "020000fffe000030")
+    assert client._verify == str(ROOT_CA_FILE)  # type: ignore[attr-defined]
+    assert ROOT_CA_FILE.read_text().startswith("-----BEGIN CERTIFICATE-----")

@@ -31,11 +31,7 @@ def test_parses_devices_with_zigbee_status_battery_and_room() -> None:
         "LCA001",
         "1.122.2",
     )
-    assert (lamp_a.room, lamp_a.zigbee_status, lamp_a.zigbee_mac) == (
-        "Room A",
-        "connected",
-        "02:00:00:00:00:00:00:31",
-    )
+    assert (lamp_a.room, lamp_a.zigbee_status) == ("Room A", "connected")
     assert (lamp_a.battery_ratio, lamp_a.battery_state) == (None, None)
     assert by_id[LAMP_B].zigbee_status == "disconnected"
     assert by_id[LAMP_B].room == ""
@@ -43,7 +39,7 @@ def test_parses_devices_with_zigbee_status_battery_and_room() -> None:
     assert (by_id[SENSOR_A].battery_state, by_id[DIMMER_A].battery_state) == ("normal", "low")
     assert by_id[DIMMER_A].zigbee_status == "some_future_state"
     bridge = by_id["00000000-0000-4000-8000-000000000010"]
-    assert (bridge.zigbee_status, bridge.zigbee_mac) == (None, None)
+    assert bridge.zigbee_status is None
 
 
 def test_parses_lights_with_brightness_as_a_ratio_and_none_for_a_plug() -> None:
@@ -80,26 +76,35 @@ def test_sensor_readings_fall_back_to_the_older_fields() -> None:
     assert (sensor.temperature_celsius, sensor.light_level_raw, sensor.motion) == (19.5, 20000, False)
 
 
+def _first(data: dict[str, list[dict[str, object]]], kind: str) -> int:
+    return next(index for index, resource in enumerate(data["data"]) if resource["type"] == kind)
+
+
 @pytest.mark.parametrize(
-    ("path", "value"),
+    ("kind", "path", "value", "named"),
     [
-        (("data", 1, "metadata"), None),
-        (("data", 7, "owner", "rid"), None),
-        (("data", 7, "on", "on"), "yes"),
-        (("data", 10, "status"), 7),
-        (("data",), None),
-    ],
-    ids=[
-        "device without metadata",
-        "light without owner",
-        "on is not a bool",
-        "status is not a string",
-        "no data",
+        ("device", ("metadata",), None, "metadata"),
+        ("light", ("owner", "rid"), None, "owner"),
+        ("light", ("owner", "rid"), "00000000-0000-4000-8000-0000000000ff", "owner.rid"),
+        ("light", ("on", "on"), "yes", "on.on"),
+        ("zigbee_connectivity", ("status",), 7, "status"),
+        ("zigbee_connectivity", ("owner", "rid"), "00000000-0000-4000-8000-0000000000ff", "owner.rid"),
+        ("device_power", ("power_state",), None, "power_state"),
+        ("device_power", ("power_state", "battery_level"), "full", "battery_level"),
+        ("device_power", ("power_state", "battery_state"), 3, "battery_state"),
+        ("temperature", ("temperature",), None, "temperature"),
+        ("light_level", ("light",), None, "light"),
+        ("motion", ("motion",), None, "motion"),
+        ("room", ("metadata", "name"), None, "metadata"),
+        ("room", ("children", 0, "rid"), None, "children[0]"),
     ],
 )
-def test_a_changed_resource_list_fails_naming_the_path(path: tuple[object, ...], value: object) -> None:
+def test_a_changed_resource_list_fails_naming_the_path(
+    kind: str, path: tuple[str | int, ...], value: object, named: str
+) -> None:
     data = json.loads(RESOURCES)
-    node = data
+    index = _first(data, kind)
+    node = data["data"][index]
     for key in path[:-1]:
         node = node[key]
     if value is None:
@@ -108,28 +113,35 @@ def test_a_changed_resource_list_fails_naming_the_path(path: tuple[object, ...],
         node[path[-1]] = value
     with pytest.raises(ParseError) as raised:
         parse_resources(json.dumps(data).encode())
-    assert "resources" in str(raised.value)
+    assert f"resources.data[{index}]" in str(raised.value)
+    assert named in str(raised.value)
     # Values from the bridge never appear in the message.
     assert "Lamp" not in str(raised.value)
 
 
-def test_resource_list_with_errors_does_not_parse() -> None:
+def test_resource_list_with_errors_or_without_data_does_not_parse() -> None:
     data = json.loads(RESOURCES)
     data["errors"] = [{"description": "something"}]
     with pytest.raises(ParseError, match="reported 1 error"):
+        parse_resources(json.dumps(data).encode())
+    data["errors"] = "none"
+    with pytest.raises(ParseError, match=r"resources\.errors"):
+        parse_resources(json.dumps(data).encode())
+    data = json.loads(RESOURCES)
+    del data["data"]
+    with pytest.raises(ParseError, match="resources"):
         parse_resources(json.dumps(data).encode())
 
 
 def test_parses_the_configuration() -> None:
     config = parse_config(CONFIG)
     assert (config.bridge_id, config.model, config.swversion, config.apiversion) == (
-        "020000FFFE000030",
+        "020000fffe000030",
         "BSB002",
         "1978545030",
         "1.78.0",
     )
     assert config.zigbee_channel == 25
-    assert config.utc == datetime(2026, 10, 31, 20, 0, 5, tzinfo=UTC).timestamp()
     assert config.internet_services == {
         "internet": True,
         "remoteaccess": True,
@@ -144,12 +156,11 @@ def test_public_configuration_means_the_key_was_rejected() -> None:
         parse_config(PUBLIC_CONFIG)
 
 
-def test_configuration_without_an_install_or_a_clock_still_parses() -> None:
+def test_configuration_without_an_install_still_parses() -> None:
     data = json.loads(CONFIG)
     del data["swupdate2"]["bridge"]["lastinstall"]
-    del data["UTC"]
     config = parse_config(json.dumps(data).encode())
-    assert (config.last_install, config.utc) == (None, None)
+    assert config.last_install is None
     data["swupdate2"]["bridge"]["lastinstall"] = "none"
     assert parse_config(json.dumps(data).encode()).last_install is None
 
@@ -161,6 +172,17 @@ def test_malformed_configuration_fails_naming_the_path() -> None:
         parse_config(json.dumps(data).encode())
     with pytest.raises(ParseError, match="not valid JSON"):
         parse_config(b"<html>")
+
+
+@pytest.mark.parametrize("missing", [("internetservices",), ("internetservices", "remoteaccess")])
+def test_missing_cloud_link_state_is_a_parse_error_not_a_disconnection(missing: tuple[str, ...]) -> None:
+    data = json.loads(CONFIG)
+    node = data
+    for key in missing[:-1]:
+        node = node[key]
+    del node[missing[-1]]
+    with pytest.raises(ParseError, match=r"config\.internetservices|config: "):
+        parse_config(json.dumps(data).encode())
 
 
 def test_invalid_or_disabled_sensor_readings_are_not_exported() -> None:

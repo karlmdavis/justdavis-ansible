@@ -198,14 +198,14 @@ def test_hue_settings_full_and_key_required() -> None:
     settings = HueSettings.from_env(
         {
             "MONITORING_HUE_BRIDGE_MAC": "02:00:00:00:00:30",
-            "HUE_APPLICATION_KEY": "k",
+            "HUE_APPLICATION_KEY": "distinctive-test-key",
             "MONITORING_HUE_PORT": "9905",
         }
     )
     assert settings.bridge is not None
     assert settings.bridge.bridge_id == "020000fffe000030"
     assert settings.port == 9905
-    assert "k" not in repr(settings).replace("key", "")
+    assert "distinctive-test-key" not in repr(settings)
     with pytest.raises(SettingsError):
         HueSettings.from_env({"MONITORING_HUE_BRIDGE_MAC": "02:00:00:00:00:30"})
     with pytest.raises(SettingsError):

@@ -6,15 +6,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class BridgeConfig:
-    """From the v1 `config` resource: identity, Zigbee channel, clock, cloud links, last update."""
+    """From the v1 `config` resource: identity, Zigbee channel, cloud links, last update."""
 
+    # Lowercase.
     bridge_id: str
     model: str
     swversion: str
     apiversion: str
     zigbee_channel: int
-    # The bridge's clock, as epoch seconds; None when the field is missing or unreadable.
-    utc: float | None
     # internet, remoteaccess, time, swupdate: True when the bridge reports "connected".
     internet_services: Mapping[str, bool]
     # When the bridge last installed its own software, as epoch seconds (None if never or unknown).
@@ -36,7 +35,6 @@ class HueDevice:
     # unidirectional_incoming, pending_discovery, or a value this code has not seen); None for the
     # bridge itself.
     zigbee_status: str | None
-    zigbee_mac: str | None
     # Battery charge as a ratio 0..1 for battery-powered devices, else None.
     battery_ratio: float | None
     # The bridge's own judgement of the battery: normal, low or critical (or a value this code has not

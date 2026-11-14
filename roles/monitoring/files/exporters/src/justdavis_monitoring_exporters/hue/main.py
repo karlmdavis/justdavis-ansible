@@ -1,11 +1,11 @@
 """Entry point: `hue-exporter`.
 
 Polls the Philips Hue bridge every 30 s: the CLIP v2 resource list (devices, lights, sensors, rooms)
-and the v1 configuration (Zigbee channel, clock, cloud links, last software install). The bridge is
+and the v1 configuration (Zigbee channel, cloud links, last software install). The bridge is
 identified by its MAC (the vault's `vault_hue_bridge_mac`, as `MONITORING_HUE_BRIDGE_MAC`), never by
 an address: each poll asks the device address inventory for the bridge's freshest address, and a poll
-with no fresh address is a failed poll (`hue_up 0`, stage `address`) rather than a guess (2026-10-30:
-probes that followed a stale address reported the wrong device).
+with no fresh address is a failed poll (`hue_up 0`, stage `address`) rather than a guess: a stale
+address may belong to another device by now.
 
 TLS: the bridge's certificate chains to Signify's published root CA (shipped with this module) and
 names the bridge id, which is the MAC with `fffe` in the middle, so the chain and the name are both
@@ -31,7 +31,6 @@ from justdavis_monitoring_exporters.common.errors import (
     ExporterError,
     LoginError,
     ParseError,
-    ResponseTooLarge,
 )
 from justdavis_monitoring_exporters.common.http import HttpClient, RequestsHttpClient, private_ca_session
 from justdavis_monitoring_exporters.common.loop import start_scrape_thread
@@ -176,9 +175,6 @@ class HueScraper:
         except FetchError as exc:
             self._fail(exc.stage)
             raise
-        except ResponseTooLarge:
-            self._fail("fetch")
-            raise
         except Exception:
             self._fail("fetch")
             raise
@@ -197,7 +193,7 @@ class HueScraper:
         except Exception:
             self._fail("parse")
             raise
-        if bridge.bridge_id.lower() != self._bridge.bridge_id:
+        if bridge.bridge_id != self._bridge.bridge_id:
             self._fail("parse")
             raise ParseError("config.bridgeid: the device at this address is not the configured bridge")
         self._collector.publish(HueSnapshot(bridge, devices, lights, sensors), address=address)

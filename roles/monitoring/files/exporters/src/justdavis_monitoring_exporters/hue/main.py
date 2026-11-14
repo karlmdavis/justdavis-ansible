@@ -187,9 +187,6 @@ class HueScraper:
         except LoginError:
             self._fail("login")
             raise
-        except ParseError:
-            self._fail("parse")
-            raise
         except Exception:
             self._fail("parse")
             raise

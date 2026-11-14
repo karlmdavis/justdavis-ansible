@@ -38,9 +38,8 @@ again on every failure (this gateway allows a single admin session and logs each
 the gateway's self-signed certificate; and the existing mDNS tools discover scrape targets rather than
 check whether a named AirPlay service still resolves; the Hue exporters that exist speak only the
 deprecated v1 API, verify nothing about the bridge's certificate, or need Home Assistant in between.
-The AmpliFi and gateway modules are therefore
-built around the specific pages and login flows those devices expose, documented in each module's
-header.
+The AmpliFi and gateway modules are therefore built around the specific pages and login flows those
+devices expose, documented in each module's header.
 
 ## How it is used
 

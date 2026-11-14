@@ -586,7 +586,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "Siri and the Home app reach the Hue lights through HomeKit: a request goes to the home hub (an Apple TV or HomePod), which talks to the bridge as a HomeKit accessory. So when \"the lights stopped responding\", the question is as often the hub or the network as the bridge, and this table is the only record of that side. Read it alongside the Hue panels above: was the bridge (`Philips Hue HomeKit`) still present and paired at the time; were the hub candidates (the HomePod sensors here are the HomePods themselves, named in the Device column) present; did other accessories drop off at the same moment, which points at the network rather than the bridge; and did the bridge's address change just before (the `homekit_accessory_address_info` series). Presence is read passively from the accessories' own mDNS announcements, so a disappearance shows up to 75 minutes late and a return shows as soon as the accessory announces."
+        "content": "Siri and the Home app reach the Hue lights through HomeKit: a request goes to the home hub (an Apple TV or HomePod), which talks to the bridge as a HomeKit accessory. So when \"the lights stopped responding\", the question is as often the hub or the network as the bridge, and the HomeKit accessories table below is the only record of that side. Read it alongside the Hue panels above: was the bridge (`Philips Hue HomeKit`) still present and paired at the time; were the hub candidates (the HomePod sensors here are the HomePods themselves, named in the Device column) present; did other accessories drop off at the same moment, which points at the network rather than the bridge; and did the bridge's address change just before (the `homekit_accessory_address_info` series). Presence is read passively from the accessories' own mDNS announcements, so a disappearance shows up to 75 minutes late and a return shows as soon as the accessory announces."
       },
       "datasource": {
         "type": "prometheus",
@@ -718,7 +718,7 @@
       "type": "row",
       "id": 15,
       "collapsed": true,
-      "title": "Hue sensors (temperature, light level, motion): none in the house yet, so these show no data until a Hue motion sensor is added",
+      "title": "Hue sensors (temperature, light level, motion): empty unless the bridge has a motion sensor",
       "gridPos": {
         "h": 1,
         "w": 24,

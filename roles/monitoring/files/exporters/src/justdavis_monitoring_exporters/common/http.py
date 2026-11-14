@@ -1,4 +1,4 @@
-"""A small, hardened HTTP client used to talk to the router and gateway.
+"""A small, hardened HTTP client used to talk to the router, the gateway and the Hue bridge.
 
 All requests carry a timeout and never follow redirects (the AmpliFi client only uses a redirect as a
 "session expired" signal and never fetches its `Location`). Bodies are streamed with a size cap so a

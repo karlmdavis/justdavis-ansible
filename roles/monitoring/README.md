@@ -131,8 +131,8 @@ down a column is the diagnosis; the last column is the rule that says so.
 | The Hue bridge is unreachable, or its address moved | `hue_up` is 0 and `hue_scrape_errors_total{stage}` says why: `address` (no source of the device address inventory has seen it), `tls` (not the bridge's certificate), `login` (the key was rejected), `fetch`, `parse`. `hue_bridge_address_info` records the address it was reached at over time. | `HueScrapeFailing` |
 | The bridge installed software, or changed Zigbee channel | `hue_bridge_last_software_install_timestamp_seconds` and `hue_bridge_zigbee_channel` (the Hue dashboard draws both as annotations; the bridge is unresponsive for a few minutes during an install). | None: annotations. |
 | The bridge's cloud link is down | `hue_bridge_internet_connected{service}` for internet, remote access, time and software updates; matters for out-of-home control and updates, not for HomeKit or the Hue app on the LAN. | None: recorded. |
-| A HomeKit accessory was reset or dropped from the Home | `homekit_accessory_paired` is 0 while `homekit_accessory_present` is 1: the accessory's own announcement says no controller is paired with it. Only an accessory that was paired within the week alerts: one that advertises HomeKit but was never added to the Home (three cameras, on the first deploy) is a choice. | `HomeKitAccessoryUnpaired` |
-| Which HomeKit accessories are on the LAN, and since when | `homekit_accessory_info`, `homekit_accessory_present`, `homekit_accessory_last_seen_timestamp_seconds`, `homekit_accessory_config_number`, from their `_hap._tcp` announcements, read passively (so a disappearance shows only once the record's 75-minute TTL runs out). This is the view a HomeKit home hub has of every accessory, Hue or not. The `device` label is what the device address inventory calls the device at the announced address: a tracked client's name (the HomePod sensors come out as their HomePods), else the router's name for it, which is whatever the device is called in the AmpliFi app, so naming a plug or camera there labels it here | None: recorded until a recurrence of the 2026-10-31 "no response" says what to alert on. |
+| A HomeKit accessory was reset or dropped from the Home | `homekit_accessory_paired` is 0 while `homekit_accessory_present` is 1: the accessory's own announcement says no controller is paired with it. Only an accessory that was paired within the last thirty days alerts: one that advertises HomeKit but was never added to the Home (a camera used only through its own app) is a choice. After thirty days unpaired the alert ends by itself, and an accessory that comes back from a reset under a new name has no paired history, so it never alerts. | `HomeKitAccessoryUnpaired` |
+| Which HomeKit accessories are on the LAN, and since when | `homekit_accessory_info`, `homekit_accessory_present`, `homekit_accessory_last_seen_timestamp_seconds`, `homekit_accessory_config_number`, from their `_hap._tcp` announcements, read passively (so a disappearance shows only once the record's 75-minute TTL runs out). This is the view a HomeKit home hub has of every accessory, Hue or not. The `device` label is what the device address inventory calls the device at the announced address: a tracked client's name (the HomePod sensors come out as their HomePods), else the router's name for it, which is whatever the device is called in the AmpliFi app, so naming a plug or camera there labels it here. | None: recorded, as context for a Hue "no response" (was the hub there, did other accessories drop too). |
 | A mesh point has dropped out | `amplifi_mesh_point_online` is 0 (the router keeps listing a lost mesh point as offline), or a mesh point seen in the last week is no longer listed at all. `_rssi_min_dbm` and the backhaul band show degradation beforehand. | `MeshPointOffline`, `MeshPointMissing` |
 | A mesh point keeps re-joining the mesh | `increase(amplifi_mesh_point_connections_total[1h])` and `amplifi_mesh_point_last_disconnected_age_seconds` (absent for a mesh point that has not dropped out since the router booted, as seen after the 2026-10-30 reboot); the first night showed one mesh point re-joining ~15 times a day on a 2.4 GHz backhaul, and the last days of October 15-37 times a day on one. | `MeshPointBackhaulFlapping` (three or more re-joins in an hour: the extrapolated `increase` reads above three). |
 | How the mesh is wired up | `amplifi_mesh_point_info{uplink,level,backhaul_band}`: each mesh point's backhaul band and whether it hangs off the router (level 2) or is daisy-chained through another mesh point (level 3). Both changed after the first reboots. | `MeshPointBackhaulOn24GHz` (an hour on 2.4 GHz; see below). Daisy-chaining alone is not alerted on. |
@@ -151,13 +151,14 @@ down a column is the diagnosis; the last column is the rule that says so.
 
 ### Why five custom exporters
 
-No existing Prometheus exporter fits any of the four devices; the exporters' README
-(`files/exporters/README.md`) records what was found and why it was not usable. The Hue exporter is
-custom for the same reason: the exporters that exist speak the deprecated v1 API only, verify nothing
-about the bridge's certificate, or need Home Assistant in between. The LAN discovery exporter exists because the probes' addresses used to come from the router scrape alone,
-and on 2026-10-30 that scrape failed for a day while the HomePods' addresses moved: the probes watched
-the wrong devices and said so with confidence. It keeps the device address inventory from sources that
-fail independently and renders the probe targets from it, dropping a device no source has seen lately.
+No existing Prometheus exporter fits any of the four devices (router, gateway, HomePods, Hue bridge);
+the exporters' README (`files/exporters/README.md`) records what was found and why it was not usable.
+For the Hue bridge, the exporters that exist speak the deprecated v1 API only, verify nothing about
+the bridge's certificate, or need Home Assistant in between. The LAN discovery exporter exists because
+the probes' addresses used to come from the router scrape alone, and on 2026-10-30 that scrape failed
+for a day while the HomePods' addresses moved: the probes watched the wrong devices and said so with
+confidence. It keeps the device address inventory from sources that fail independently and renders the
+probe targets from it, dropping a device no source has seen lately.
 
 ### Networking
 
@@ -273,7 +274,7 @@ gateway reporting its Internet connection inactive for 2 minutes; HomePods off t
 ping, not accepting AirPlay connections, or answering no mDNS query at all; a HomePod whose AirPlay record
 can no longer be read for its playback state; a tracked device expected online at all times whose address
 no source has seen for three minutes, and an address source that stops writing; the Hue exporter unable
-to read the bridge for ten minutes; a HomeKit accessory that was paired this week announcing that no
+to read the bridge for ten minutes; a HomeKit accessory that was paired in the last thirty days announcing that no
 controller is paired with it; a mesh point offline or missing from the topology, on a 2.4 GHz backhaul
 for an hour, answering ping slowly for an hour, or re-joining the mesh three or more times in an hour;
 router, mesh point, or gateway reboots; collectors that stop working; the WAN probe series going missing;
@@ -338,8 +339,8 @@ bridge id as the certificate name (the bridge's certificate has no subjectAltNam
 client has an adapter that lets urllib3 match the common name). Its address comes from the device
 address inventory every poll, by the bridge's MAC; with no fresh address the poll fails under the
 `address` stage rather than guessing. It reads the CLIP v2 resource list in one request and the v1
-configuration in another, because the Zigbee channel, the bridge's clock, its cloud links and its last
-software install are only in the latter. A rejected key answers 403 on the v2 call; the v1 call would
+configuration in another, because the Zigbee channel, its cloud links and its last software install
+are only in the latter. A rejected key answers 403 on the v2 call; the v1 call would
 answer 200 with the public configuration, which the parser recognises by its missing fields.
 
 Image builds and pulls happen during Ansible deploys (handlers), never when the systemd unit starts, so
@@ -415,8 +416,8 @@ the stack restarts cleanly during a WAN outage.
   75-minute TTL; it starts empty after a restart, so an accessory that was already gone when the stack
   started is never listed. Only the announcement is read: what an accessory is doing (a thermostat's
   temperature, a HomePod's sensors) needs a HomeKit pairing, which Apple does not hand out.
-- The Hue v1 API, deprecated by Signify, is still read for the Zigbee channel, clock, cloud links and
-  last software install, which the v2 API does not expose; a rejected key is detected by the shape of
+- The Hue v1 API, deprecated by Signify, is still read for the Zigbee channel, cloud links and last
+  software install, which the v2 API does not expose; a rejected key is detected by the shape of
   the v1 answer. Battery levels are reported by the bridge only when a device wakes, so they update
   sporadically.
 - The router reports a client's byte counts as unavailable for long stretches (2026-09-28: the
@@ -433,7 +434,7 @@ curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"
 sudo ls -l /opt/monitoring/shared/device-addresses/
 curl -s http://172.28.0.1:9804/metrics | grep -E '^device_address_(fresh|source)'
 # The Hue bridge: which step failed, if any, and every device's Zigbee link status.
-sudo docker compose -f /opt/monitoring/docker-compose.yml exec hue_exporter python -c "import urllib.request as u; print(u.urlopen('http://127.0.0.1:9805/metrics').read().decode())" | grep -E '^hue_(up|scrape_errors_total|zigbee_connectivity.*1$)'
+sudo docker compose -f /opt/monitoring/docker-compose.yml exec hue_exporter python -c "import urllib.request as u; print(u.urlopen('http://127.0.0.1:9805/metrics').read().decode())" | grep -E '^hue_(up|scrape_errors_total|zigbee_connectivity.* 1\.0$)'
 ```
 
 ### Diagnostic Scripts

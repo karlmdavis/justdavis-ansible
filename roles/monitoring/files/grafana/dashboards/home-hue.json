@@ -602,7 +602,7 @@
     {
       "id": 14,
       "type": "table",
-      "title": "HomeKit accessories on the LAN (from their mDNS announcements; presence lags a disappearance by up to 75 minutes; Device is the tracked client's or the router's name for the address)",
+      "title": "HomeKit accessories on the LAN (from their mDNS announcements; presence lags a disappearance by up to 75 minutes). Device: what the address inventory calls the device at that address (a tracked client, else the router's name for it, which the AmpliFi app can set)",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -650,7 +650,7 @@
             },
             "renameByName": {
               "accessory": "Accessory",
-              "device": "Device (from the address inventory)",
+              "device": "Device",
               "model": "Model",
               "category": "Category",
               "Value #A": "Present",

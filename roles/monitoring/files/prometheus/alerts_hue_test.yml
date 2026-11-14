@@ -1,6 +1,7 @@
-# promtool unit test for the Hue bridge rule. The role's smoke tests run it against the alert rules
-# rendered with the device groups (roles/monitoring/tasks/test.yml).
+# promtool unit test for the Hue rules. The role's smoke tests run it against the alert rules rendered
+# with the device groups (roles/monitoring/tasks/test.yml).
 #   hue_up 1 for 5 minutes, then 0: HueScrapeFailing fires after 10 minutes of 0, not before.
+#   A battery the bridge calls critical: HueDeviceBatteryCritical after an hour; one it calls low: nothing.
 rule_files:
   - alerts.yml
 
@@ -11,6 +12,14 @@ tests:
     input_series:
       - series: 'hue_up'
         values: '1x10 0x30'
+      - series: 'hue_device_battery_state{device_id="1", name="Button A", state="critical"}'
+        values: '1x130'
+      - series: 'hue_device_battery_state{device_id="1", name="Button A", state="low"}'
+        values: '0x130'
+      - series: 'hue_device_battery_state{device_id="2", name="Dimmer A", state="critical"}'
+        values: '0x130'
+      - series: 'hue_device_battery_state{device_id="2", name="Dimmer A", state="low"}'
+        values: '1x130'
     alert_rule_test:
       - eval_time: 14m
         alertname: HueScrapeFailing
@@ -24,3 +33,18 @@ tests:
               summary: >-
                 The Hue exporter cannot read the bridge; hue_scrape_errors_total{stage} says whether it is
                 the address, the key, the certificate, the connection or the response
+      - eval_time: 59m
+        alertname: HueDeviceBatteryCritical
+        exp_alerts: []
+      - eval_time: 61m
+        alertname: HueDeviceBatteryCritical
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              device_id: "1"
+              name: Button A
+              state: critical
+            exp_annotations:
+              summary: >-
+                The Hue bridge reports the battery of Button A as critical: replace it before the device
+                drops off the Zigbee network

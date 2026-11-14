@@ -419,6 +419,18 @@ groups:
             The Hue exporter cannot read the bridge; hue_scrape_errors_total{stage} says whether it is the
             address, the key, the certificate, the connection or the response
 
+      # The bridge's own judgement, not a threshold chosen here: it calls a battery critical when the
+      # device is about to stop working, which is rare and has one fix. "low" is on the dashboard only.
+      - alert: HueDeviceBatteryCritical
+        expr: hue_device_battery_state{state="critical"} == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The Hue bridge reports the battery of {{ L }} $labels.name {{ R }} as critical: replace it
+            before the device drops off the Zigbee network
+
   - name: homekit
     rules:
       # Status flag bit 0 set: the accessory says no controller is paired with it. That is a reset

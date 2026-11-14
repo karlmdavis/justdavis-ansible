@@ -48,10 +48,10 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Bridge reachable (hue_up)",
+      "title": "Bridge",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 3,
         "x": 0,
         "y": 0
       },
@@ -116,7 +116,8 @@
           }
         },
         "overrides": []
-      }
+      },
+      "description": "hue_up: whether the exporter's last poll of the bridge succeeded."
     },
     {
       "id": 2,
@@ -124,8 +125,8 @@
       "title": "Zigbee channel",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 5,
+        "x": 3,
         "y": 0
       },
       "datasource": {
@@ -158,10 +159,38 @@
             "mode": "fixed",
             "fixedColor": "blue"
           },
-          "unit": "none"
+          "unit": "none",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "11": {
+                  "text": "11",
+                  "color": "orange",
+                  "index": 0
+                },
+                "15": {
+                  "text": "15",
+                  "color": "orange",
+                  "index": 1
+                },
+                "20": {
+                  "text": "20",
+                  "color": "orange",
+                  "index": 2
+                },
+                "25": {
+                  "text": "25",
+                  "color": "green",
+                  "index": 3
+                }
+              }
+            }
+          ]
         },
         "overrides": []
-      }
+      },
+      "description": "Amber when the channel overlaps a 2.4 GHz Wi-Fi channel in common use: Zigbee 11, 15 and 20 sit under Wi-Fi 1, 6 and 11. 25 is mostly clear. Change it in the Hue app under Settings, Bridge, Zigbee channel."
     },
     {
       "id": 3,
@@ -211,7 +240,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Devices not connected to Zigbee",
+      "title": "Not on Zigbee",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -263,12 +292,13 @@
           "unit": "none"
         },
         "overrides": []
-      }
+      },
+      "description": "Devices whose Zigbee link is anything but connected. A lamp switched off at the wall counts."
     },
     {
       "id": 5,
       "type": "stat",
-      "title": "Cloud services (internet, remote access, time, software updates)",
+      "title": "Cloud services",
       "gridPos": {
         "h": 4,
         "w": 8,
@@ -337,14 +367,15 @@
           }
         },
         "overrides": []
-      }
+      },
+      "description": "The bridge's own report of its links: internet, remote access, time, and software updates."
     },
     {
       "id": 6,
       "type": "state-timeline",
       "title": "Zigbee connectivity per device (a lamp switched off at the wall reads not connected)",
       "gridPos": {
-        "h": 10,
+        "h": 18,
         "w": 24,
         "x": 0,
         "y": 4
@@ -406,7 +437,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -455,7 +486,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -515,10 +546,10 @@
       "type": "state-timeline",
       "title": "Lights on and off",
       "gridPos": {
-        "h": 10,
+        "h": 14,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -575,9 +606,9 @@
       "title": "Battery",
       "gridPos": {
         "h": 7,
-        "w": 24,
+        "w": 14,
         "x": 0,
-        "y": 31
+        "y": 43
       },
       "datasource": {
         "type": "prometheus",
@@ -600,6 +631,56 @@
       }
     },
     {
+      "id": 17,
+      "type": "table",
+      "title": "Batteries low or critical",
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 14,
+        "y": 43
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "max by (name, state) (hue_device_battery_ratio * on (device_id) group_left (state) (hue_device_battery_state{state=~\"low|critical\"} == 1))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "name": 0,
+              "state": 1,
+              "Value": 2
+            },
+            "renameByName": {
+              "name": "Device",
+              "state": "Battery",
+              "Value": "Charge"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "description": "The bridge's own judgement of each battery; the charge is its last report, sent when the device wakes."
+    },
+    {
       "id": 16,
       "type": "text",
       "title": "Why HomeKit accessories are on a Hue dashboard",
@@ -607,7 +688,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 50
       },
       "options": {
         "mode": "markdown",
@@ -631,7 +712,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 56
       },
       "datasource": {
         "type": "prometheus",
@@ -723,7 +804,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 65
       },
       "panels": [
         {
@@ -734,7 +815,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 54
+            "y": 66
           },
           "datasource": {
             "type": "prometheus",
@@ -765,7 +846,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 54
+            "y": 66
           },
           "datasource": {
             "type": "prometheus",
@@ -802,7 +883,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 54
+            "y": 66
           },
           "datasource": {
             "type": "prometheus",

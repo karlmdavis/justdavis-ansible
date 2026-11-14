@@ -126,6 +126,7 @@
       - alerts_mesh_test.yml
       - alerts_hue_test.yml
       - alerts_homekit_test.yml
+      - alerts_homekit_memory_test.yml
   block:
     - name: Test - Create Directory for Rule Unit Tests
       ansible.builtin.tempfile:

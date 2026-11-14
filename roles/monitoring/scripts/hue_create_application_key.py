@@ -53,6 +53,10 @@ HOW TO READ IT
   again and press the button right after Enter.
 * A TLS error names what failed: a certificate that does not validate against Signify's root, or one
   whose common name is not the bridge id. Do not pass a key to such a bridge; the exporter will not.
+* "the bridge refused to create a key (error type N)": N is the bridge's own error number (7 is an
+  invalid value in the request, 101 the link button); its text is not shown.
+* "the key was created on the bridge but could not be written": remove the unused key in the Hue app
+  (Settings, then the list of connected apps) and run this again.
 """
 
 import argparse
@@ -63,6 +67,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Sequence
 from pathlib import Path
 
 ROOT_CERT = (
@@ -95,7 +100,25 @@ def fetch(url: str, context: ssl.SSLContext, data: bytes | None = None) -> tuple
         return json.loads(response.read()), str(common_name)
 
 
-def main() -> int:
+def describe_failure(exc: Exception, bridge: str) -> str:
+    """One line saying what went wrong with a request, with TLS failures told apart from the rest
+    (`urlopen` wraps a failed handshake in `URLError`, so the reason is looked at too)."""
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"the bridge at {bridge} answered HTTP {exc.code}"
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        return f"TLS: the bridge's certificate does not validate against Signify's root: {reason}"
+    if isinstance(reason, ssl.SSLError):
+        return f"TLS: the connection to {bridge} failed: {reason}"
+    if isinstance(exc, json.JSONDecodeError):
+        return f"the answer from {bridge} is not JSON; is that address a Hue bridge?"
+    return f"could not reach the bridge at {bridge}: {reason}"
+
+
+_REQUEST_FAILURES = (urllib.error.URLError, OSError, json.JSONDecodeError)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--bridge", required=True, help="the bridge's LAN address")
     parser.add_argument("--out", default=str(Path.home() / "hue-application-key.txt"))
@@ -105,18 +128,13 @@ def main() -> int:
         "--bridge-id",
         help="the bridge id to expect (the MAC with fffe in the middle); refuse any other bridge",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     base = f"https://{args.bridge}"
     context = tls_context()
     try:
         config, common_name = fetch(f"{base}/api/0/config", context)
-    except ssl.SSLError as exc:
-        print(
-            f"TLS: the bridge's certificate does not validate against Signify's root: {exc}", file=sys.stderr
-        )
-        return 1
-    except (urllib.error.URLError, OSError) as exc:
-        print(f"could not reach the bridge at {args.bridge}: {exc}", file=sys.stderr)
+    except _REQUEST_FAILURES as exc:
+        print(describe_failure(exc, args.bridge), file=sys.stderr)
         return 1
     if not isinstance(config, dict):
         print("the bridge's configuration is not the expected JSON object", file=sys.stderr)
@@ -126,7 +144,7 @@ def main() -> int:
         f"bridge {args.bridge}: id {bridge_id}, model {config.get('modelid')}, "
         f"software {config.get('swversion')}, API {config.get('apiversion')}"
     )
-    if common_name.lower() != bridge_id.lower():
+    if not bridge_id or common_name.lower() != bridge_id.lower():
         print(f"TLS: the certificate names {common_name!r}, not the bridge id {bridge_id!r}", file=sys.stderr)
         return 1
     if args.bridge_id is not None and args.bridge_id.lower() != bridge_id.lower():
@@ -138,36 +156,71 @@ def main() -> int:
     if args.check:
         return 0
     out = Path(args.out).expanduser()
-    if out.exists():
+    # The file is created before the bridge is asked for anything, so a path that cannot be written is
+    # found out while there is still no key to lose.
+    try:
+        fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
         print(f"{out} already exists; remove it or pass --out", file=sys.stderr)
         return 1
+    except OSError as exc:
+        print(f"cannot create {out}: {exc.strerror}", file=sys.stderr)
+        return 1
+    with os.fdopen(fd, "w") as handle:
+        key = request_key(base, context, args)
+        if key is not None:
+            try:
+                handle.write(key + "\n")
+                handle.flush()
+            except OSError as exc:
+                print(
+                    f"the key was created on the bridge but could not be written to {out} "
+                    f"({exc.strerror}); remove the unused key in the Hue app and run this again",
+                    file=sys.stderr,
+                )
+                key = None
+    if key is None:
+        out.unlink(missing_ok=True)
+        return 1
+    print(f"key written to {out} ({len(key)} characters, mode 0600)")
+    return 0
+
+
+def request_key(base: str, context: ssl.SSLContext, args: argparse.Namespace) -> str | None:
+    """Ask the bridge for a new application key once the link button has been pressed; None (with the
+    reason printed, never the bridge's answer) when it does not give one."""
     input("Press the round link button on the bridge, then press Enter here (within 30 seconds)...")
     # No `generateclientkey`: that key is for the entertainment streaming API, which the exporter never
     # uses, and the bridge accepts the parameter only as `true` (`false` is "invalid value", error type
     # 7; seen 2026-11-01 on software 1978545030).
     body = json.dumps({"devicetype": args.devicetype}).encode()
     for attempt in range(1, _RETRIES + 1):
-        answer, _ = fetch(f"{base}/api", context, data=body)
+        try:
+            answer, _ = fetch(f"{base}/api", context, data=body)
+        except _REQUEST_FAILURES as exc:
+            print(describe_failure(exc, args.bridge), file=sys.stderr)
+            return None
         entry = answer[0] if isinstance(answer, list) and answer else {}
         if isinstance(entry, dict) and isinstance(entry.get("success"), dict):
             key = str(entry["success"].get("username", ""))
             if not key:
                 print("the bridge answered without a key", file=sys.stderr)
-                return 1
-            fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "w") as handle:
-                handle.write(key + "\n")
-            print(f"key written to {out} ({len(key)} characters, mode 0600)")
-            return 0
+                return None
+            return key
         error = entry.get("error", {}) if isinstance(entry, dict) else {}
-        if isinstance(error, dict) and error.get("type") == 101:
+        error_type = error.get("type") if isinstance(error, dict) else None
+        if error_type == 101:
             print(f"link button not pressed (attempt {attempt} of {_RETRIES}); waiting {_RETRY_SECONDS} s")
             time.sleep(_RETRY_SECONDS)
             continue
-        print("the bridge refused to create a key (its answer is not shown here)", file=sys.stderr)
-        return 1
+        number = error_type if isinstance(error_type, int) else "unknown"
+        print(
+            f"the bridge refused to create a key (error type {number}; its text is not shown)",
+            file=sys.stderr,
+        )
+        return None
     print("gave up: the link button was not pressed in time", file=sys.stderr)
-    return 1
+    return None
 
 
 if __name__ == "__main__":

@@ -58,6 +58,8 @@ class FakeBrowser:
         self.instances = instances
         self.requested: list[str] = []
         self.error: Exception | None = None
+        self.hap: tuple[CachedInstance, ...] = ()
+        self.hap_error: Exception | None = None
 
     def cached_instances(self, *, now: float) -> tuple[CachedInstance, ...]:
         if self.error is not None:
@@ -65,7 +67,9 @@ class FakeBrowser:
         return self.instances
 
     def hap_instances(self, *, now: float) -> tuple[CachedInstance, ...]:
-        return ()
+        if self.hap_error is not None:
+            raise self.hap_error
+        return self.hap
 
     def request(self, fqdn: str, timeout_ms: int) -> bool:
         self.requested.append(fqdn)
@@ -234,4 +238,76 @@ def test_a_source_file_that_cannot_be_written_is_a_write_failure_of_the_exporter
     scraper()
     assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "write"}) == 1.0
     assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "read"}) == 0.0
+    assert registry.get_sample_value("lan_discovery_target_files_ok") == 1.0
+
+
+def hap_instance(instance: str, address: str, seen_at: float) -> CachedInstance:
+    return CachedInstance(
+        "_hap._tcp",
+        instance,
+        f"{instance}._hap._tcp.local.",
+        "accessory.local.",
+        {"id": "02:00:00:00:00:40", "md": "Model A", "ci": "7", "sf": "0"},
+        ((address, seen_at),),
+        seen_at,
+    )
+
+
+def test_homekit_accessories_are_named_from_the_inventory_tracked_name_first(tmp_path: Path) -> None:
+    import time
+
+    now = time.time()
+    plug = Mac("02:00:00:00:00:50")
+    # The router calls the tracked HomePod by its hostname and the untracked plug "Desk Plug".
+    SourceStore(tmp_path / DEVICE_ADDRESSES_DIR, "router").record(
+        [
+            Sighting(address="192.0.2.110", observed_at=now - 10, mac=Mac(A), name="speaker-a-hostname"),
+            Sighting(address="192.0.2.150", observed_at=now - 10, mac=plug, name="Desk Plug"),
+        ],
+        now=now,
+    )
+    browser = FakeBrowser()
+    browser.hap = (
+        hap_instance("Sensor 12345 ABCD", "192.0.2.110", now - 5),
+        hap_instance("Plug 1234", "192.0.2.150", now - 5),
+        hap_instance("Stranger", "192.0.2.199", now - 5),
+    )
+    registry, collector, errors, homekit = build_registry()
+    scraper = LanDiscoveryScraper(
+        settings(tmp_path), collector, errors, mdns=browser, neighbours=None, homekit=homekit
+    )
+    scraper()
+
+    def device(accessory: str, name: str) -> float | None:
+        labels = {"accessory": accessory, "id": "02:00:00:00:00:40", "model": "Model A", "category": "outlet"}
+        return registry.get_sample_value("homekit_accessory_info", {**labels, "device": name})
+
+    assert device("Sensor 12345 ABCD", "Speaker-A") == 1.0
+    assert device("Plug 1234", "Desk Plug") == 1.0
+    assert device("Stranger", "") == 1.0
+    # A later poll in which the inventory has gone stale keeps the names rather than churning the series.
+    SourceStore(tmp_path / DEVICE_ADDRESSES_DIR, "router").record([], now=now)
+    (tmp_path / DEVICE_ADDRESSES_DIR / "router.json").unlink()
+    scraper()
+    assert device("Plug 1234", "Desk Plug") == 1.0
+
+
+def test_a_homekit_failure_is_counted_and_clears_the_accessories_without_failing_the_poll(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    import time
+
+    browser = FakeBrowser()
+    browser.hap = (hap_instance("Plug 1234", "192.0.2.150", time.time() - 5),)
+    registry, collector, errors, homekit = build_registry()
+    scraper = LanDiscoveryScraper(
+        settings(tmp_path), collector, errors, mdns=browser, neighbours=None, homekit=homekit
+    )
+    scraper()
+    assert registry.get_sample_value("homekit_accessory_present", {"accessory": "Plug 1234"}) == 1.0
+    browser.hap_error = RuntimeError("cache went away")
+    with caplog.at_level(logging.WARNING):
+        scraper()
+    assert registry.get_sample_value("homekit_accessory_present", {"accessory": "Plug 1234"}) is None
+    assert registry.get_sample_value("lan_discovery_scrape_errors_total", {"stage": "resolve"}) == 1.0
     assert registry.get_sample_value("lan_discovery_target_files_ok") == 1.0

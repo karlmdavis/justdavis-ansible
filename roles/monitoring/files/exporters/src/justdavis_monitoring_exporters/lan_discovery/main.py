@@ -251,6 +251,8 @@ class LanDiscoveryScraper:
                 self._mdns.hap_instances(now=now), now=now, device_for_address=device_for_address
             )
         except Exception:
+            # Nothing is better than the last poll's accessories presented as this poll's.
+            self._homekit.snapshots.clear()
             self._fail("resolve", "could not read the HomeKit announcements")
 
     def _record_mdns(self, now: float) -> tuple[CachedInstance, ...]:

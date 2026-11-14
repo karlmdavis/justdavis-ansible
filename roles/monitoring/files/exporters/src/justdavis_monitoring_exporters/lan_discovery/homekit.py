@@ -5,16 +5,17 @@ advertises `_hap._tcp` with a TXT record that says who it is and how it is doing
 pairing identity), `md` (model), `ci` (category), `sf` (status flags: bit 0 set means NOT paired with
 any controller, so a reset or dropped accessory shows up here), and `c#` (configuration number, bumped
 when its services change). Read passively from the cache: nothing is asked of the accessories, so the
-wired-origin multicast fault that lost 5 GHz devices' answers does not make this flap, and a
+wired-origin multicast fault that loses 5 GHz devices' answers does not make this flap, and a
 disappearance is noticed only when the record's TTL (75 minutes) runs out. An accessory's last-seen
-time comes from its TXT record's arrival and outlives the cache for `retention_seconds`, so the gauges
-end on their own for an accessory that is really gone. Instance names from the network are sanitised
-and the set is capped, so a guest's gadget cannot flood the label space.
+time comes from its TXT record's arrival, and the accessory stays reported (as not present) until
+`retention_seconds` after that, so the gauges end on their own for an accessory that is really gone.
+Instance names from the network are sanitised and the set is capped, so a guest's gadget cannot flood
+the label space.
 """
 
 import logging
 from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from prometheus_client.core import GaugeMetricFamily, InfoMetricFamily, Metric
 from prometheus_client.registry import Collector
@@ -52,12 +53,19 @@ CATEGORY_NAMES: dict[str, str] = {
     "21": "air_conditioner",
     "22": "humidifier",
     "23": "dehumidifier",
+    "24": "apple_tv",
+    "25": "homepod",
     "26": "speaker",
+    "27": "airport",
     "28": "sprinkler",
     "29": "faucet",
     "30": "shower_head",
-    "32": "television",
-    "33": "target_controller",
+    "31": "television",
+    "32": "target_controller",
+    "33": "router",
+    "34": "audio_receiver",
+    "35": "tv_set_top_box",
+    "36": "tv_streaming_stick",
 }
 # Given an announced address, the name the device address inventory has for the device there (a tracked
 # client's name, or the router's name for it, which is whatever it was called in the AmpliFi app); ""
@@ -80,9 +88,9 @@ class HapAccessory:
     # Still in the cache (its record has not expired) at the last refresh.
     present: bool
     # What the device address inventory calls the device at the announced address, or "". The
-    # announcement's own instance name is often a factory label ("HomePodSensor 13867 CF07"), while the
+    # announcement's own instance name is often a factory label ("HomePodSensor 12345 ABCD"), while the
     # inventory knows the tracked client's name, or the router's, which the AmpliFi app can set.
-    device: str = ""
+    device: str
 
 
 def _int_or_none(value: str | None) -> int | None:
@@ -147,15 +155,21 @@ class HomekitTracker:
                 continue
             seen.add(accessory.instance)
             previous = self._known.get(accessory.instance)
-            if previous is None or accessory.last_seen >= previous.last_seen:
+            if previous is None:
                 self._known[accessory.instance] = accessory
+                continue
+            # The name is kept across polls in which the inventory has no fresh address for the device
+            # (its window is minutes, an announcement's hours), so the info series does not churn.
+            device = accessory.device or previous.device
+            if accessory.last_seen >= previous.last_seen:
+                self._known[accessory.instance] = replace(accessory, device=device)
             else:
-                self._known[accessory.instance] = _with_present(previous, True)
+                self._known[accessory.instance] = replace(previous, present=True, device=device)
         for instance, accessory in list(self._known.items()):
             if now - accessory.last_seen > self._retention:
                 del self._known[instance]
             elif instance not in seen and accessory.present:
-                self._known[instance] = _with_present(accessory, False)
+                self._known[instance] = replace(accessory, present=False)
         if len(self._known) > self._max:
             # Vanished accessories go first, then the longest unheard: a flood of guest announcements
             # must not evict the household's own, present accessories.
@@ -166,27 +180,17 @@ class HomekitTracker:
                 del self._known[accessory.instance]
             if not self._warned_cap:
                 log.warning(
-                    "more than %d HomeKit accessories announced; keeping the most recently seen", self._max
+                    "more than %d HomeKit accessories announced; dropped %d, vanished ones first, then "
+                    "the longest unheard",
+                    self._max,
+                    len(oldest),
                 )
                 self._warned_cap = True
+        else:
+            self._warned_cap = False
         snapshot = tuple(sorted(self._known.values(), key=lambda a: a.instance))
         self.snapshots.set(snapshot)
         return snapshot
-
-
-def _with_present(accessory: HapAccessory, present: bool) -> HapAccessory:
-    return HapAccessory(
-        instance=accessory.instance,
-        identity=accessory.identity,
-        model=accessory.model,
-        category=accessory.category,
-        paired=accessory.paired,
-        config_number=accessory.config_number,
-        last_seen=accessory.last_seen,
-        addresses=accessory.addresses,
-        present=present,
-        device=accessory.device,
-    )
 
 
 _LABELS = ["accessory"]
@@ -220,8 +224,8 @@ class HomekitCollector(Collector):
         paired = GaugeMetricFamily(
             "homekit_accessory_paired",
             "1 when the accessory reports itself paired with a controller (status flag bit 0 clear); 0 "
-            "means it was reset or dropped from the Home and is waiting to be paired (from the last "
-            "announcement heard).",
+            "means no controller is paired with it: reset, dropped from the Home, or never added (from "
+            "the last announcement heard). Absent when the announcement carries no readable status flag.",
             labels=_LABELS,
         )
         config = GaugeMetricFamily(

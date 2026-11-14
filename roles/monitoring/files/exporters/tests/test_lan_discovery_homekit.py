@@ -128,3 +128,27 @@ def test_the_cap_evicts_vanished_accessories_before_present_ones() -> None:
     # accessory, heard long ago but still present, must stay.
     kept = tracker.refresh([hap("Household", {}, seen_at=NOW - 4000), hap("Guest", {}, seen_at=NOW)], now=NOW)
     assert [a.instance for a in kept] == ["Guest", "Household"]
+
+
+def test_a_refresh_carrying_an_older_record_keeps_the_newer_one_and_marks_it_present() -> None:
+    tracker = HomekitTracker()
+    tracker.refresh([hap("A", {"sf": "0", "c#": "2"}, seen_at=NOW)], now=NOW)
+    tracker.refresh([], now=NOW + 10)
+    (kept,) = tracker.refresh([hap("A", {"sf": "1", "c#": "1"}, seen_at=NOW - 50)], now=NOW + 20)
+    assert (kept.present, kept.paired, kept.config_number, kept.last_seen) == (True, True, 2, NOW)
+
+
+def test_category_codes_follow_the_hap_specification() -> None:
+    from justdavis_monitoring_exporters.lan_discovery.homekit import CATEGORY_NAMES
+
+    assert (CATEGORY_NAMES["2"], CATEGORY_NAMES["7"], CATEGORY_NAMES["10"], CATEGORY_NAMES["17"]) == (
+        "bridge",
+        "outlet",
+        "sensor",
+        "ip_camera",
+    )
+    assert (CATEGORY_NAMES["31"], CATEGORY_NAMES["32"], CATEGORY_NAMES["33"]) == (
+        "television",
+        "target_controller",
+        "router",
+    )

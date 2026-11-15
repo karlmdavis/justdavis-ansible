@@ -1,0 +1,94 @@
+// Renovate configuration (the Mend Renovate GitHub App reads this file from the default branch).
+//
+// Why Renovate exists here: roles/immich/SECURITY.md sets deadlines for deploying Immich releases, and the
+// exposure window of a public Immich instance is mostly the time between a fix shipping and this repository
+// being updated. Dependabot already covers the package ecosystems it understands, but it cannot see version
+// pins inside Ansible files, so this file teaches Renovate where the Immich stack's three pins live and has
+// it open one pull request per upstream release, with the release notes in the PR body.
+//
+// JSON5 rather than JSON so that these comments can live next to the choices they explain.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+
+  // Only the custom managers below run. Dependabot already handles GitHub Actions, Python and anything else
+  // it recognises; leaving Renovate's built-in managers enabled would open duplicate pull requests.
+  enabledManagers: ["custom.regex"],
+
+  // No schedule on purpose: the update policy wants a pull request as soon as a release appears, not at
+  // the next window.
+  prConcurrentLimit: 5,
+  labels: ["dependencies"],
+  semanticCommits: "enabled",
+
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Immich release pinned in the role defaults.",
+      managerFilePatterns: ["/^roles/immich/defaults/main\\.yml$/"],
+      // Matches `immich_version: v3.3.1`. Immich tags are `vX.Y.Z` and the pin keeps the `v`, so the tag
+      // name from github-releases is written back as-is and no extractVersion is needed; semver-coerced
+      // accepts the prefix when comparing.
+      matchStrings: ["immich_version: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      depNameTemplate: "immich-app/immich",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "semver-coerced",
+    },
+    {
+      customType: "regex",
+      description: "Valkey image for Immich's cache, in the docker-compose template.",
+      managerFilePatterns: ["/^roles/immich/templates/docker-compose\\.yml\\.j2$/"],
+      // Matches `image: docker.io/valkey/valkey:9-alpine`. The tag is a floating major, so docker
+      // versioning is the right fit: it keeps the `-alpine` suffix and the one-component precision, which
+      // means the only update it will ever propose is the next major (`10-alpine`). Minor and patch
+      // releases keep arriving through the floating tag itself, with no change to this repository.
+      matchStrings: ["image: docker\\.io/(?<depName>valkey/valkey):(?<currentValue>\\d+-alpine)"],
+      datasourceTemplate: "docker",
+      versioningTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "VectorChord .deb downloaded from GitHub releases in the install tasks.",
+      managerFilePatterns: ["/^roles/immich/tasks/install_and_configure\\.yml$/"],
+      // The version appears four times across three lines: once as the release path segment and three
+      // times inside the package file name (URL, download destination, and the apt task's `deb:` path).
+      // Each matchString captures the version exactly once, so every match becomes a dependency entry of
+      // its own and Renovate rewrites each occurrence in turn. VectorChord tags carry no `v` prefix,
+      // matching the pin.
+      matchStrings: [
+        "github\\.com/tensorchord/VectorChord/releases/download/(?<currentValue>\\d+\\.\\d+\\.\\d+)/",
+        "postgresql-16-vchord_(?<currentValue>\\d+\\.\\d+\\.\\d+)-1_amd64\\.deb",
+      ],
+      depNameTemplate: "tensorchord/VectorChord",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "semver-coerced",
+    },
+  ],
+
+  packageRules: [
+    {
+      description: "Everything tracked here is part of the Immich stack.",
+      matchFileNames: ["roles/immich/**"],
+      addLabels: ["immich"],
+    },
+    {
+      description: [
+        "One pull request per Immich release, never grouped. Patch and minor updates are kept apart",
+        "because the update policy treats them differently: a patch is deployed within a week (48 hours",
+        "for a security fix), a minor or major waits for its first patch release.",
+      ],
+      matchDepNames: ["immich-app/immich"],
+      separateMinorPatch: true,
+      separateMultipleMajor: true,
+    },
+    {
+      description: [
+        "VectorChord is pinned by decision to the version in Immich's own database image, and Immich",
+        "accepts a range (>= 0.3, < 2.0 at v3.3.1). A new release still gets a pull request so that it is",
+        "seen, but the label says it needs a decision rather than a routine merge.",
+      ],
+      matchDepNames: ["tensorchord/VectorChord"],
+      addLabels: ["needs-decision"],
+    },
+  ],
+}

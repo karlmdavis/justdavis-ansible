@@ -1,0 +1,6 @@
+---
+# Defaults for the arr_suite role. The linuxserver images in docker-compose.yml.j2 float on `:latest` (a
+# long-standing choice: the unit pulls on every start); Bindery is pinned because its project pushes
+# `:latest` before every release gate has passed and tells users to pin `:X.Y.Z`, and because it is a young
+# single-maintainer project that ships several releases a week. Bump deliberately, after its release notes.
+arr_suite_bindery_version: '1.46.1'

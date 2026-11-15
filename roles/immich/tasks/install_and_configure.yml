@@ -93,6 +93,8 @@
 # Manual installation of VectorChord from GitHub (not available in Ubuntu repository)
 # Reference: https://immich.app/docs/administration/postgres-standalone/
 # Immich's accepted version range is in the role README.
+# Changing the version below is not the whole upgrade: the Immich database role is not a superuser, so the
+# extension is updated by hand afterwards (README, "Upgrading Immich", step 2).
 - name: Download VectorChord Package
   ansible.builtin.get_url:
     url: 'https://github.com/tensorchord/VectorChord/releases/download/0.4.3/postgresql-16-vchord_0.4.3-1_amd64.deb'

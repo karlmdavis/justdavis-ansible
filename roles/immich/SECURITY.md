@@ -112,9 +112,9 @@ a row update it.
 | --- | --- | --- |
 | Modern TLS profile, `ServerTokens Prod`, `X-Content-Type-Options`, `Referrer-Policy` on all virtual hosts | Baseline for anything on the public address; drops CBC suites and version disclosure | Planned (shared Apache configuration) |
 | HTTP/2 | One connection per client, which keeps the firewall's per-source connection limit from affecting normal browsing | Planned (shared Apache configuration) |
-| HSTS on the Immich virtual hosts | The critical 2026 advisory needed the victim to load the login page; HSTS removes the plain-HTTP path | Planned |
+| HSTS on the Immich virtual hosts | The critical 2026 advisory needed the victim to load the login page; HSTS removes the plain-HTTP path | In place (intranet virtual host; the public virtual host will carry it too) |
 | fail2ban jail on Immich failed logins | Immich has no lockout or rate limiting; five failures in ten minutes ban the source for an hour | Planned |
-| `IMMICH_TRUSTED_PROXIES` set to the proxy's address | Without it every login is logged with the proxy's address and the fail2ban jail would ban the proxy itself | Planned |
+| `IMMICH_TRUSTED_PROXIES` set to the proxy's address | Without it every login is logged with the proxy's address and the fail2ban jail would ban the proxy itself | In place (`env.j2`) |
 | Container logs to journald | Lets fail2ban read the login log through the journal and gives the logs rotation | Planned |
 | Immich database role without `SUPERUSER` | Turns an Immich compromise from a cluster compromise into a one-database compromise; needs the extensions pre-created as `postgres` and the database owned by the Immich role | Planned |
 | Administrative API reachable only from the LAN, Tailscale and the home network's public block | A stolen session or a future authorization bug cannot reach configuration, jobs or user management from the internet | Planned (public virtual host) |

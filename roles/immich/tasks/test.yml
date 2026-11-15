@@ -117,3 +117,76 @@
   when:
     - not ansible_check_mode
     - is_test or (immich_compose_file | default({})) is changed or (immich_env_file | default({})) is changed
+
+# The tests above talk to Immich directly on port 2283. The ones below go through Apache on purpose: they
+# check what the proxy adds (the forwarded client address, HSTS), which Immich alone cannot show. The
+# intranet name resolves on the host because dns_server runs before apache and immich in site.yml.
+
+# This failed login is made on purpose. Its only effect is one warn-level log line in the server container,
+# which the next task reads back; the account does not exist, so nothing can be locked or changed.
+- name: Test - Fail a Login Through the Proxy
+  ansible.builtin.uri:
+    url: "https://immich.intranet.{{ domain }}/api/auth/login"
+    method: POST
+    body_format: json
+    body:
+      email: "fail2ban-probe@{{ domain }}"
+      password: not-a-real-password
+    status_code: 401
+  check_mode: false
+
+# docker logs writes the container's stderr to its own stderr, so both streams are searched below.
+- name: Test - Read Recent Immich Server Logs
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - logs
+      - --since
+      - 2m
+      - immich_server
+  register: immich_server_logs
+  changed_when: false
+  check_mode: false
+  become: true
+
+# The failed login must be logged against the real client, not the proxy. The request above is made from the
+# host to the intranet name, which resolves to the host's private address, so Apache's X-Forwarded-For
+# carries that address and Immich, trusting the Docker gateway (IMMICH_TRUSTED_PROXIES in env.j2), logs it.
+# Without that trust the line ends in the gateway address instead, which is also asserted against. Skipped
+# in check mode, where the env change has not been applied and the old containers are still serving.
+#
+# The group after the address stops 10.0.0.5 from matching a line about 10.0.0.50. It stands in for a `\b`
+# word boundary, which Jinja's unescaping of string literals would turn into a backspace character.
+- name: Test - Verify Immich Logs the Real Client Address
+  ansible.builtin.assert:
+    that:
+      - immich_probe_lines | select('search', immich_client_pattern) | list | length > 0
+      - immich_probe_lines | select('search', immich_gateway_pattern) | list | length == 0
+    fail_msg: "{{ immich_probe_lines }}"
+  vars:
+    immich_probe_lines: >-
+      {{ (immich_server_logs.stdout_lines + immich_server_logs.stderr_lines)
+         | select('search', 'Failed login attempt for user fail2ban-probe@' ~ (domain | regex_escape))
+         | list }}
+    immich_client_pattern: "{{ ' from ip address ' ~ (private_ip_address | regex_escape) ~ '($|[^0-9])' }}"
+    immich_gateway_pattern: "{{ ' from ip address ' ~ ('172.30.0.1' | regex_escape) ~ '($|[^0-9])' }}"
+  when: not ansible_check_mode
+
+- name: Test - Fetch Immich Through the Proxy
+  ansible.builtin.uri:
+    url: "https://immich.intranet.{{ domain }}/api/server/ping"
+    method: GET
+    status_code: 200
+  register: immich_proxied_ping
+  check_mode: false
+
+# The uri module exposes response headers as lowercase keys with underscores. Skipped in check mode for the
+# same reason as above: the virtual host change has not been applied.
+- name: Test - Verify the Proxy Sends HSTS
+  ansible.builtin.assert:
+    that:
+      - immich_proxied_ping.strict_transport_security is defined
+      - immich_proxied_ping.strict_transport_security == "max-age=63072000"
+    fail_msg: >-
+      Strict-Transport-Security was {{ immich_proxied_ping.strict_transport_security | default('absent') }}
+  when: not ansible_check_mode

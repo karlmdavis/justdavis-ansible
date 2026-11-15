@@ -252,3 +252,19 @@ def test_a_corrupt_file_is_logged_once_before_the_store_rewrites_it(
         store.record([sighting(A, "192.0.2.110", NOW + 30)], now=NOW + 30)
     assert [r.levelname for r in caplog.records] == ["WARNING", "INFO"]
     assert [o.address for o in AddressInventory.load(tmp_path).observations] == ["192.0.2.110"]
+
+
+def test_fresh_addresses_maps_each_fresh_address_to_the_device_seen_there_last(tmp_path: Path) -> None:
+    B = Mac("02:00:00:00:00:11")
+    C = Mac("02:00:00:00:00:12")
+    # A lease that just changed hands: A was at .5 two minutes ago, B is there now. C is stale.
+    SourceStore(tmp_path, "router").record(
+        [
+            sighting(A, "192.0.2.5", NOW - 120),
+            sighting(B, "192.0.2.5", NOW - 10),
+            sighting(C, "192.0.2.6", NOW - 400),
+        ],
+        now=NOW,
+    )
+    inventory = AddressInventory.load(tmp_path)
+    assert inventory.fresh_addresses(now=NOW, max_age=180) == {"192.0.2.5": B}

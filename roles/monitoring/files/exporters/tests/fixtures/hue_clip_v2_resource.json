@@ -1,0 +1,137 @@
+{
+  "errors": [],
+  "data": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "id_v1": "",
+      "type": "bridge",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000010", "rtype": "device"},
+      "bridge_id": "020000fffe000030",
+      "time_zone": {"time_zone": "America/New_York"}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "type": "device",
+      "product_data": {"model_id": "BSB002", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue Bridge", "product_archetype": "bridge_v2", "certified": true, "software_version": "1.78.1978545030"},
+      "metadata": {"name": "Hue Bridge", "archetype": "bridge_v2"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000001", "rtype": "bridge"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "type": "device",
+      "product_data": {"model_id": "LCA001", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue color lamp", "product_archetype": "sultan_bulb", "certified": true, "software_version": "1.122.2"},
+      "metadata": {"name": "Lamp A", "archetype": "sultan_bulb"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000021", "rtype": "light"}, {"rid": "00000000-0000-4000-8000-000000000031", "rtype": "zigbee_connectivity"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "type": "device",
+      "product_data": {"model_id": "LWA001", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue white lamp", "product_archetype": "classic_bulb", "certified": true, "software_version": "1.122.2"},
+      "metadata": {"name": "Lamp B", "archetype": "classic_bulb"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000022", "rtype": "light"}, {"rid": "00000000-0000-4000-8000-000000000032", "rtype": "zigbee_connectivity"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "type": "device",
+      "product_data": {"model_id": "LOM001", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue Smart plug", "product_archetype": "plug", "certified": true, "software_version": "1.104.2"},
+      "metadata": {"name": "Plug A", "archetype": "plug"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000023", "rtype": "light"}, {"rid": "00000000-0000-4000-8000-000000000033", "rtype": "zigbee_connectivity"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000014",
+      "type": "device",
+      "product_data": {"model_id": "SML001", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue motion sensor", "product_archetype": "unknown_archetype", "certified": true, "software_version": "6.1.1.27575"},
+      "metadata": {"name": "Motion Sensor A", "archetype": "unknown_archetype"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000034", "rtype": "zigbee_connectivity"}, {"rid": "00000000-0000-4000-8000-000000000044", "rtype": "device_power"}, {"rid": "00000000-0000-4000-8000-000000000054", "rtype": "temperature"}, {"rid": "00000000-0000-4000-8000-000000000064", "rtype": "light_level"}, {"rid": "00000000-0000-4000-8000-000000000074", "rtype": "motion"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000015",
+      "type": "device",
+      "product_data": {"model_id": "RWL022", "manufacturer_name": "Signify Netherlands B.V.", "product_name": "Hue dimmer switch", "product_archetype": "unknown_archetype", "certified": true, "software_version": "2.47.8"},
+      "metadata": {"name": "Dimmer A", "archetype": "unknown_archetype"},
+      "services": [{"rid": "00000000-0000-4000-8000-000000000035", "rtype": "zigbee_connectivity"}, {"rid": "00000000-0000-4000-8000-000000000045", "rtype": "device_power"}]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "id_v1": "/lights/1",
+      "type": "light",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000011", "rtype": "device"},
+      "metadata": {"name": "Lamp A", "archetype": "sultan_bulb"},
+      "on": {"on": true},
+      "dimming": {"brightness": 75.5, "min_dim_level": 0.2},
+      "color": {"xy": {"x": 0.4573, "y": 0.41}}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000022",
+      "id_v1": "/lights/2",
+      "type": "light",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000012", "rtype": "device"},
+      "metadata": {"name": "Lamp B", "archetype": "classic_bulb"},
+      "on": {"on": false},
+      "dimming": {"brightness": 100.0, "min_dim_level": 2.0}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000023",
+      "id_v1": "/lights/3",
+      "type": "light",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000013", "rtype": "device"},
+      "metadata": {"name": "Plug A", "archetype": "plug"},
+      "on": {"on": true}
+    },
+    {"id": "00000000-0000-4000-8000-000000000031", "type": "zigbee_connectivity", "owner": {"rid": "00000000-0000-4000-8000-000000000011", "rtype": "device"}, "status": "connected", "mac_address": "02:00:00:00:00:00:00:31"},
+    {"id": "00000000-0000-4000-8000-000000000032", "type": "zigbee_connectivity", "owner": {"rid": "00000000-0000-4000-8000-000000000012", "rtype": "device"}, "status": "disconnected", "mac_address": "02:00:00:00:00:00:00:32"},
+    {"id": "00000000-0000-4000-8000-000000000033", "type": "zigbee_connectivity", "owner": {"rid": "00000000-0000-4000-8000-000000000013", "rtype": "device"}, "status": "connected", "mac_address": "02:00:00:00:00:00:00:33"},
+    {"id": "00000000-0000-4000-8000-000000000034", "type": "zigbee_connectivity", "owner": {"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"}, "status": "connected", "mac_address": "02:00:00:00:00:00:00:34"},
+    {"id": "00000000-0000-4000-8000-000000000035", "type": "zigbee_connectivity", "owner": {"rid": "00000000-0000-4000-8000-000000000015", "rtype": "device"}, "status": "some_future_state", "mac_address": "02:00:00:00:00:00:00:35"},
+    {"id": "00000000-0000-4000-8000-000000000044", "type": "device_power", "owner": {"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"}, "power_state": {"battery_state": "normal", "battery_level": 86}},
+    {"id": "00000000-0000-4000-8000-000000000045", "type": "device_power", "owner": {"rid": "00000000-0000-4000-8000-000000000015", "rtype": "device"}, "power_state": {"battery_state": "low", "battery_level": 12}},
+    {
+      "id": "00000000-0000-4000-8000-000000000054",
+      "type": "temperature",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"},
+      "enabled": true,
+      "temperature": {"temperature": 19.5, "temperature_valid": true, "temperature_report": {"changed": "2026-10-31T19:58:20.000Z", "temperature": 19.66}}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000064",
+      "type": "light_level",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"},
+      "enabled": true,
+      "light": {"light_level": 20000, "light_level_valid": true, "light_level_report": {"changed": "2026-10-31T19:58:20.000Z", "light_level": 30001}}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000074",
+      "type": "motion",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"},
+      "enabled": true,
+      "motion": {"motion": false, "motion_valid": true, "motion_report": {"changed": "2026-10-31T19:40:00.000Z", "motion": true}}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000081",
+      "type": "room",
+      "children": [{"rid": "00000000-0000-4000-8000-000000000011", "rtype": "device"}, {"rid": "00000000-0000-4000-8000-000000000013", "rtype": "device"}],
+      "services": [{"rid": "00000000-0000-4000-8000-000000000091", "rtype": "grouped_light"}],
+      "metadata": {"name": "Room A", "archetype": "living_room"}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000082",
+      "type": "room",
+      "children": [{"rid": "00000000-0000-4000-8000-000000000014", "rtype": "device"}],
+      "services": [],
+      "metadata": {"name": "Room B", "archetype": "hallway"}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000091",
+      "type": "grouped_light",
+      "owner": {"rid": "00000000-0000-4000-8000-000000000081", "rtype": "room"},
+      "on": {"on": true}
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "type": "scene",
+      "metadata": {"name": "Daytime"},
+      "group": {"rid": "00000000-0000-4000-8000-000000000081", "rtype": "room"},
+      "actions": []
+    }
+  ]
+}

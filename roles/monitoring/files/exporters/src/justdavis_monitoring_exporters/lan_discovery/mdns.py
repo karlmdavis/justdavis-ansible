@@ -36,8 +36,10 @@ from justdavis_monitoring_exporters.common.settings import Mac, normalise_mac
 
 log = logging.getLogger(__name__)
 
-# The services whose records identify the device by MAC.
+# The services whose records carry a device's address (and, for the bridge, its MAC).
 MDNS_SERVICES: tuple[str, ...] = ("_airplay._tcp", "_raop._tcp", "_hue._tcp")
+# HomeKit accessories, browsed for their presence and pairing state (lan_discovery/homekit.py).
+HAP_TYPE = "_hap._tcp"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +54,8 @@ class CachedInstance:
     server: str | None
     txt: Mapping[str, str]
     addresses: tuple[tuple[str, float], ...]
+    # When the TXT record was last received (epoch seconds); None when there is none in the cache.
+    txt_seen_at: float | None = None
 
 
 def mac_from_instance(service: str, txt: Mapping[str, str]) -> Mac | None:
@@ -142,7 +146,8 @@ class AddressBrowser:
     def __init__(self, lan_ip: str) -> None:
         self._zc = Zeroconf(interfaces=[lan_ip], ip_version=IPVersion.V4Only)
         self._types = [service_type(service) for service in MDNS_SERVICES]
-        self._browser = ServiceBrowser(self._zc, self._types, _NoopListener())
+        self._hap_types = [service_type(HAP_TYPE)]
+        self._browser = ServiceBrowser(self._zc, [*self._types, *self._hap_types], _NoopListener())
 
     def cached_instances(
         self,
@@ -153,6 +158,15 @@ class AddressBrowser:
         """Every unexpired instance of the browsed services, with its A records' arrival times in epoch
         seconds (`created` is monotonic milliseconds; both clocks are read here, together)."""
         return cached_instances(self._zc.cache, self._types, now=now, monotonic_ms=monotonic() * 1000)
+
+    def hap_instances(
+        self,
+        *,
+        now: float,
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> tuple[CachedInstance, ...]:
+        """Every unexpired `_hap._tcp` instance, for the HomeKit accessory gauges."""
+        return cached_instances(self._zc.cache, self._hap_types, now=now, monotonic_ms=monotonic() * 1000)
 
     def request(self, fqdn: str, timeout_ms: int) -> bool:
         """Ask the network for one instance's records (SRV, TXT, A), refreshing their cache entries if
@@ -196,6 +210,7 @@ def cached_instances(
                     server=server,
                     txt=parse_txt(texts[0].text) if texts else {},
                     addresses=tuple(sorted(addresses)),
+                    txt_seen_at=(now - (monotonic_ms - texts[0].created) / 1000) if texts else None,
                 )
             )
     return tuple(found)

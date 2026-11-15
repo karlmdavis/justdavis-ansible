@@ -1,7 +1,7 @@
 [project]
 name = "justdavis-monitoring-exporters"
 version = "0.1.0"
-description = "Prometheus exporters for the justdavis.com home network: AmpliFi router, Comcast gateway, AirPlay mDNS."
+description = "Prometheus exporters for the justdavis.com home network: AmpliFi router, Comcast gateway, AirPlay mDNS, LAN discovery, Hue bridge."
 requires-python = ">=3.13"
 dependencies = [
     "ifaddr==0.2.0",
@@ -15,6 +15,7 @@ amplifi-exporter = "justdavis_monitoring_exporters.amplifi.main:main"
 gateway-exporter = "justdavis_monitoring_exporters.gateway.main:main"
 airplay-exporter = "justdavis_monitoring_exporters.airplay.main:main"
 lan-discovery-exporter = "justdavis_monitoring_exporters.lan_discovery.main:main"
+hue-exporter = "justdavis_monitoring_exporters.hue.main:main"
 
 [dependency-groups]
 dev = [

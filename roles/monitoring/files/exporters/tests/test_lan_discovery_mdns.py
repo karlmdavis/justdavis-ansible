@@ -173,3 +173,14 @@ def test_instances_by_hostname_prefers_the_airplay_instance() -> None:
     airplay = CachedInstance("_airplay._tcp", "Speaker A", f"Speaker A.{AIRPLAY}", "Speaker-A.local.", {}, ())
     assert instances_by_hostname([raop, airplay])["speaker-a"] is airplay
     assert instances_by_hostname([airplay, raop])["speaker-a"] is airplay
+
+
+def test_txt_arrival_time_is_converted_from_the_monotonic_clock() -> None:
+    instances = {
+        i.fqdn: i
+        for i in cached_instances(
+            cache_with_speaker_and_bridge(), TYPES, now=NOW, monotonic_ms=MONO_MS + 12_000
+        )
+    }
+    assert instances[f"Hue Bridge - 000030.{HUE}"].txt_seen_at == NOW - 12.0
+    assert instances[f"Silent.{AIRPLAY}"].txt_seen_at is None

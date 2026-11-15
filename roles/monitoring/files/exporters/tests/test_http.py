@@ -139,3 +139,26 @@ def test_response_headers_are_the_case_insensitive_type() -> None:
     session = FakeSession([FakeRawResponse(200, {"A": "b"}, [b""])])
     response = RequestsHttpClient("http://10.1.10.1", session=session).get("/")
     assert isinstance(response.headers, CaseInsensitiveHeaders)
+
+
+def test_private_ca_adapter_verifies_the_chain_and_matches_the_common_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ssl
+
+    import certifi
+    from requests.adapters import HTTPAdapter
+
+    from justdavis_monitoring_exporters.common.http import PrivateCaAdapter
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        HTTPAdapter, "init_poolmanager", lambda self, *args, **kwargs: captured.update(kwargs)
+    )
+    PrivateCaAdapter(certifi.where(), "020000fffe000030")
+    context = captured["ssl_context"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is False
+    assert context.hostname_checks_common_name is True
+    assert captured["assert_hostname"] == "020000fffe000030"

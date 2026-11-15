@@ -59,6 +59,10 @@
    value reads above three once three have happened): only on 10-28 to 10-30, and single hours on two
    other days; above one in an hour fires on scattered single hours all through September. A 2.4 GHz backhaul
    for an hour: only the episode and the mesh's first day. #}
+{# How long HomeKitAccessoryUnpaired remembers that an accessory was once paired. Long enough that the
+   alert is not mistaken for resolved while someone still means to re-pair the accessory, short enough
+   to be inside what the TSDB keeps. #}
+{% set homekit_was_paired_window = '30d' %}
 {% set mesh_point_rtt_mean_seconds = 0.02 %}
 {% set mesh_point_rejoins_per_hour = 3 %}
 groups:
@@ -395,6 +399,62 @@ groups:
           summary: >-
             The {{ L }} $labels.source {{ R }} source of the device address inventory has not been
             written for 15 minutes
+
+  - name: hue
+    rules:
+      # hue_up is 0 for a bridge that cannot be reached, a rejected key, a certificate that is not the
+      # bridge's, a response that does not parse, and a bridge no address source has seen within the
+      # freshness window; hue_scrape_errors_total{stage} tells them apart (address, login, tls, fetch,
+      # parse). Lights off their Zigbee network, the bridge's cloud link and software installs are
+      # recorded, not alerted on (hue_zigbee_connectivity, hue_bridge_internet_connected,
+      # hue_bridge_last_software_install_timestamp_seconds): a lamp switched off at the wall reads
+      # disconnected.
+      - alert: HueScrapeFailing
+        expr: hue_up == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The Hue exporter cannot read the bridge; hue_scrape_errors_total{stage} says whether it is the
+            address, the key, the certificate, the connection or the response
+
+      # The bridge's own judgement, not a threshold chosen here: it calls a battery critical when the
+      # device is about to stop working, which is rare and has one fix. "low" is on the dashboard only.
+      - alert: HueDeviceBatteryCritical
+        expr: hue_device_battery_state{state="critical"} == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The Hue bridge reports the battery of {{ L }} $labels.name {{ R }} as critical: replace it
+            before the device drops off the Zigbee network
+
+  - name: homekit
+    rules:
+      # Status flag bit 0 set: the accessory says no controller is paired with it. That is a reset
+      # accessory, or one dropped from the Home, and nothing else shows it. Only while its announcement
+      # is current (a stale record of a reset accessory that has since been re-paired is not news), and
+      # only if it was paired within the rule's memory (homekit_was_paired_window, set above): an
+      # accessory that advertises HomeKit but was never added to the Home (a camera used only through
+      # its own app, say) is a choice, not an incident.
+      # That memory is the rule's limit, in both directions: an accessory left unpaired for that long
+      # stops alerting (the alert ends without anything having been fixed), and one that comes back from
+      # a reset under a new instance name has no paired history, so it never alerts.
+      - alert: HomeKitAccessoryUnpaired
+        expr: >-
+          homekit_accessory_paired == 0
+          and on (accessory) homekit_accessory_present == 1
+          and on (accessory) max_over_time(homekit_accessory_paired[{{ homekit_was_paired_window }}]) == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            HomeKit accessory {{ L }} $labels.accessory {{ R }} was paired and now reports no controller
+            is paired with it: it was reset, or dropped from the Home (this alert ends by itself
+            {{ homekit_was_paired_window }} after the accessory was last paired)
 
   - name: gateway
     rules:

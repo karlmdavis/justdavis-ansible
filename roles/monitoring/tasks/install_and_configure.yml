@@ -1,6 +1,6 @@
 ---
 # Installs and configures the home network monitoring stack (Prometheus, Grafana, Alertmanager,
-# ping_exporter, blackbox_exporter, node_exporter, and four custom exporters). See README.md.
+# ping_exporter, blackbox_exporter, node_exporter, and five custom exporters). See README.md.
 
 - name: Verify Vault Variables are Defined
   ansible.builtin.assert:
@@ -12,6 +12,8 @@
       - vault_alertmanager_slack_bot_token is defined
       - vault_alertmanager_discord_webhook_url is defined
       - vault_monitoring_tracked_clients is defined
+      - vault_hue_bridge_mac is defined
+      - vault_hue_application_key is defined
     fail_msg: The monitoring role needs its vault_* variables (see roles/monitoring/README.md).
   when: not is_test
 
@@ -164,6 +166,7 @@
   loop:
     - amplifi-credentials.env
     - gateway-credentials.env
+    - hue-credentials.env
   become: true
   no_log: "{{ not is_test }}"
   notify: Restart Monitoring

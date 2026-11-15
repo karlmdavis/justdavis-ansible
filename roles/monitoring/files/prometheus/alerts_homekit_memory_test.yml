@@ -1,0 +1,32 @@
+# promtool unit test for how long HomeKitAccessoryUnpaired remembers a pairing: an accessory left
+# unpaired keeps alerting for 30 days after it was last paired, then the alert ends by itself. Kept apart
+# from alerts_homekit_test.yml because a month of evaluations needs a coarse evaluation interval. The
+# role's smoke tests run it against the alert rules rendered with the device groups
+# (roles/monitoring/tasks/test.yml).
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 5m
+
+tests:
+  - interval: 5m
+    input_series:
+      - series: 'homekit_accessory_paired{accessory="F"}'
+        values: '1x12 0x9000'
+      - series: 'homekit_accessory_present{accessory="F"}'
+        values: '1x9012'
+    alert_rule_test:
+      - eval_time: 29d
+        alertname: HomeKitAccessoryUnpaired
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              accessory: F
+            exp_annotations:
+              summary: >-
+                HomeKit accessory F was paired and now reports no controller is paired with it: it was
+                reset, or dropped from the Home (this alert ends by itself 30d after the accessory was last
+                paired)
+      - eval_time: 31d
+        alertname: HomeKitAccessoryUnpaired
+        exp_alerts: []

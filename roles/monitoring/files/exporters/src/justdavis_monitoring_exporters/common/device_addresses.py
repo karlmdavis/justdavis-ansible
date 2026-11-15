@@ -368,6 +368,21 @@ class AddressInventory:
         named = [o for o in self._by_mac.get(mac, ()) if o.name]
         return max(named, key=lambda o: o.last_seen).name if named else ""
 
+    def fresh_addresses(self, *, now: float, max_age: float) -> dict[str, Mac]:
+        """Address -> MAC for every device with a fresh address (the same observation `latest` picks),
+        so that something known only by address (a HomeKit announcement) can be named. When two devices
+        have a fresh claim on one address (a lease that just changed hands), the one seen there last
+        has it."""
+        holders: dict[str, tuple[float, Mac]] = {}
+        for mac in sorted(self._by_mac):
+            observation = self.latest(mac, now=now, max_age=max_age)
+            if observation is None:
+                continue
+            current = holders.get(observation.address)
+            if current is None or observation.last_seen > current[0]:
+                holders[observation.address] = (observation.last_seen, mac)
+        return {address: mac for address, (_, mac) in holders.items()}
+
     def infrastructure(self, *, now: float, max_age: float) -> tuple[tuple[Mac, Observation], ...]:
         """The fresh address of every router or mesh point, by MAC (sorted), with the address taken from
         whichever source is freshest even though only the router feed knows the role."""

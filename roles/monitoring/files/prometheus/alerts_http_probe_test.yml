@@ -1,0 +1,50 @@
+# promtool unit test for the HTTPS probe rules (the `services` group). The role's smoke tests run it
+# against the rendered alert rules (roles/monitoring/tasks/test.yml).
+#   The Immich probe fails throughout: ImmichDown fires once the 5-minute `for` has run, not before.
+#   The certificate expires 14 days and one hour after the test's epoch, so the expiry rule goes
+#   pending after the first hour and fires an hour after that; the expected summary carries the
+#   lifetime left at the evaluation time.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'probe_success{job="blackbox_http", instance="https://immich.example/api/server/ping"}'
+        values: '0x20'
+      - series: >-
+          probe_ssl_earliest_cert_expiry{job="blackbox_http",
+          instance="https://immich.example/api/server/ping"}
+        values: '1213200x400'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: ImmichDown
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: ImmichDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: blackbox_http
+              instance: https://immich.example/api/server/ping
+            exp_annotations:
+              summary: >-
+                Immich is not answering at https://immich.example/api/server/ping: check the immich
+                systemd unit (`systemctl status immich`), Apache, and that the name resolves
+      - eval_time: 1h30m
+        alertname: ImmichCertificateExpiringSoon
+        exp_alerts: []
+      - eval_time: 3h
+        alertname: ImmichCertificateExpiringSoon
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: blackbox_http
+              instance: https://immich.example/api/server/ping
+            exp_annotations:
+              summary: >-
+                The certificate served at https://immich.example/api/server/ping expires in
+                13d 22h 0m 0s, so certbot has not renewed it: check the certbot snap's renew timer and
+                /var/log/letsencrypt

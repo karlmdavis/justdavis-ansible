@@ -50,6 +50,10 @@
 {% set reboot_uptime_seconds = 600 %}
 {# The offsite backup runs nightly; 36 hours tolerates one missed or overlong run before alerting. #}
 {% set backup_max_age_seconds = 129600 %}
+{# Certbot renews a certificate 30 days before it expires and its timer runs twice a day, so one that
+   is within 14 days of expiry has been failing to renew for about two weeks, with two weeks left to
+   fix it. #}
+{% set cert_expiry_warning_seconds = 14 * 24 * 3600 %}
 groups:
   - name: collectors
     rules:
@@ -163,6 +167,34 @@ groups:
           severity: warning
         annotations:
           summary: "node_exporter is not reporting offsite backup metrics"
+
+  # The blackbox exporter's HTTPS probes of the services behind the Apache proxy (the `blackbox_http`
+  # job). Each rule matches its service's URL by name rather than taking every target of the job, so
+  # that a second probe target later gets rules of its own instead of being reported as Immich.
+  - name: services
+    rules:
+      - alert: ImmichDown
+        expr: probe_success{job="blackbox_http", instance=~"https://immich\\..*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            Immich is not answering at {{ L }} $labels.instance {{ R }}: check the immich systemd unit
+            (`systemctl status immich`), Apache, and that the name resolves
+
+      - alert: ImmichCertificateExpiringSoon
+        expr: >-
+          probe_ssl_earliest_cert_expiry{job="blackbox_http", instance=~"https://immich\\..*"} - time()
+          < {{ cert_expiry_warning_seconds }}
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            The certificate served at {{ L }} $labels.instance {{ R }} expires in
+            {{ L }} $value | humanizeDuration {{ R }}, so certbot has not renewed it: check the certbot
+            snap's renew timer and /var/log/letsencrypt
 {% if monitoring_alerts_include_device_rules %}
 
   - name: homepods

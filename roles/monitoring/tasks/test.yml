@@ -1,8 +1,9 @@
 ---
 # Smoke tests for the monitoring stack: the service is up, the three web services answer, Prometheus
-# can scrape every exporter, and every container is running. Prometheus reaching "ready" implies its
-# configuration and rule files loaded, and anything an alert rule already covers (exporter health,
-# probe results, device reachability) is deliberately not re-tested here.
+# can scrape every exporter, the HTTPS probe of Immich succeeds, and every container is running.
+# Prometheus reaching "ready" implies its configuration and rule files loaded, and anything an alert
+# rule already covers (exporter health, device reachability, the HomePod probes) is deliberately not
+# re-tested here; the Immich probe is the exception, for the reason given at its task.
 #
 # This file is imported unconditionally (the `test` tag only allows opting in with `--tags`), so it
 # runs in production too and every check must hold on a healthy long-running system, not just a fresh
@@ -56,9 +57,27 @@
   register: monitoring_targets
   until: >-
     (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'node', 'ping', 'prometheus']
+    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'blackbox_http', 'gateway', 'node', 'ping',
+          'prometheus']
          | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
         == []
+  retries: 30
+  delay: 5
+
+# The one probe whose result is checked. Its target is on this host and the immich role has already
+# waited for it, so it holds on any healthy system, and it is the only place two things are exercised:
+# the exporter resolving the intranet name from inside its container (Docker's embedded DNS, not the
+# BIND on the host), and the test environment's handling of the staging certificate. The probe runs
+# with each 15-second scrape, so the retries cover the first one and a slow first TLS handshake.
+- name: Test - Wait for the Immich HTTPS Probe to Succeed
+  ansible.builtin.uri:
+    url: >-
+      http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/query?query={{
+      'probe_success{job="blackbox_http"}' | urlencode }}
+    return_content: true
+  register: monitoring_immich_probe
+  until: >-
+    (monitoring_immich_probe.json.data.result | map(attribute='value.1') | list) == ['1']
   retries: 30
   delay: 5
 
@@ -120,6 +139,7 @@
       - recording_test.yml
       - alerts_airplay_test.yml
       - alerts_docsis_test.yml
+      - alerts_http_probe_test.yml
       - alerts_playback_state_test.yml
   block:
     - name: Test - Create Directory for Rule Unit Tests

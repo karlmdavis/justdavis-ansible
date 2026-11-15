@@ -116,6 +116,18 @@
   notify:
     - apache-reload
 
+# The package ships and enables this file; ours replaces it in place, so no a2enconf is needed.
+- name: Create Apache Security Configuration
+  ansible.builtin.template:
+    src: security.conf
+    dest: "/etc/apache2/conf-available/security.conf"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - apache-reload
+
 - name: Configure Apache Virtual Host Configuration
   ansible.builtin.template:
     src: "{{ item }}.j2"

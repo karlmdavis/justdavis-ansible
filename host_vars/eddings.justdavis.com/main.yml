@@ -1,6 +1,10 @@
 ---
 zfs_ssd_pool_device: /dev/sda1
 
+# Jellyfin was upgraded by hand to 12.4 (procedure in roles/jellyfin/README.md). With this set, the role's
+# tests fail if a restore or a rebuild ever brings an older version back.
+jellyfin_min_version: '12.4'
+
 backup_includes:
   - /home
   - /var/fileshares

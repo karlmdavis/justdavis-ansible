@@ -7,3 +7,16 @@ immich_base_dir: /opt/immich
 
 # System user for running Immich (used in multiple permission operations)
 immich_user: immich
+
+# The PostgreSQL extensions Immich expects besides the vector extension, as declared on its schema in
+# `server/src/schema/index.ts` (`@Extensions([...])`) and created by its initial migration
+# (`server/src/schema/migrations/1744910873969-InitialMigration.ts`) at v3.3.1. That list also names
+# `plpgsql`, which every PostgreSQL database has already. The role creates these as `postgres` because the
+# Immich database role is not a superuser and so cannot create them itself; the role's tests check that
+# they are installed. Compare the list against the schema when upgrading Immich.
+immich_postgres_extensions:
+  - uuid-ossp
+  - unaccent
+  - cube
+  - earthdistance
+  - pg_trgm

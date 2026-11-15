@@ -26,8 +26,9 @@ Ordered by how much losing them would hurt:
 
 1. The photo library: tens of thousands of family photos and videos, including children. Confidentiality
    matters most; the library is backed up, so loss is recoverable but exposure is not.
-2. The PostgreSQL cluster. While the Immich database role is a superuser, compromise of Immich is compromise
-   of every database on eddings and of the `postgres` operating-system user (`COPY ... PROGRAM`).
+2. The PostgreSQL cluster. The Immich database role is not a superuser, so a compromise of Immich reaches
+   only the Immich database; it used to be one, which would have meant every database on eddings and the
+   `postgres` operating-system user (`COPY ... PROGRAM`).
 3. The accounts: sessions and API keys on the household phones and browsers.
 4. eddings itself and the other services it hosts (mail, directory, DNS, file shares).
 5. The backups, which are pushed from eddings with credentials that can also delete them.
@@ -116,7 +117,7 @@ a row update it.
 | fail2ban jail on Immich failed logins | Immich has no lockout or rate limiting; five failures in ten minutes ban the source for an hour | Planned |
 | `IMMICH_TRUSTED_PROXIES` set to the proxy's address | Without it every login is logged with the proxy's address and the fail2ban jail would ban the proxy itself | Planned |
 | Container logs to journald | Lets fail2ban read the login log through the journal and gives the logs rotation | Planned |
-| Immich database role without `SUPERUSER` | Turns an Immich compromise from a cluster compromise into a one-database compromise; needs the extensions pre-created as `postgres` and the database owned by the Immich role | Planned |
+| Immich database role without `SUPERUSER` | Turns an Immich compromise from a cluster compromise into a one-database compromise; needs the extensions pre-created as `postgres` and the database owned by the Immich role | In place (extensions pre-created as postgres; Immich's built-in backup job disabled) |
 | Administrative API reachable only from the LAN, Tailscale and the home network's public block | A stolen session or a future authorization bug cannot reach configuration, jobs or user management from the internet | Planned (public virtual host) |
 | HTTP probe of the service with alerts for downtime and certificate expiry | Notice an outage or an expiring certificate before family members do | Planned |
 | Automated release tracking with a written update deadline | The exposure window is the patch delay; see the update policy | Planned |

@@ -117,3 +117,45 @@
   when:
     - not ansible_check_mode
     - is_test or (immich_compose_file | default({})) is changed or (immich_env_file | default({})) is changed
+      or (immich_db_user_privileges | default({})) is changed
+
+# The database checks below are read-only SELECTs, so they run in check mode too. The API checks above are
+# what proves Immich starts and serves without superuser privileges; these check that the privileges really
+# are reduced and that the extensions it would otherwise have created itself are there.
+- name: Test - Query Immich Database Role Attributes
+  community.postgresql.postgresql_query:
+    query: SELECT rolsuper FROM pg_roles WHERE rolname = %(role)s
+    named_args:
+      role: "{{ vault_postgres_immich_username }}"
+  register: immich_db_role
+  check_mode: false
+  become: true
+  become_user: postgres
+
+- name: Test - Verify Immich Database Role is Not a Superuser
+  ansible.builtin.assert:
+    that:
+      - immich_db_role.rowcount == 1
+      - not immich_db_role.query_result[0].rolsuper
+    fail_msg: "Immich database role attributes: {{ immich_db_role.query_result }}"
+
+- name: Test - List Extensions in Immich Database
+  community.postgresql.postgresql_query:
+    login_db: immich
+    query: SELECT extname FROM pg_extension
+  register: immich_db_extensions
+  check_mode: false
+  become: true
+  become_user: postgres
+
+# `vchord` and `vector` are created by their own task; the rest come from `immich_postgres_extensions`.
+- name: Test - Verify Immich's Extensions are Installed
+  ansible.builtin.assert:
+    that:
+      - immich_db_extensions_missing | length == 0
+    fail_msg: "Missing from the immich database: {{ immich_db_extensions_missing }}"
+  vars:
+    immich_db_extensions_installed: >-
+      {{ immich_db_extensions.query_result | map(attribute='extname') | list }}
+    immich_db_extensions_missing: >-
+      {{ (immich_postgres_extensions + ['vchord', 'vector']) | difference(immich_db_extensions_installed) }}

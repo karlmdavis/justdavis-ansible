@@ -167,7 +167,8 @@ deployment. The rules:
 
 ## Runbook
 
-Commands run on eddings as root unless noted.
+Commands run on eddings as root unless noted. Steps that name the public virtual host (`photos.conf`), the
+`immich` fail2ban jail or the container journal apply once the matching control above is in place.
 
 - **Take Immich off the internet now.** `a2dissite photos.conf && systemctl reload apache2`. The intranet
   access path is unaffected. Re-running the playbook re-enables the site, so also revert or hold the change

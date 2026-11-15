@@ -18,27 +18,18 @@
       findtime = 10m
       maxretry = 5
       # Never ban ourselves: a mistyped password from a LAN or tailnet device must not lock the
-      # whole household out for an hour.
+      # whole household out for an hour. The home network's public block is listed for the same
+      # reason ufw exempts it from rate limiting: a LAN device that uses a public site name arrives
+      # from that block, so a ban on it would lock out the whole house.
       ignoreip = 127.0.0.1/8 ::1 {{ network_home_private_cidr }} {{ network_tailscale_cidr }}
+                 {{ network_home_public_cidr }}
 
+      # The jails below read the journal: Ubuntu's jail.d/defaults-debian.conf sets backend = systemd
+      # for every jail, and these services log through syslog. The apache-* jails are not here: Apache
+      # logs to files, which a journal-backed jail never reads, and a file-backed jail whose log files
+      # do not exist stops fail2ban from loading at all. The apache role enables them on its own host.
       [sshd]
       enabled = true
-
-      [apache-auth]
-      enabled = true
-      port = http,https
-
-      [apache-noscript]
-      enabled = true
-      port = http,https
-
-      [apache-overflows]
-      enabled = true
-      port = http,https
-
-      [apache-badbots]
-      enabled = true
-      port = http,https
 
       [postfix]
       enabled = true

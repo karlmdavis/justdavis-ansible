@@ -74,6 +74,9 @@
     - "/var/apache2/{{ domain }}"
     - "/var/apache2/{{ domain }}/logs"
     - "/var/apache2/{{ domain }}/www"
+  # A new log directory means log files the fail2ban apache jails have not globbed yet.
+  notify:
+    - Reload fail2ban
 
 - name: Configure the Ports and IPs for Apache
   ansible.builtin.template:
@@ -146,3 +149,43 @@
   become: true
   notify:
     - apache-reload
+
+# These jails live here rather than in the base role's jail.local because they must read Apache's log
+# files. Ubuntu's jail.d/defaults-debian.conf sets backend = systemd for every jail, and a journal-backed
+# jail ignores logpath entirely, so the apache-* jails were watching nothing ("No file is currently
+# monitored" on eddings). A file-backed jail whose logpath matches no file stops fail2ban from loading at
+# all, so only a host that runs Apache may enable these. Debian's default paths cover only the global
+# /var/log/apache2/ logs; every virtual host here logs under /var/apache2/<site>/logs/. The two paths are
+# newline separated: fail2ban treats a space in a logpath line as the separator before a head/tail flag,
+# not as a second path.
+- name: Configure fail2ban Apache Jails
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/apache.conf
+    content: |
+      [apache-auth]
+      enabled = true
+      backend = auto
+      logpath = /var/log/apache2/*error.log
+                /var/apache2/*/logs/error_log
+
+      [apache-noscript]
+      enabled = true
+      backend = auto
+      logpath = /var/log/apache2/*error.log
+                /var/apache2/*/logs/error_log
+
+      [apache-overflows]
+      enabled = true
+      backend = auto
+      logpath = /var/log/apache2/*error.log
+                /var/apache2/*/logs/error_log
+
+      [apache-badbots]
+      enabled = true
+      backend = auto
+      logpath = /var/log/apache2/*access.log
+                /var/apache2/*/logs/access_log
+    mode: u=rw,g=r,o=r
+  become: true
+  notify:
+    - Reload fail2ban

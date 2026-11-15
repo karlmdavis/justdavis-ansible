@@ -9,3 +9,21 @@
   register: fqdn_result
   failed_when: (inventory_hostname_short + '.' + domain) != fqdn_result.stdout
   changed_when: false
+
+# The ignore list comes from [DEFAULT], so any jail shows it; sshd is the one jail that exists on
+# every host. The apache role enables and tests the apache-* jails on the host that runs Apache.
+- name: Read the fail2ban Ignore List
+  ansible.builtin.command:
+    cmd: /usr/bin/fail2ban-client get sshd ignoreip
+  register: fail2ban_ignoreip_result
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Verify fail2ban Ignores the Home Network's Public Block
+  ansible.builtin.assert:
+    that:
+      - network_home_public_cidr in fail2ban_ignoreip_result.stdout
+    fail_msg: >-
+      fail2ban's ignore list does not include {{ network_home_public_cidr }}:
+      {{ fail2ban_ignoreip_result.stdout }}

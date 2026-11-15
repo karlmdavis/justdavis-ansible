@@ -9,3 +9,13 @@
     name: apache2
     state: reloaded
   become: true
+# A reload re-reads the jail configuration, adds and starts jails new to it (the apache jails on a fresh
+# host) and re-expands the log globs, which fail2ban otherwise does only when a jail starts, so log files
+# that appear later (a new virtual host) would go unwatched. Listed after the Apache handlers so Apache
+# has created the files before the reload looks for them: a file-backed jail with no files fails the
+# whole reload, loudly.
+- name: Reload fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: reloaded
+  become: true

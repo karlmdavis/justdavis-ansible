@@ -90,7 +90,7 @@ What this history says about the risk:
 - Fixes shipped within days of disclosure, often in the same release that disclosed them. The deployment's
   exposure window is therefore mostly a function of how fast this repository is updated, which is why the
   update policy below is a security control, not housekeeping.
-- Two of the thirteen involved shared links. Shared links are a first-class feature with a track record of
+- Three of the thirteen involved shared links. Shared links are a first-class feature with a track record of
   attention, not an afterthought.
 
 ### Shared links

@@ -550,6 +550,12 @@ key written to /Users/example/hue-application-key.txt (40 characters, mode 0600)
 Deletes series that tell a false story; a worked example to copy for the next cleanup (see Deploying
 and Upgrading).
 
+#### `tsdb_cleanup_2026_10_31.py`
+
+Deletes the series two HomePods' probes wrote while their targets were frozen on each other's
+addresses (2026-10-30 to 11-01). An example of a cleanup bounded at both ends, with the devices' names
+and addresses given on the command line so that they stay out of the repository.
+
 ## References
 
 - [Prometheus](https://prometheus.io/docs/), [Grafana provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/),

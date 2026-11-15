@@ -73,3 +73,51 @@
   loop:
     - "{{ network_home_private_cidr }}"
     - "{{ network_tailscale_cidr }}"
+
+##
+# Database copy for the offsite backup.
+#
+# Jellyfin's state (users, libraries, watched status, progress, hand-corrected matches) is one SQLite
+# database in WAL mode, and Jellyfin's documentation only allows copying it with the server stopped.
+# SQLite's online backup API gives a consistent snapshot without a stop, so a daily timer writes one to
+# /var/backups/jellyfin and the host's `backup_includes` picks that up (and excludes the live file).
+# Same shape as the PostgreSQL role's dump timer. See README.md, "Backups".
+##
+
+- name: Create Jellyfin Database Dump Directory
+  ansible.builtin.file:
+    path: /var/backups/jellyfin
+    state: directory
+    owner: jellyfin
+    group: jellyfin
+    mode: u=rwx,g=,o=
+  become: true
+
+- name: Install Jellyfin Database Dump Script
+  ansible.builtin.copy:
+    src: jellyfin-db-dump.py
+    dest: /usr/local/bin/jellyfin-db-dump.py
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  become: true
+
+- name: Install Jellyfin Database Dump Unit and Timer
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  become: true
+  loop:
+    - jellyfin-db-dump.service
+    - jellyfin-db-dump.timer
+
+- name: Enable and Start Jellyfin Database Dump Timer
+  ansible.builtin.systemd:
+    name: jellyfin-db-dump.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

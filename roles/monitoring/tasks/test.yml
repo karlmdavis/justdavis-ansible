@@ -56,8 +56,8 @@
   register: monitoring_targets
   until: >-
     (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'hue', 'lan_discovery', 'node',
-          'ping', 'prometheus']
+    and ((['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'hue', 'lan_discovery', 'node',
+           'ping', 'prometheus'] + (['homeassistant'] if monitoring_homeassistant_scrape | bool else []))
          | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
         == []
   retries: 30

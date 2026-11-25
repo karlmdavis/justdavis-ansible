@@ -49,6 +49,9 @@ monitoring_gateway_exporter_port: 9802
 monitoring_airplay_exporter_port: 9803
 monitoring_lan_discovery_exporter_port: 9804
 monitoring_hue_exporter_port: 9805
+# Home Assistant (the homeassistant role), on the host network at its own default port; that role's
+# defaults are not visible to this one.
+monitoring_homeassistant_port: 8123
 
 # The Comcast gateway, whose TLS certificate the role fetches at deploy time and whose status page the
 # gateway exporter reads.

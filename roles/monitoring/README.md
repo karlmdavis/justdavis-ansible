@@ -37,6 +37,9 @@ unit:
 - **hue_exporter** (custom) reads the Philips Hue bridge: each device's Zigbee link status, battery and
   room, each light's on/off and brightness, the motion sensors' temperature, light level and motion,
   and the bridge's Zigbee channel, cloud links and last software install.
+- **Home Assistant** (the `homeassistant` role, not part of this stack) is scraped for the devices none
+  of these exporters can read. Its job exists only once its access token has been installed; see that
+  role's README.
 
 The custom exporters are a small typed Python package in `files/exporters/` (see below).
 

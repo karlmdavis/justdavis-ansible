@@ -83,6 +83,22 @@
     - "{{ monitoring_base_dir }}/shared/device-addresses"
   become: true
 
+# Home Assistant's metrics endpoint needs a long-lived access token, which only exists once someone has
+# onboarded Home Assistant and created one (the homeassistant role's README has the steps), and which
+# is installed by hand because it must not pass through this repository. Until the file is there,
+# Prometheus has no Home Assistant job. The test environment has no token: Home Assistant serves the
+# endpoint without one there.
+- name: Check for the Home Assistant Access Token
+  ansible.builtin.stat:
+    path: "{{ monitoring_base_dir }}/secrets/homeassistant_token"
+  register: monitoring_homeassistant_token
+  become: true
+
+- name: Set Whether Prometheus Scrapes Home Assistant
+  ansible.builtin.set_fact:
+    monitoring_homeassistant_authenticated: "{{ monitoring_homeassistant_token.stat.exists }}"
+    monitoring_homeassistant_scrape: "{{ is_test or monitoring_homeassistant_token.stat.exists }}"
+
 # Fixed-subnet bridge network, pre-created so that its gateway address exists for the host-network
 # exporters to bind to (same approach as the Immich network).
 - name: Create Monitoring Docker Network
@@ -105,7 +121,8 @@
     dest: "{{ monitoring_docker_gateway }}"
     port: >-
       {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port
-      }},{{ monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port }}
+      }},{{ monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port
+      }},{{ monitoring_homeassistant_port }}
   become: true
   when: "'Microsoft' not in ansible_kernel"
 

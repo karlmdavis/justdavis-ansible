@@ -1,0 +1,79 @@
+---
+# Smoke tests. They run on every run of the role, in production and in the test environment, so they
+# must hold on a long-running system as well as a new one. The GET requests and docker commands are
+# read-only, so they run in check mode too.
+
+- name: Test - Verify Home Assistant Service is Running
+  ansible.builtin.systemd:
+    name: homeassistant
+  register: homeassistant_service_status
+  failed_when: homeassistant_service_status.status.ActiveState != "active"
+  become: true
+
+# The first start after an image change pulls nothing (the handler already did) but does migrate
+# stored state before the web server answers.
+- name: Test - Wait for Home Assistant to Answer
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ homeassistant_port }}/manifest.json"
+    status_code: 200
+  register: homeassistant_manifest
+  until: homeassistant_manifest.status == 200
+  retries: 60
+  delay: 5
+  check_mode: false
+
+# The path people use: Apache on the private address, by name, proxying to Home Assistant. A 400 here
+# means Home Assistant does not trust the proxy (see the `http:` block in configuration.yaml.j2).
+- name: Test - Verify the Apache Vhost Proxies to Home Assistant
+  ansible.builtin.uri:
+    url: "https://{{ private_ip_address }}/manifest.json"
+    headers:
+      Host: "homeassistant.intranet.{{ domain }}"
+    validate_certs: false
+    status_code: 200
+    return_content: true
+  register: homeassistant_proxied
+  until: homeassistant_proxied.status == 200
+  retries: 6
+  delay: 5
+  check_mode: false
+  failed_when: "'Home Assistant' not in homeassistant_proxied.content"
+
+- name: Test - Inspect the Home Assistant Container
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      - "{{ '{{' }}.State.Status{{ '}}' }} {{ '{{' }}.RestartCount{{ '}}' }}"
+      - homeassistant-homeassistant-1
+  register: homeassistant_container_state
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Verify the Container is Running
+  ansible.builtin.assert:
+    that:
+      - homeassistant_container_state.stdout.startswith('running ')
+    fail_msg: "{{ homeassistant_container_state.stdout }}"
+
+# A single historical crash must not fail every future production run, so the restart count is only
+# asserted on a fresh test system.
+- name: Test - Verify the Container Has Not Restarted (test only)
+  ansible.builtin.assert:
+    that:
+      - homeassistant_container_state.stdout == 'running 0'
+    fail_msg: "{{ homeassistant_container_state.stdout }}"
+  when: is_test
+
+# In production the endpoint needs an access token that only exists after onboarding; the monitoring
+# role's own smoke test covers it there, through Prometheus.
+- name: Test - Verify the Prometheus Endpoint Answers (test only)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ homeassistant_port }}/api/prometheus"
+    return_content: true
+  register: homeassistant_metrics
+  check_mode: false
+  failed_when: "'python_info' not in homeassistant_metrics.content"
+  when: is_test

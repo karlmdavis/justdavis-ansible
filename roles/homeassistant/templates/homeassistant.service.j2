@@ -1,0 +1,25 @@
+[Unit]
+Description=Home Assistant
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory={{ homeassistant_base_dir }}
+Type=simple
+# No --pull here on purpose: the image is pulled by an Ansible handler during deploys, so a restart
+# during a WAN outage depends on nothing remote.
+#
+# Always tear the container down before bringing it up: ExecStop cannot succeed once docker.service
+# has already stopped (Requires= pulls this unit down with it), a container may survive an unclean
+# host stop, and `compose up` alone does not recreate a container whose mounted configuration changed.
+ExecStartPre=/usr/bin/docker compose down --remove-orphans
+ExecStart=/usr/bin/docker compose up --remove-orphans
+ExecStop=/usr/bin/docker compose down --remove-orphans
+Restart=always
+RestartSec=10
+# Home Assistant is given 60 s to stop (stop_grace_period); leave room beyond systemd's 90 s default.
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

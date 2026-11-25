@@ -78,6 +78,14 @@
         name: immich
       tags:
         - immich
+    # Before monitoring, which scrapes it. Tagged so production deploys of just Home Assistant can be
+    # scoped with `--tags=homeassistant`; its vhost and DNS record belong to the apache and dns_server
+    # roles, so the first deploy needs a full run (or those roles too).
+    - name: Import role - homeassistant
+      ansible.builtin.import_role:
+        name: homeassistant
+      tags:
+        - homeassistant
     # Tagged so production deploys of just this stack can be scoped with `--tags=monitoring`. The
     # Grafana vhost and DNS record belong to the apache and dns_server roles, so the first deploy
     # needs a full run (or those roles too) for the Grafana hostname to resolve.

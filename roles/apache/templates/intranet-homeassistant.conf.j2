@@ -36,7 +36,7 @@
 
   Options FollowSymLinks
 
-  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl)
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl).
   SSLEngine on
   SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
@@ -53,9 +53,9 @@
 
   ProxyVia Off
   RequestHeader set X-Forwarded-Proto "https"
-  # The port is Home Assistant's default; the homeassistant role's defaults are not visible to this
-  # role. Home Assistant accepts the forwarded headers only from a proxy it trusts (127.0.0.1, set by
-  # that role), and it keeps its own login: this vhost adds none.
+  # The port is Home Assistant's default, which the homeassistant role does not change. Home Assistant
+  # accepts the forwarded headers only from a proxy it trusts (127.0.0.1, set by that role), and it
+  # keeps its own login: this vhost adds none.
   ProxyPass / "http://127.0.0.1:8123/" timeout=600 upgrade=websocket
   ProxyPassReverse / "http://127.0.0.1:8123/"
   ProxyPreserveHost On

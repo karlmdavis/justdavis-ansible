@@ -2,79 +2,127 @@
 # Smoke tests (8123 is Home Assistant's own port, which this role does not change). They run on every
 # run of the role, in production and in the test environment, so they must hold on a long-running
 # system as well as a new one. The GET requests and docker commands are read-only, so they run in check
-# mode too.
+# mode too, except on a host where Home Assistant has never been deployed, where there is nothing to
+# look at yet.
 
-- name: Test - Verify Home Assistant Service is Running
-  ansible.builtin.systemd:
-    name: homeassistant
-  register: homeassistant_service_status
-  failed_when: homeassistant_service_status.status.ActiveState != "active"
-  become: true
+- name: Test - Check Whether Home Assistant is Deployed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/homeassistant.service
+  register: homeassistant_unit_file
 
-# The first start after an image change pulls nothing (the handler already did) but does migrate
-# stored state before the web server answers.
-- name: Test - Wait for Home Assistant to Answer
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:8123/manifest.json"
-    status_code: 200
-  register: homeassistant_manifest
-  until: homeassistant_manifest.status == 200
-  retries: 60
-  delay: 5
-  check_mode: false
+- name: Test - Run the Smoke Tests
+  when: homeassistant_unit_file.stat.exists
+  block:
+    - name: Test - Verify Home Assistant Service is Running
+      ansible.builtin.systemd:
+        name: homeassistant
+      register: homeassistant_service_status
+      failed_when: homeassistant_service_status.status.ActiveState != "active"
+      become: true
 
-# The path people use: Apache on the private address, by name, proxying to Home Assistant. A 400 here
-# means Home Assistant does not trust the proxy (see the `http:` block in configuration.yaml.j2).
-- name: Test - Verify the Apache Vhost Proxies to Home Assistant
-  ansible.builtin.uri:
-    url: "https://{{ private_ip_address }}/manifest.json"
-    headers:
-      Host: "homeassistant.intranet.{{ domain }}"
-    validate_certs: false
-    status_code: 200
-    return_content: true
-  register: homeassistant_proxied
-  until: homeassistant_proxied.status == 200
-  retries: 6
-  delay: 5
-  check_mode: false
-  failed_when: "'Home Assistant' not in homeassistant_proxied.content"
+    # The first start after an image change migrates stored state before the web server answers.
+    - name: Test - Wait for Home Assistant to Answer
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8123/manifest.json"
+        status_code: 200
+      register: homeassistant_manifest
+      until: homeassistant_manifest.status == 200
+      retries: 60
+      delay: 5
+      check_mode: false
 
-- name: Test - Inspect the Home Assistant Container
-  ansible.builtin.command:
-    argv:
-      - /usr/bin/docker
-      - inspect
-      - --format
-      - "{{ '{{' }}.State.Status{{ '}}' }} {{ '{{' }}.RestartCount{{ '}}' }}"
-      - homeassistant-homeassistant-1
-  register: homeassistant_container_state
-  changed_when: false
-  check_mode: false
-  become: true
+    # The path people use: Apache on the private address, by name, proxying to Home Assistant. A 400
+    # here means Home Assistant does not trust the proxy (see the README's Troubleshooting).
+    - name: Test - Verify the Apache Vhost Proxies to Home Assistant
+      ansible.builtin.uri:
+        url: "https://{{ private_ip_address }}/manifest.json"
+        headers:
+          Host: "homeassistant.intranet.{{ domain }}"
+        validate_certs: false
+        status_code: 200
+        return_content: true
+      register: homeassistant_proxied
+      until: homeassistant_proxied.status == 200
+      retries: 6
+      delay: 5
+      check_mode: false
+      failed_when: "'Home Assistant' not in homeassistant_proxied.content"
 
-- name: Test - Verify the Container is Running
-  ansible.builtin.assert:
-    that:
-      - homeassistant_container_state.stdout.startswith('running ')
-    fail_msg: "{{ homeassistant_container_state.stdout }}"
+    # The web server must not be listening on the LAN address: that is what keeps it off the LAN and
+    # the tailnet, whatever the firewall says.
+    - name: Test - Verify Home Assistant Does Not Listen on the LAN Address
+      ansible.builtin.wait_for:
+        host: "{{ private_ip_address }}"
+        port: 8123
+        state: stopped
+        timeout: 5
+      check_mode: false
 
-# A single historical crash must not fail every future production run, so the restart count is only
-# asserted on a fresh test system.
-- name: Test - Verify the Container Has Not Restarted (test only)
-  ansible.builtin.assert:
-    that:
-      - homeassistant_container_state.stdout == 'running 0'
-    fail_msg: "{{ homeassistant_container_state.stdout }}"
-  when: is_test
+    - name: Test - Inspect the Home Assistant Container
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - inspect
+          - --format
+          # The assertions below key on field position; keep RestartCount last.
+          - >-
+            {{ '{{' }}.Config.Image{{ '}}' }} {{ '{{' }}.State.Status{{ '}}' }}
+            {{ '{{' }}.RestartCount{{ '}}' }}
+          - homeassistant-homeassistant-1
+      register: homeassistant_container_state
+      changed_when: false
+      check_mode: false
+      become: true
 
-# In production the endpoint needs an access token that only exists after onboarding; the monitoring
-# role's own smoke test covers it there, through Prometheus.
-- name: Test - Verify the Prometheus Endpoint Answers (test only)
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:8123/api/prometheus"
-    return_content: true
-  register: homeassistant_metrics
-  check_mode: false
-  failed_when: "'python_info' not in homeassistant_metrics.content"
-  when: is_test
+    # A deploy whose image pull failed leaves the old version running with the new one pinned, and
+    # would otherwise pull and migrate at some later, unattended restart.
+    - name: Test - Verify the Container is Running the Pinned Image
+      ansible.builtin.assert:
+        that:
+          - homeassistant_container_state.stdout.split()[0] == homeassistant_image
+          - homeassistant_container_state.stdout.split()[1] == 'running'
+        fail_msg: "{{ homeassistant_container_state.stdout }} (pinned: {{ homeassistant_image }})"
+      when: not ansible_check_mode
+
+    # A single historical crash must not fail every future production run, so the restart count is
+    # only asserted on a fresh test system.
+    - name: Test - Verify the Container Has Not Restarted (test only)
+      ansible.builtin.assert:
+        that:
+          - homeassistant_container_state.stdout.split()[2] == '0'
+        fail_msg: "{{ homeassistant_container_state.stdout }}"
+      when: is_test
+
+    # The metrics endpoint, asked without a token. In production it must refuse (401): a 404 means the
+    # Prometheus integration did not load (a rejected configuration.yaml leaves Home Assistant running
+    # in recovery mode, still answering everything above), and a 200 means authentication is off. The
+    # test environment has no token to issue, so there it must answer.
+    - name: Test - Ask the Metrics Endpoint Without a Token
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8123/api/prometheus"
+        status_code: "{{ 200 if is_test else 401 }}"
+        return_content: true
+      register: homeassistant_metrics
+      check_mode: false
+
+    - name: Test - Verify the Metrics Endpoint Serves Metrics (test only)
+      ansible.builtin.assert:
+        that:
+          - "'python_info' in homeassistant_metrics.content"
+      when: is_test
+
+    # Prometheus (the monitoring role, at its default port) scraping Home Assistant: checked here and
+    # not in that role's smoke tests, because this role runs after it. The job exists only once the
+    # access token has been installed (always, in the test environment); until then there is nothing to
+    # check, and the monitoring role's HomeAssistantNotScraped alert says so.
+    - name: Test - Wait for Prometheus to Scrape Home Assistant
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:9090/api/v1/targets?state=active"
+        return_content: true
+      register: homeassistant_targets
+      until: >-
+        (homeassistant_targets.json.data.activeTargets | selectattr('labels.job', 'equalto', 'homeassistant')
+         | map(attribute='health') | unique | list) in ([['up']] if is_test else [['up'], []])
+      retries: 30
+      delay: 5
+      check_mode: false

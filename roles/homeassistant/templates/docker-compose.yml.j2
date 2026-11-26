@@ -6,12 +6,9 @@ name: homeassistant
 
 services:
   homeassistant:
-    # The version is pinned exactly. Bump it deliberately, in a PR gated by the AWS test run, to a
-    # point release and after reading that release's breaking changes: Home Assistant migrates its
-    # stored state on start and cannot go back, so the way back from a bad upgrade is a restore.
-    image: ghcr.io/home-assistant/home-assistant:2026.11.3
-    # Host networking: HomeKit and mDNS discovery need the LAN's multicast, and the HomeKit Bridge must
-    # be reachable at the host's own address. ufw decides what the LAN can reach; see the README.
+    image: {{ homeassistant_image }}
+    # Host networking: HomeKit and mDNS discovery need the LAN's multicast. Which addresses the web
+    # server listens on is Home Assistant's own setting; see configuration.yaml.j2 and the README.
     network_mode: host
     # No capabilities and no privileged mode: nothing here uses Bluetooth, USB or raw sockets. The one
     # thing this costs is DHCP-based device discovery, which logs "Cannot watch for dhcp packets" once

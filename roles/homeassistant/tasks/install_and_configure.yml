@@ -22,6 +22,18 @@
     mode: 'u=rwx,g=,o='
   become: true
 
+# Home Assistant writes this file on its first start, when it takes over its HTTP settings; see the
+# `http:` block in configuration.yaml.j2.
+- name: Check Whether Home Assistant Has Stored Its HTTP Settings
+  ansible.builtin.stat:
+    path: "{{ homeassistant_base_dir }}/config/.storage/http"
+  register: homeassistant_http_storage
+  become: true
+
+- name: Set Whether Home Assistant Has Stored Its HTTP Settings
+  ansible.builtin.set_fact:
+    homeassistant_http_settings_stored: "{{ homeassistant_http_storage.stat.exists }}"
+
 - name: Create Home Assistant Configuration
   ansible.builtin.template:
     src: configuration.yaml.j2

@@ -83,6 +83,28 @@
     - "{{ monitoring_base_dir }}/shared/device-addresses"
   become: true
 
+# A host that still has this network as `monitoring_default` must lose it first: Docker refuses two
+# networks on one subnet, and a network cannot be removed while the stack's containers are attached.
+- name: Look for the Scrape Network Under Its Former Name
+  community.docker.docker_network_info:
+    name: monitoring_default
+  register: monitoring_former_network
+  become: true
+
+- name: Stop Monitoring to Release the Former Network
+  ansible.builtin.systemd_service:
+    name: monitoring
+    state: stopped
+  become: true
+  when: monitoring_former_network.exists
+
+- name: Remove the Former Network
+  community.docker.docker_network:
+    name: monitoring_default
+    state: absent
+  become: true
+  when: monitoring_former_network.exists
+
 # Fixed-subnet bridge network, pre-created so that its gateway address exists for the host-network
 # exporters to bind to (same approach as the Immich network).
 - name: Create Monitoring Docker Network

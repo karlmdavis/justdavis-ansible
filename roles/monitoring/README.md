@@ -166,8 +166,8 @@ Services that need the host's network stack (`node_exporter`, `ping_exporter`, `
 `lan_discovery_exporter`) run with host networking but bind their metrics endpoints to the gateway address of a dedicated,
 fixed-subnet Docker bridge network; a ufw rule admits only that subnet. Everything else lives on a
 bridge and publishes on `127.0.0.1` only. There are two bridges, because containers on one bridge can
-reach each other on every port: Prometheus and the exporters share the first, and Prometheus shares the
-second with Grafana and Alertmanager, which talk only to Prometheus and so cannot reach the exporters
+reach each other on every port: Prometheus and the exporters share `scrape`, and Prometheus shares
+`frontend` with Grafana and Alertmanager, which talk only to Prometheus and so cannot reach the exporters
 (they hold the devices' credentials, and the blackbox exporter probes whatever it is asked to). This mirrors how the Immich network reaches PostgreSQL, and
 keeps the parsers of untrusted router/gateway output off the host's loopback (which Postfix trusts).
 

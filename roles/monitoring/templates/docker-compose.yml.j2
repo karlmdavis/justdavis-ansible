@@ -269,10 +269,14 @@ services:
       - {{ monitoring_base_dir }}/shared:/shared:ro
 
   # Host metrics, including the br-wan/br-lan interface counters that the WAN dashboard correlates
-  # with latency. Runs as the image's unprivileged user.
+  # with latency.
   node_exporter:
     <<: *hardened
     image: {{ monitoring_node_exporter_image }}
+    # The image's own unprivileged user, stated so that it cannot change with the image: the read-only
+    # mount of the host's root below includes the path of the Docker socket, and a read-only mount does
+    # not stop a socket being used, only this user's lack of permission on it does.
+    user: "65534:65534"
     network_mode: host
     pid: host
     command:

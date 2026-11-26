@@ -1,0 +1,38 @@
+# promtool unit test for the Home Assistant scrape rule. The role's smoke tests run it against the alert
+# rules rendered with the device groups (roles/monitoring/tasks/test.yml).
+#   No homeassistant job at all: HomeAssistantNotScraped after an hour, not before.
+#   The job present, up or down: nothing from this rule (CollectorDown covers down).
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="node", instance="a"}'
+        values: '1x70'
+    alert_rule_test:
+      - eval_time: 59m
+        alertname: HomeAssistantNotScraped
+        exp_alerts: []
+      - eval_time: 61m
+        alertname: HomeAssistantNotScraped
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: homeassistant
+            exp_annotations:
+              summary: >-
+                Prometheus has no Home Assistant scrape job, so nothing is watching Home Assistant:
+                install its access token and deploy the monitoring role (see the homeassistant role's
+                README)
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="homeassistant", instance="a"}'
+        values: '1x30 0x40'
+    alert_rule_test:
+      - eval_time: 69m
+        alertname: HomeAssistantNotScraped
+        exp_alerts: []

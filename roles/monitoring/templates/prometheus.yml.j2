@@ -65,7 +65,7 @@ scrape_configs:
           - blackbox_exporter:{{ monitoring_blackbox_port }}
 
 {% if monitoring_homeassistant_scrape | bool %}
-  # Home Assistant (the homeassistant role), on the host network. Its states change slowly and the
+  # Home Assistant (the homeassistant role), listening on the gateway address. Its states change slowly and the
   # endpoint renders every entity on each request, so it is scraped less often than the exporters.
   # Entity ids and friendly names arrive as labels: the household's device names are in the TSDB
   # only, never in this repository.
@@ -74,7 +74,7 @@ scrape_configs:
     scrape_interval: 60s
 {% if monitoring_homeassistant_authenticated | bool %}
     authorization:
-      credentials_file: /secrets/homeassistant_token
+      credentials_file: /secrets/homeassistant/token
 {% endif %}
     static_configs:
       - targets:

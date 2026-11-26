@@ -48,16 +48,18 @@
 # The one path worth checking explicitly: Prometheus on the bridge network reaching the host-network
 # exporters through the bridge gateway address and the ufw rule, which is easy to break. The
 # `airplay_tcp` job is dynamic (it only has targets while a tracked HomePod is associated), so it is
-# not required here.
+# not required here. The `homeassistant` job is left to the homeassistant role's smoke tests: that role
+# runs after this one, so on a first deploy its target is not up yet.
 - name: Test - Wait for All Prometheus Targets to be Up
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/targets?state=active"
     return_content: true
   register: monitoring_targets
   until: >-
-    (monitoring_targets.json.data.activeTargets | map(attribute='health') | unique | list) == ['up']
-    and ((['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'hue', 'lan_discovery', 'node',
-           'ping', 'prometheus'] + (['homeassistant'] if monitoring_homeassistant_scrape | bool else []))
+    (monitoring_targets.json.data.activeTargets | rejectattr('labels.job', 'equalto', 'homeassistant')
+     | map(attribute='health') | unique | list) == ['up']
+    and (['airplay', 'alertmanager', 'amplifi', 'blackbox', 'gateway', 'hue', 'lan_discovery', 'node',
+          'ping', 'prometheus']
          | difference(monitoring_targets.json.data.activeTargets | map(attribute='labels.job') | unique))
         == []
   retries: 30
@@ -127,6 +129,7 @@
       - alerts_hue_test.yml
       - alerts_homekit_test.yml
       - alerts_homekit_memory_test.yml
+      - alerts_homeassistant_test.yml
   block:
     - name: Test - Create Directory for Rule Unit Tests
       ansible.builtin.tempfile:

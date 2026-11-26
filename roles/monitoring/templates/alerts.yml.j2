@@ -76,6 +76,19 @@ groups:
         annotations:
           summary: "Scrape target {{ L }} $labels.job {{ R }} ({{ L }} $labels.instance {{ R }}) is down"
 
+      # Prometheus has a Home Assistant job only once its access token has been installed by hand (the
+      # homeassistant role's README), and CollectorDown cannot fire for a job that does not exist. This
+      # is what notices the token never having been installed, or having been removed.
+      - alert: HomeAssistantNotScraped
+        expr: absent(up{job="homeassistant"})
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Prometheus has no Home Assistant scrape job, so nothing is watching Home Assistant: install
+            its access token and deploy the monitoring role (see the homeassistant role's README)
+
       - alert: AirPlayProbeFailing
         expr: airplay_up == 0
         for: 10m

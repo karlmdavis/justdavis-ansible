@@ -79,9 +79,39 @@
     - "{{ monitoring_base_dir }}/data/grafana"
     - "{{ monitoring_base_dir }}/data/alertmanager"
     - "{{ monitoring_base_dir }}/secrets"
+    # A directory of its own, mounted whole into Prometheus, so that a token installed or replaced
+    # later is seen without recreating the container (a single mounted file is pinned to the file that
+    # was there when the container started).
+    - "{{ monitoring_base_dir }}/secrets/homeassistant"
     - "{{ monitoring_base_dir }}/shared"
     - "{{ monitoring_base_dir }}/shared/device-addresses"
   become: true
+
+# Home Assistant's metrics endpoint needs a long-lived access token, which only exists once someone has
+# onboarded Home Assistant and created one (the homeassistant role's README has the steps), and which
+# is installed by hand because it must not pass through this repository. Until a non-empty token file
+# is there, Prometheus has no Home Assistant job, and HomeAssistantNotScraped says so. The test
+# environment has no token: Home Assistant serves the endpoint without one there. Tagged `test` as
+# well, because the smoke tests read the result.
+- name: Check for the Home Assistant Access Token
+  ansible.builtin.stat:
+    path: "{{ monitoring_base_dir }}/secrets/homeassistant/token"
+  register: monitoring_homeassistant_token
+  become: true
+  tags:
+    - test
+
+- name: Set Whether Prometheus Scrapes Home Assistant
+  ansible.builtin.set_fact:
+    monitoring_homeassistant_authenticated: "{{ monitoring_homeassistant_token_installed }}"
+    monitoring_homeassistant_scrape: "{{ is_test or monitoring_homeassistant_token_installed }}"
+  vars:
+    monitoring_homeassistant_token_installed: >-
+      {{ monitoring_homeassistant_token.stat.exists
+         and monitoring_homeassistant_token.stat.isreg
+         and monitoring_homeassistant_token.stat.size > 0 }}
+  tags:
+    - test
 
 # Fixed-subnet bridge network, pre-created so that its gateway address exists for the host-network
 # exporters to bind to (same approach as the Immich network).
@@ -94,18 +124,43 @@
         gateway: "{{ monitoring_docker_gateway }}"
   become: true
 
-# Prometheus (on the bridge) scrapes the host-network exporters at the bridge gateway address; ufw
-# is default-deny, so allow just those ports from just this subnet (same shape as the PostgreSQL
-# rule for the Immich network).
-- name: Allow Host-Network Exporter Ports for Monitoring Docker Network
+# Prometheus (on the bridge) scrapes the host-network exporters, and Home Assistant, at the bridge
+# gateway address; ufw is default-deny, so allow just those ports from just this subnet (same shape as
+# the PostgreSQL rule for the Immich network). One rule per port: ufw identifies a rule by its whole
+# port list, so a single rule listing them all is left behind as a stale rule whenever the list changes.
+- name: Allow Host-Network Scrape Ports for Monitoring Docker Network
   community.general.ufw:
     rule: allow
     proto: tcp
     src: "{{ monitoring_docker_subnet }}"
     dest: "{{ monitoring_docker_gateway }}"
-    port: >-
-      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port
-      }},{{ monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port }}
+    port: "{{ item }}"
+  loop:
+    - "{{ monitoring_node_exporter_port }}"
+    - "{{ monitoring_ping_exporter_port }}"
+    - "{{ monitoring_airplay_exporter_port }}"
+    - "{{ monitoring_lan_discovery_exporter_port }}"
+    - "{{ monitoring_homeassistant_port }}"
+  become: true
+  when: "'Microsoft' not in ansible_kernel"
+
+# ufw removes a rule only when told to. A host that carries a single rule for several of these ports
+# keeps it beside the per-port rules above, which cover everything it does, unless it is deleted here.
+- name: Remove Combined Scrape Port Rules
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    src: "{{ monitoring_docker_subnet }}"
+    dest: "{{ monitoring_docker_gateway }}"
+    port: "{{ item }}"
+    delete: true
+  loop:
+    - >-
+      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port }},{{
+      monitoring_airplay_exporter_port }}
+    - >-
+      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port }},{{
+      monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port }}
   become: true
   when: "'Microsoft' not in ansible_kernel"
 

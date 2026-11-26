@@ -50,6 +50,8 @@ services:
       - {{ monitoring_base_dir }}/prometheus:/etc/prometheus:ro
       - {{ monitoring_base_dir }}/shared:/shared:ro
       - {{ monitoring_base_dir }}/data/prometheus:/prometheus
+      # The Home Assistant access token's own directory, and none of the other secrets.
+      - {{ monitoring_base_dir }}/secrets/homeassistant:/secrets/homeassistant:ro
     ports:
       - "127.0.0.1:{{ monitoring_prometheus_port }}:{{ monitoring_prometheus_port }}"
     # Well above the expected working set for a few thousand series; a hard stop on a leak.

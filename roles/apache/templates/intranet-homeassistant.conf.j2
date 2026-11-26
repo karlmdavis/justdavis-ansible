@@ -1,0 +1,62 @@
+<VirtualHost {{ private_ip_address }}:80>
+  ServerName homeassistant.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Redirect all HTTP traffic to HTTPS.
+  RewriteEngine On
+  RewriteCond %{HTTPS} =off
+  RewriteRule (.*) https://%{HTTP_HOST}/$1 [L,R=301]
+</VirtualHost>
+
+<VirtualHost {{ private_ip_address }}:443>
+  ServerName homeassistant.intranet.{{ domain }}
+
+  DocumentRoot /var/apache2/intranet/www/
+  <Directory /var/apache2/intranet/www/>
+    Require all granted
+  </Directory>
+
+  LogLevel warn
+  ErrorLog /var/apache2/intranet/logs/error_log
+  TransferLog /var/apache2/intranet/logs/access_log
+
+  ServerAdmin {{ domain_webmaster }}
+
+  Options FollowSymLinks
+
+  # Configure SSL for this virtual host (derived from /etc/apache2/sites-available/default-ssl).
+  SSLEngine on
+  SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/{{ domain }}/chain.pem
+  SSLCACertificateFile /etc/ssl/certs/ca-certificates.crt
+
+  # Configure mod_proxy to be used for proxying URLs on this site to other URLs/ports on this server.
+  ProxyRequests Off
+  <Proxy *>
+    AddDefaultCharset off
+    Order deny,allow
+    Allow from all
+  </Proxy>
+
+  ProxyVia Off
+  RequestHeader set X-Forwarded-Proto "https"
+  # The port is Home Assistant's default, which the homeassistant role does not change. Home Assistant
+  # accepts the forwarded headers only from a proxy it trusts (127.0.0.1, set by that role), and it
+  # keeps its own login: this vhost adds none.
+  ProxyPass / "http://127.0.0.1:8123/" timeout=600 upgrade=websocket
+  ProxyPassReverse / "http://127.0.0.1:8123/"
+  ProxyPreserveHost On
+</VirtualHost>

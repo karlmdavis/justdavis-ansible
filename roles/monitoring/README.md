@@ -40,6 +40,11 @@ unit:
 
 The custom exporters are a small typed Python package in `files/exporters/` (see below).
 
+Prometheus also scrapes Home Assistant, which is not part of this stack (the `homeassistant` role), for
+the devices none of these exporters can read. That job exists only once Home Assistant's access token
+has been installed by hand, and `HomeAssistantNotScraped` fires while it does not; see that role's
+README.
+
 ## Architecture Decisions
 
 ### Why this data
@@ -278,7 +283,8 @@ to read the bridge for ten minutes, or the bridge calling a device's battery cri
 HomeKit accessory that was paired in the last thirty days announcing that no controller is paired with
 it; a mesh point offline or missing from the topology, on a 2.4 GHz backhaul for an hour, answering ping
 slowly for an hour, or re-joining the mesh three or more times in an hour; router, mesh point, or gateway
-reboots; collectors that stop working; the WAN probe series going missing; the offsite backup
+reboots; collectors that stop working, or Home Assistant not being scraped at all; the WAN probe series
+going missing; the offsite backup
 (from the `offsite_backups` role's metrics file, read by node_exporter's textfile collector): no
 success for 36 hours, a failed run, or the metrics missing for an hour; and the alerting path itself:
 Prometheus losing Alertmanager, or Alertmanager failing to deliver to Slack or Discord (each of which

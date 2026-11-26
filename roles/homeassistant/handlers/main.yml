@@ -1,0 +1,21 @@
+---
+# Handlers run in the order they are defined here (not in notification order), which is what makes
+# "pull, then restart" work: the image is pulled during the deploy, never at boot.
+
+- name: Reload Systemd for Home Assistant
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+
+- name: Pull Home Assistant Image
+  ansible.builtin.command:
+    cmd: /usr/bin/docker compose pull
+    chdir: "{{ homeassistant_base_dir }}"
+  become: true
+  changed_when: true
+
+- name: Restart Home Assistant
+  ansible.builtin.systemd_service:
+    name: homeassistant
+    state: restarted
+  become: true

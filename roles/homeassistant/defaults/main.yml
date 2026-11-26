@@ -1,0 +1,9 @@
+---
+# Where the compose file and Home Assistant's own state live.
+homeassistant_base_dir: /opt/homeassistant
+
+# The image, pinned exactly; the smoke tests check that this is what is running. Bump it deliberately,
+# in a PR gated by the AWS test run, to a point release and after reading that release's breaking
+# changes: Home Assistant migrates its stored state on start and cannot go back, so the way back from a
+# bad upgrade is a restore.
+homeassistant_image: ghcr.io/home-assistant/home-assistant:2026.11.3

@@ -64,6 +64,29 @@ scrape_configs:
       - targets:
           - blackbox_exporter:{{ monitoring_blackbox_port }}
 
+{% if monitoring_homeassistant_scrape | bool %}
+  # Home Assistant (the homeassistant role), listening on the gateway address. Its states change slowly and the
+  # endpoint renders every entity on each request, so it is scraped less often than the exporters.
+  # Entity ids and friendly names arrive as labels: the household's device names are in the TSDB
+  # only, never in this repository.
+  - job_name: homeassistant
+    metrics_path: /api/prometheus
+    scrape_interval: 60s
+{% if monitoring_homeassistant_authenticated | bool %}
+    authorization:
+      credentials_file: /secrets/homeassistant/token
+{% endif %}
+    static_configs:
+      - targets:
+          - {{ monitoring_docker_gateway }}:{{ monitoring_homeassistant_port }}
+    metric_relabel_configs:
+      # One series per entity saying when its counter was created: nothing reads it.
+      - source_labels:
+          - __name__
+        regex: homeassistant_state_change_created
+        action: drop
+
+{% endif %}
   # Alertmanager's own metrics, so that failed notifications are themselves alertable.
   - job_name: alertmanager
     static_configs:

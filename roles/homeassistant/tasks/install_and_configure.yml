@@ -1,0 +1,81 @@
+---
+# Installs Home Assistant as the bridge to the home's devices that the monitoring role's own exporters
+# cannot read. See README.md, in particular for what this role does not manage.
+
+- name: Create Base Directory
+  ansible.builtin.file:
+    path: "{{ homeassistant_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=rx,o=rx'
+  become: true
+
+# Home Assistant's state: users, integrations, pairing keys and vendor tokens (under `.storage`), its
+# database and its backups. Root only, and apart from `configuration.yaml` never written by Ansible.
+- name: Create Configuration Directory
+  ansible.builtin.file:
+    path: "{{ homeassistant_base_dir }}/config"
+    state: directory
+    owner: root
+    group: root
+    mode: 'u=rwx,g=,o='
+  become: true
+
+# Home Assistant writes this file on its first start, when it takes over its HTTP settings; see the
+# `http:` block in configuration.yaml.j2.
+- name: Check Whether Home Assistant Has Stored Its HTTP Settings
+  ansible.builtin.stat:
+    path: "{{ homeassistant_base_dir }}/config/.storage/http"
+  register: homeassistant_http_storage
+  become: true
+
+- name: Set Whether Home Assistant Has Stored Its HTTP Settings
+  ansible.builtin.set_fact:
+    homeassistant_http_settings_stored: "{{ homeassistant_http_storage.stat.exists }}"
+
+- name: Create Home Assistant Configuration
+  ansible.builtin.template:
+    src: configuration.yaml.j2
+    dest: "{{ homeassistant_base_dir }}/config/configuration.yaml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=,o='
+  become: true
+  notify:
+    - Restart Home Assistant
+
+- name: Create Docker Compose File
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ homeassistant_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify:
+    - Pull Home Assistant Image
+    - Restart Home Assistant
+
+- name: Deploy Systemd Service
+  ansible.builtin.template:
+    src: homeassistant.service.j2
+    dest: /etc/systemd/system/homeassistant.service
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  become: true
+  notify:
+    - Reload Systemd for Home Assistant
+    - Restart Home Assistant
+
+# Pull now, while the deploy has a known-good network, rather than at (re)boot.
+- name: Meta - flush_handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and Start Home Assistant Service
+  ansible.builtin.systemd_service:
+    name: homeassistant
+    state: started
+    enabled: true
+  become: true

@@ -124,19 +124,43 @@
         gateway: "{{ monitoring_docker_gateway }}"
   become: true
 
-# Prometheus (on the bridge) scrapes the host-network exporters at the bridge gateway address; ufw
-# is default-deny, so allow just those ports from just this subnet (same shape as the PostgreSQL
-# rule for the Immich network).
-- name: Allow Host-Network Exporter Ports for Monitoring Docker Network
+# Prometheus (on the bridge) scrapes the host-network exporters, and Home Assistant, at the bridge
+# gateway address; ufw is default-deny, so allow just those ports from just this subnet (same shape as
+# the PostgreSQL rule for the Immich network). One rule per port: ufw identifies a rule by its whole
+# port list, so a single rule listing them all is left behind as a stale rule whenever the list changes.
+- name: Allow Host-Network Scrape Ports for Monitoring Docker Network
   community.general.ufw:
     rule: allow
     proto: tcp
     src: "{{ monitoring_docker_subnet }}"
     dest: "{{ monitoring_docker_gateway }}"
-    port: >-
-      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port
-      }},{{ monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port
-      }},{{ monitoring_homeassistant_port }}
+    port: "{{ item }}"
+  loop:
+    - "{{ monitoring_node_exporter_port }}"
+    - "{{ monitoring_ping_exporter_port }}"
+    - "{{ monitoring_airplay_exporter_port }}"
+    - "{{ monitoring_lan_discovery_exporter_port }}"
+    - "{{ monitoring_homeassistant_port }}"
+  become: true
+  when: "'Microsoft' not in ansible_kernel"
+
+# ufw removes a rule only when told to. A host that carries a single rule for several of these ports
+# keeps it beside the per-port rules above, which cover everything it does, unless it is deleted here.
+- name: Remove Combined Scrape Port Rules
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    src: "{{ monitoring_docker_subnet }}"
+    dest: "{{ monitoring_docker_gateway }}"
+    port: "{{ item }}"
+    delete: true
+  loop:
+    - >-
+      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port }},{{
+      monitoring_airplay_exporter_port }}
+    - >-
+      {{ monitoring_node_exporter_port }},{{ monitoring_ping_exporter_port }},{{
+      monitoring_airplay_exporter_port }},{{ monitoring_lan_discovery_exporter_port }}
   become: true
   when: "'Microsoft' not in ansible_kernel"
 

@@ -97,6 +97,33 @@
         | list | length == 11
     fail_msg: "{{ monitoring_container_states.results | map(attribute='stdout') | list }}"
 
+# Grafana and Alertmanager must be on the frontend network alone: that is what keeps them from reaching
+# the exporters.
+- name: Test - List the Networks of Grafana and Alertmanager
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - inspect
+      - --format
+      - >-
+        {{ '{{' }}range $name, $_ := .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}$name{{ '}}' }}
+        {{ '{{' }}end{{ '}}' }}
+      - "monitoring-{{ item }}-1"
+  loop:
+    - grafana
+    - alertmanager
+  register: monitoring_frontend_networks
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Test - Verify Grafana and Alertmanager Cannot Reach the Exporters
+  ansible.builtin.assert:
+    that:
+      - (monitoring_frontend_networks.results | map(attribute='stdout') | map('trim') | unique | list)
+        == ['monitoring_frontend']
+    fail_msg: "{{ monitoring_frontend_networks.results | map(attribute='stdout') | list }}"
+
 # A single historical crash must not fail every future production run, so restart counts are only
 # asserted on a fresh test system.
 - name: Test - Verify No Container Has Restarted (test only)

@@ -4,7 +4,7 @@ Runs [Home Assistant](https://www.home-assistant.io/) on eddings as a bridge: it
 
 ## Overview
 
-- One container (`ghcr.io/home-assistant/home-assistant`, pinned in `defaults/main.yml`) on the host network, run by the `homeassistant` systemd unit from `/opt/homeassistant`.
+- One container (`ghcr.io/home-assistant/home-assistant`, pinned in the compose template) on the host network, run by the `homeassistant` systemd unit from `/opt/homeassistant`.
 - Its web UI is published at `https://homeassistant.intranet.<domain>` by the `apache` role, on the LAN and the tailnet only.
 - Its metrics are served at `/api/prometheus` and scraped by the `monitoring` role (job `homeassistant`).
 - It is a bridge, not a controller: no automations are kept in it.
@@ -42,7 +42,7 @@ Docker, and for the UI the `apache` and `dns_server` roles (they own the vhost a
 
 ## Role Variables
 
-See `defaults/main.yml`: the image, the port, the memory limit, and how many days of history Home Assistant keeps for its own UI (Prometheus holds the history that matters). There are no vault variables.
+One, `homeassistant_base_dir`. The image version, the memory limit and the recorder's retention are each used in one place and are written there (`templates/docker-compose.yml.j2`, `templates/configuration.yaml.j2`). There are no vault variables.
 
 ## Runbook: the Manual Steps
 
@@ -67,7 +67,7 @@ Integrations added so far, and what each needed:
 
 ## Upgrading
 
-Bump `homeassistant_image` in a PR, to a point release, after reading that release's breaking changes; the AWS test run gates it. Home Assistant migrates its stored state when a new version first starts and cannot go back, so take a backup first: the way back from a bad upgrade is a restore.
+Bump the image tag in `templates/docker-compose.yml.j2` in a PR, to a point release, after reading that release's breaking changes; the AWS test run gates it. Home Assistant migrates its stored state when a new version first starts and cannot go back, so take a backup first: the way back from a bad upgrade is a restore.
 
 ## Known Limitations
 

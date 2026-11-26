@@ -1,18 +1,5 @@
 ---
+# Where the compose file and Home Assistant's own state live. The only variable this role has: it is
+# used by the tasks, the handlers and both templates, and everything else that looked like a setting
+# is used in one place and so is written there.
 homeassistant_base_dir: /opt/homeassistant
-
-# Image version. Bump deliberately, in a PR gated by the AWS test run, to a point release and after
-# reading the release's breaking changes: Home Assistant migrates its stored state on start and cannot
-# go back, so the way back from a bad upgrade is a restore.
-homeassistant_image: ghcr.io/home-assistant/home-assistant:2026.11.3
-
-# Home Assistant's own default; the Apache vhost and the monitoring role's scrape job name the same
-# port, because one role's defaults are not visible to another.
-homeassistant_port: 8123
-
-# A hard stop on a leak; an idle instance with no integrations uses about 450 MiB.
-homeassistant_memory_limit: 2g
-
-# How many days of state history Home Assistant keeps for its own UI. Short, because Prometheus is
-# where the history lives.
-homeassistant_recorder_keep_days: 3

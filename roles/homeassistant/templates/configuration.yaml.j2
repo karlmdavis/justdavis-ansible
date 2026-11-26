@@ -31,5 +31,7 @@ prometheus:
       - switch
       - update
 
+# Days of state history kept for Home Assistant's own UI. Short, because Prometheus is where the
+# history lives.
 recorder:
-  purge_keep_days: {{ homeassistant_recorder_keep_days }}
+  purge_keep_days: 3

@@ -6,7 +6,10 @@ name: homeassistant
 
 services:
   homeassistant:
-    image: {{ homeassistant_image }}
+    # The version is pinned exactly. Bump it deliberately, in a PR gated by the AWS test run, to a
+    # point release and after reading that release's breaking changes: Home Assistant migrates its
+    # stored state on start and cannot go back, so the way back from a bad upgrade is a restore.
+    image: ghcr.io/home-assistant/home-assistant:2026.11.3
     # Host networking: HomeKit and mDNS discovery need the LAN's multicast, and the HomeKit Bridge must
     # be reachable at the host's own address. ufw decides what the LAN can reach; see the README.
     network_mode: host
@@ -20,6 +23,7 @@ services:
     volumes:
       - {{ homeassistant_base_dir }}/config:/config
       - /etc/localtime:/etc/localtime:ro
-    mem_limit: {{ homeassistant_memory_limit }}
+    # A hard stop on a leak; an idle instance with no integrations uses about 450 MiB.
+    mem_limit: 2g
     stop_grace_period: 60s
     restart: unless-stopped
